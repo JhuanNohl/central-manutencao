@@ -72,11 +72,10 @@ function ServiceCard({ rma }: { rma: RmaDetail }) {
   return (
     <section className="card">
       <h2>Atendimento</h2>
+      <div className="card-section">
+        <StageSummary stages={rma.stages} itemCount={rma.itemCount} />
+      </div>
       <dl className="details">
-        <dt>Situação</dt>
-        <dd>
-          <StageSummary stages={rma.stages} itemCount={rma.itemCount} />
-        </dd>
         <dt>Prioridade</dt>
         <dd>
           <Badge status={PRIORITY_STYLES[rma.priority]} />

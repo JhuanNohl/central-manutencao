@@ -421,6 +421,10 @@ svg {
   margin-bottom: 16px;
 }
 
+.card-section {
+  margin-bottom: 16px;
+}
+
 /* Bloco de listagem: cabeçalho com abas/busca sobre a tabela. */
 .panel {
   background: var(--surface);
@@ -1015,11 +1019,6 @@ dl.details dd {
   margin: 0;
   min-width: 0;
   overflow-wrap: anywhere;
-}
-
-/* Em colunas estreitas de detalhe, o rótulo do badge pode quebrar linha. */
-dl.details .badge {
-  white-space: normal;
 }
 
 .dialog {
