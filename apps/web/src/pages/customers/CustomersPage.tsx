@@ -3,27 +3,27 @@ import {
   type CustomerKind,
   type CustomerSummary,
   type CustomerView,
-  type Page,
 } from '@central/contracts';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { get, post, toQuery } from '../../api/client';
+import { post } from '../../api/client';
 import { hasPermission, useSession } from '../../auth/session';
 import {
   CustomerKindField,
   customerKindLabels,
 } from '../../components/CustomerKindField';
+import { PagedResults } from '../../components/PagedResults';
 import {
   Field,
   FormAlert,
   PageHeader,
-  Pagination,
-  QueryError,
   SubmitButton,
 } from '../../components/ui';
 import { formatDocument } from '../../lib/format';
 import { text, useSchemaForm } from '../../lib/forms';
+import { usePagedList } from '../../lib/paged-list';
+
+const PATH = '/customers';
 
 function NewCustomerForm() {
   const navigate = useNavigate();
@@ -37,7 +37,7 @@ function NewCustomerForm() {
       tradeName: labels.company ? text(data, 'tradeName') : undefined,
       document: text(data, 'document') ?? '',
     }),
-    submit: (body) => post<CustomerView>('/customers', body),
+    submit: (body) => post<CustomerView>(PATH, body),
     onSuccess: (customer) => void navigate(`/clientes/${customer.id}`),
   });
 
@@ -72,17 +72,10 @@ function NewCustomerForm() {
 
 export function CustomersPage() {
   const { data: account } = useSession();
-  const [filters, setFilters] = useState({ search: '', page: 1 });
-  const [creating, setCreating] = useState(false);
-
-  const query = useQuery({
-    queryKey: ['customers', filters],
-    queryFn: () =>
-      get<Page<CustomerSummary>>(
-        `/customers${toQuery({ ...filters, pageSize: 25 })}`,
-      ),
-    placeholderData: keepPreviousData,
+  const list = usePagedList<CustomerSummary, { search: string }>(PATH, {
+    search: '',
   });
+  const [creating, setCreating] = useState(false);
 
   return (
     <div className="stack">
@@ -93,7 +86,7 @@ export function CustomersPage() {
             <button
               type="button"
               className="btn btn-primary"
-              onClick={() => setCreating((v) => !v)}
+              onClick={() => setCreating((open) => !open)}
             >
               {creating ? 'Fechar' : 'Novo cliente'}
             </button>
@@ -107,47 +100,41 @@ export function CustomersPage() {
             type="search"
             placeholder="Buscar por nome ou documento"
             aria-label="Buscar"
-            value={filters.search}
-            onChange={(e) => setFilters({ search: e.target.value, page: 1 })}
+            value={list.filters.search}
+            onChange={(e) => list.setFilter({ search: e.target.value })}
           />
         </div>
-        {query.isError && <QueryError error={query.error} />}
-        {query.data && (
-          <>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Cliente</th>
-                    <th>Documento</th>
+        <PagedResults
+          query={list.query}
+          emptyMessage="Nenhum cliente encontrado."
+          onPage={list.setPage}
+        >
+          {(customers) => (
+            <table>
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>Documento</th>
+                </tr>
+              </thead>
+              <tbody>
+                {customers.map((customer) => (
+                  <tr key={customer.id}>
+                    <td>
+                      <Link to={`/clientes/${customer.id}`}>
+                        {customer.name}
+                      </Link>
+                      {customer.tradeName && (
+                        <span className="sub">{customer.tradeName}</span>
+                      )}
+                    </td>
+                    <td>{formatDocument(customer.document)}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {query.data.items.map((customer) => (
-                    <tr key={customer.id}>
-                      <td>
-                        <Link to={`/clientes/${customer.id}`}>
-                          {customer.name}
-                        </Link>
-                        {customer.tradeName && (
-                          <span className="sub">{customer.tradeName}</span>
-                        )}
-                      </td>
-                      <td>{formatDocument(customer.document)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {query.data.items.length === 0 && (
-                <div className="empty">Nenhum cliente encontrado.</div>
-              )}
-            </div>
-            <Pagination
-              {...query.data}
-              onPage={(page) => setFilters((f) => ({ ...f, page }))}
-            />
-          </>
-        )}
+                ))}
+              </tbody>
+            </table>
+          )}
+        </PagedResults>
       </section>
     </div>
   );

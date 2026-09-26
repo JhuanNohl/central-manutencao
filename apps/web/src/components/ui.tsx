@@ -134,13 +134,13 @@ export function SubmitButton(props: {
   );
 }
 
-type Tone = 'neutral' | 'success' | 'danger' | 'warning' | 'info';
+export type BadgeTone = 'neutral' | 'success' | 'danger' | 'warning' | 'info';
 
 export function Badge({
   tone = 'neutral',
   children,
 }: {
-  tone?: Tone;
+  tone?: BadgeTone;
   children: ReactNode;
 }) {
   return (
