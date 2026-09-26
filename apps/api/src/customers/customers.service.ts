@@ -17,6 +17,11 @@ import { DATABASE } from '../database/database.module.js';
 import type { Database, Executor } from '../database/database.types.js';
 import { customerContacts, customers } from '../database/schema/index.js';
 import { type AuthContext, can } from '../identity/auth-context.js';
+import {
+  insertContact,
+  insertCustomer,
+  isDocumentRegistered,
+} from './customer-records.js';
 
 type CustomerRow = typeof customers.$inferSelect;
 
@@ -93,32 +98,19 @@ export class CustomersService {
 
   async create(auth: AuthContext, input: CustomerInput): Promise<CustomerView> {
     return this.db.transaction(async (tx) => {
-      const [existing] = await tx
-        .select({ id: customers.id })
-        .from(customers)
-        .where(eq(customers.document, input.document));
-      if (existing) {
+      if (await isDocumentRegistered(tx, input.document)) {
         throw ApiException.conflict('Já existe cliente com este documento.', [
           { path: 'document', message: 'Documento já cadastrado' },
         ]);
       }
-      const [row] = await tx
-        .insert(customers)
-        .values({
-          kind: input.kind,
-          name: input.name,
-          tradeName: input.tradeName || null,
-          document: input.document,
-          createdByAccountId: auth.account.id,
-        })
-        .returning({ id: customers.id });
+      const id = await insertCustomer(tx, input, auth.account.id);
       await this.audit.record(tx, {
         actorAccountId: auth.account.id,
         action: 'cliente.criado',
         entityType: 'customer',
-        entityId: row.id,
+        entityId: id,
       });
-      return this.load(tx, row.id);
+      return this.load(tx, id);
     });
   }
 
@@ -144,15 +136,7 @@ export class CustomersService {
           [{ path: 'email', message: 'E-mail já cadastrado para o cliente' }],
         );
       }
-      const [row] = await tx
-        .insert(customerContacts)
-        .values({
-          customerId,
-          name: input.name,
-          email: input.email,
-          phone: input.phone || null,
-        })
-        .returning();
+      const row = await insertContact(tx, customerId, input);
       await this.audit.record(tx, {
         actorAccountId: auth.account.id,
         action: 'cliente.contato_adicionado',
