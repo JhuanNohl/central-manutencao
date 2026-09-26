@@ -4,7 +4,6 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  Inject,
   Post,
   Res,
 } from '@nestjs/common';
@@ -25,18 +24,20 @@ import {
 } from '@central/contracts';
 import type { Response } from 'express';
 import { validate } from '../common/http/zod-validation.pipe.js';
-import { ENV } from '../config/config.module.js';
-import type { Env } from '../config/env.js';
 import { type AuthContext, toSessionAccount } from './auth-context.js';
-import { AuthService, type SignedIn } from './auth.service.js';
+import { AuthService } from './auth.service.js';
 import { CurrentAuth, Public, SensitiveRateLimit } from './decorators.js';
-import { clearSessionCookie, setSessionCookie } from './session-cookie.js';
+import { EmailVerificationService } from './email-verification.service.js';
+import { PasswordsService } from './passwords.service.js';
+import { SessionCookies } from './session-cookie.js';
 
 @Controller('auth')
 export class AuthController {
   constructor(
     private readonly auth: AuthService,
-    @Inject(ENV) private readonly env: Env,
+    private readonly passwords: PasswordsService,
+    private readonly emailVerification: EmailVerificationService,
+    private readonly cookies: SessionCookies,
   ) {}
 
   @Post('login')
@@ -47,7 +48,7 @@ export class AuthController {
     @Body(validate(loginRequestSchema)) body: LoginRequest,
     @Res({ passthrough: true }) res: Response,
   ): Promise<MeResponse> {
-    return this.signIn(res, await this.auth.login(body));
+    return this.cookies.start(res, await this.auth.login(body));
   }
 
   @Post('register')
@@ -57,7 +58,7 @@ export class AuthController {
     @Body(validate(registerRequestSchema)) body: RegisterRequest,
     @Res({ passthrough: true }) res: Response,
   ): Promise<MeResponse> {
-    return this.signIn(res, await this.auth.register(body));
+    return this.cookies.start(res, await this.auth.register(body));
   }
 
   @Post('logout')
@@ -67,7 +68,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
     await this.auth.logout(auth);
-    clearSessionCookie(res, this.env);
+    this.cookies.clear(res);
   }
 
   @Get('me')
@@ -82,7 +83,7 @@ export class AuthController {
   async requestPasswordReset(
     @Body(validate(passwordResetRequestSchema)) body: PasswordResetRequest,
   ): Promise<void> {
-    await this.auth.requestPasswordReset(body.email);
+    await this.passwords.requestReset(body.email);
   }
 
   @Post('password-reset/confirm')
@@ -93,9 +94,19 @@ export class AuthController {
     @Body(validate(passwordResetConfirmSchema)) body: PasswordResetConfirm,
     @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
-    await this.auth.confirmPasswordReset(body);
+    await this.passwords.confirmReset(body);
     // Todas as sessões foram revogadas; a atual (se houver) também.
-    clearSessionCookie(res, this.env);
+    this.cookies.clear(res);
+  }
+
+  @Post('password')
+  @SensitiveRateLimit()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async changePassword(
+    @CurrentAuth() auth: AuthContext,
+    @Body(validate(changePasswordSchema)) body: ChangePasswordRequest,
+  ): Promise<void> {
+    await this.passwords.change(auth, body);
   }
 
   @Post('email-verification/confirm')
@@ -106,7 +117,7 @@ export class AuthController {
     @Body(validate(emailVerificationConfirmSchema))
     body: EmailVerificationConfirm,
   ): Promise<void> {
-    await this.auth.confirmEmail(body.token);
+    await this.emailVerification.confirm(body.token);
   }
 
   @Post('email-verification/resend')
@@ -115,26 +126,6 @@ export class AuthController {
   async resendEmailVerification(
     @CurrentAuth() auth: AuthContext,
   ): Promise<void> {
-    await this.auth.resendEmailVerification(auth);
-  }
-
-  @Post('password')
-  @SensitiveRateLimit()
-  @HttpCode(HttpStatus.NO_CONTENT)
-  async changePassword(
-    @CurrentAuth() auth: AuthContext,
-    @Body(validate(changePasswordSchema)) body: ChangePasswordRequest,
-  ): Promise<void> {
-    await this.auth.changePassword(auth, body);
-  }
-
-  private signIn(res: Response, signedIn: SignedIn): MeResponse {
-    setSessionCookie(
-      res,
-      this.env,
-      signedIn.session.token,
-      signedIn.session.expiresAt,
-    );
-    return { account: toSessionAccount(signedIn.account) };
+    await this.emailVerification.resend(auth);
   }
 }

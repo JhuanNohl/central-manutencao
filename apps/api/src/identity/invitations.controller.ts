@@ -4,7 +4,6 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  Inject,
   Param,
   ParseUUIDPipe,
   Post,
@@ -24,9 +23,7 @@ import {
 } from '@central/contracts';
 import type { Response } from 'express';
 import { validate } from '../common/http/zod-validation.pipe.js';
-import { ENV } from '../config/config.module.js';
-import type { Env } from '../config/env.js';
-import { type AuthContext, toSessionAccount } from './auth-context.js';
+import type { AuthContext } from './auth-context.js';
 import {
   CurrentAuth,
   Public,
@@ -34,13 +31,13 @@ import {
   SensitiveRateLimit,
 } from './decorators.js';
 import { InvitationsService } from './invitations.service.js';
-import { setSessionCookie } from './session-cookie.js';
+import { SessionCookies } from './session-cookie.js';
 
 @Controller('invitations')
 export class InvitationsController {
   constructor(
     private readonly invitations: InvitationsService,
-    @Inject(ENV) private readonly env: Env,
+    private readonly cookies: SessionCookies,
   ) {}
 
   @Get()
@@ -90,13 +87,6 @@ export class InvitationsController {
     @Body(validate(acceptInvitationSchema)) body: AcceptInvitationRequest,
     @Res({ passthrough: true }) res: Response,
   ): Promise<MeResponse> {
-    const signedIn = await this.invitations.accept(body);
-    setSessionCookie(
-      res,
-      this.env,
-      signedIn.session.token,
-      signedIn.session.expiresAt,
-    );
-    return { account: toSessionAccount(signedIn.account) };
+    return this.cookies.start(res, await this.invitations.accept(body));
   }
 }

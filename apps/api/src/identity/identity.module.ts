@@ -5,8 +5,11 @@ import { AccountsService } from './accounts.service.js';
 import { AuthController } from './auth.controller.js';
 import { AuthGuard } from './auth.guard.js';
 import { AuthService } from './auth.service.js';
+import { EmailVerificationService } from './email-verification.service.js';
 import { InvitationsController } from './invitations.controller.js';
 import { InvitationsService } from './invitations.service.js';
+import { PasswordsService } from './passwords.service.js';
+import { SessionCookies } from './session-cookie.js';
 import { SessionsService } from './sessions.service.js';
 
 /** Identidade e acesso: contas, sessões, convites e autorização. */
@@ -18,9 +21,12 @@ import { SessionsService } from './sessions.service.js';
     AccountsService,
     AuthGuard,
     AuthService,
+    EmailVerificationService,
     InvitationsService,
+    PasswordsService,
+    SessionCookies,
     SessionsService,
   ],
-  exports: [AuthGuard, AuthService, InvitationsService, SessionsService],
+  exports: [AuthGuard, InvitationsService, SessionsService],
 })
 export class IdentityModule {}

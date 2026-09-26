@@ -27,9 +27,6 @@ import { generateToken, hashToken } from '../common/crypto/tokens.js';
 import { ApiException } from '../common/http/api-exception.js';
 import { pageWindow, toPage } from '../common/db/pagination.js';
 import { reference } from '../common/mapping.js';
-import { formatInstant } from '../common/time/format.js';
-import { ENV } from '../config/config.module.js';
-import type { Env } from '../config/env.js';
 import { DATABASE } from '../database/database.module.js';
 import type { Database, Executor } from '../database/database.types.js';
 import {
@@ -38,11 +35,11 @@ import {
   customers,
   invitations,
 } from '../database/schema/index.js';
+import { EmailLinks } from '../notifications/email-links.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
-import { loadAuthenticatedAccount } from './account-loader.js';
+import { ensureEmailAvailable } from './account-rules.js';
 import type { AuthContext } from './auth-context.js';
-import { AuthService, type SignedIn } from './auth.service.js';
-import { SessionsService } from './sessions.service.js';
+import { SessionsService, type SignedIn } from './sessions.service.js';
 
 export const INVITATION_TTL_MS = 7 * 24 * 3_600_000;
 
@@ -89,9 +86,8 @@ const openInvitation = and(
 export class InvitationsService {
   constructor(
     @Inject(DATABASE) private readonly db: Database,
-    @Inject(ENV) private readonly env: Env,
-    private readonly auth: AuthService,
     private readonly sessions: SessionsService,
+    private readonly links: EmailLinks,
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
   ) {}
@@ -101,7 +97,7 @@ export class InvitationsService {
     input: CreateStaffInvitationRequest,
   ): Promise<InvitationView> {
     const id = await this.db.transaction(async (tx) => {
-      await this.auth.assertEmailAvailable(tx, input.email);
+      await ensureEmailAvailable(tx, input.email);
       return this.issue(tx, auth, {
         email: input.email,
         role: input.role,
@@ -139,7 +135,7 @@ export class InvitationsService {
       if (contact.accountId) {
         throw ApiException.conflict('Este contato já possui acesso ao portal.');
       }
-      await this.auth.assertEmailAvailable(tx, contact.email);
+      await ensureEmailAvailable(tx, contact.email);
 
       return this.issue(tx, auth, {
         email: contact.email,
@@ -230,7 +226,7 @@ export class InvitationsService {
         .returning();
       if (!invitation) throw ApiException.invalidToken();
 
-      await this.auth.assertEmailAvailable(tx, invitation.email);
+      await ensureEmailAvailable(tx, invitation.email);
       const [account] = await tx
         .insert(accounts)
         .values({
@@ -274,11 +270,7 @@ export class InvitationsService {
         data: { accountId: account.id, role: invitation.role },
       });
 
-      const session = await this.sessions.create(tx, account.id);
-      return {
-        session,
-        account: await loadAuthenticatedAccount(tx, account.id),
-      };
+      return this.sessions.signIn(tx, account.id);
     });
   }
 
@@ -319,9 +311,9 @@ export class InvitationsService {
       origin: `invitation:${invitation.id}`,
       dedupeKey: `invitation:${invitation.id}`,
       payload: {
-        link: `${this.env.APP_ORIGIN}/convite#token=${token}`,
+        link: this.links.withToken('convite', token),
         customerName: target.customerName,
-        expiresAtLabel: formatInstant(expiresAt, this.env.OPERATIONAL_TIMEZONE),
+        expiresAtLabel: this.links.expiry(expiresAt),
       },
     });
     await this.audit.record(tx, {
