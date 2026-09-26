@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Post,
@@ -30,7 +31,7 @@ export class NotificationsController {
   }
 
   @Post(':id/retry')
-  @HttpCode(200)
+  @HttpCode(HttpStatus.OK)
   retry(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentAuth() auth: AuthContext,
