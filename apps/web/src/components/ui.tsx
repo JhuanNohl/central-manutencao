@@ -1,5 +1,4 @@
 import { useId, type ReactNode } from 'react';
-import { ApiError } from '../api/client';
 import type { FieldErrors } from '../lib/forms';
 
 export function PageHeader(props: {
@@ -98,26 +97,6 @@ export function SelectField(props: {
   );
 }
 
-export function FormAlert({ message }: { message: string | null }) {
-  if (!message) return null;
-  return (
-    <div className="alert alert-error" role="alert">
-      {message}
-    </div>
-  );
-}
-
-/** Mostra o erro de uma consulta, com o código da requisição para suporte. */
-export function QueryError({ error }: { error: unknown }) {
-  const apiError = error instanceof ApiError ? error : null;
-  return (
-    <div className="alert alert-error" role="alert">
-      {apiError?.message ?? 'Não foi possível carregar os dados.'}
-      {apiError?.requestId && <small>Código: {apiError.requestId}</small>}
-    </div>
-  );
-}
-
 export function SubmitButton(props: {
   pending: boolean;
   children: ReactNode;
@@ -131,64 +110,5 @@ export function SubmitButton(props: {
     >
       {props.pending ? 'Aguarde…' : props.children}
     </button>
-  );
-}
-
-export type BadgeTone = 'neutral' | 'success' | 'danger' | 'warning' | 'info';
-
-export function Badge({
-  tone = 'neutral',
-  children,
-}: {
-  tone?: BadgeTone;
-  children: ReactNode;
-}) {
-  return (
-    <span className={`badge${tone === 'neutral' ? '' : ` badge-${tone}`}`}>
-      {children}
-    </span>
-  );
-}
-
-export function Pagination(props: {
-  page: number;
-  pageSize: number;
-  total: number;
-  onPage: (page: number) => void;
-}) {
-  const pages = Math.max(1, Math.ceil(props.total / props.pageSize));
-  return (
-    <div className="pagination">
-      <span>
-        {props.total} registro{props.total === 1 ? '' : 's'} · página{' '}
-        {props.page} de {pages}
-      </span>
-      <div className="actions">
-        <button
-          type="button"
-          className="btn btn-secondary btn-sm"
-          disabled={props.page <= 1}
-          onClick={() => props.onPage(props.page - 1)}
-        >
-          Anterior
-        </button>
-        <button
-          type="button"
-          className="btn btn-secondary btn-sm"
-          disabled={props.page >= pages}
-          onClick={() => props.onPage(props.page + 1)}
-        >
-          Próxima
-        </button>
-      </div>
-    </div>
-  );
-}
-
-export function Loading({ label = 'Carregando…' }: { label?: string }) {
-  return (
-    <div className="center-screen" role="status">
-      {label}
-    </div>
   );
 }

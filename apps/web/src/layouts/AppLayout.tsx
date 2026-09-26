@@ -1,86 +1,71 @@
-import { ROLE_LABELS, type Permission } from '@central/contracts';
-import { useMutation } from '@tanstack/react-query';
+import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router';
-import { post } from '../api/client';
-import { hasPermission, useSession, useSetSession } from '../auth/session';
-
-const NAV: { to: string; label: string; permission?: Permission }[] = [
-  { to: '/', label: 'Início' },
-  { to: '/clientes', label: 'Clientes', permission: 'customers.read' },
-  { to: '/admin/contas', label: 'Contas', permission: 'accounts.read' },
-  { to: '/admin/convites', label: 'Convites', permission: 'accounts.manage' },
-  { to: '/admin/avisos', label: 'Avisos', permission: 'notifications.manage' },
-];
+import { Link, NavLink, Outlet, useLocation } from 'react-router';
+import { hasPermission, useSession } from '../auth/session';
+import { BrandLogo } from '../components/BrandLogo';
+import { NAV_ITEMS } from './navigation';
+import { UserMenu } from './UserMenu';
 
 export function AppLayout() {
   const { data: account } = useSession();
-  const setSession = useSetSession();
-  const navigate = useNavigate();
   const location = useLocation();
+  // No celular, o menu lateral fecha sozinho ao trocar de página.
   const [openFor, setOpenFor] = useState<string | null>(null);
-  // O menu móvel fecha sozinho ao trocar de página.
-  const open = openFor === location.pathname;
-
-  const logout = useMutation({
-    mutationFn: () => post('/auth/logout'),
-    onSettled: () => {
-      setSession(null);
-      void navigate('/entrar', { replace: true });
-    },
-  });
+  const menuOpen = openFor === location.pathname;
+  const closeMenu = () => setOpenFor(null);
 
   if (!account) return null;
+  const items = NAV_ITEMS.filter(
+    (item) => !item.permission || hasPermission(account, item.permission),
+  );
 
   return (
     <>
-      <header className={`topbar${open ? ' open' : ''}`}>
-        <div className="topbar-inner">
-          <Link to="/" className="brand">
-            <img src="/icon.svg" alt="" />
-            Central de Manutenção
-          </Link>
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm menu-toggle"
-            aria-expanded={open}
-            onClick={() => setOpenFor(open ? null : location.pathname)}
-          >
-            Menu
-          </button>
-          <nav className="nav" aria-label="Principal">
-            {NAV.filter(
-              (item) =>
-                !item.permission || hasPermission(account, item.permission),
-            ).map((item) => (
-              <NavLink key={item.to} to={item.to} end={item.to === '/'}>
-                {item.label}
-              </NavLink>
-            ))}
-          </nav>
-          <div className="user-menu">
-            <Link to="/conta" className="who">
-              {account.name}
-              <small>
-                {account.customer
-                  ? account.customer.name
-                  : ROLE_LABELS[account.role]}
-              </small>
-            </Link>
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={() => logout.mutate()}
-              disabled={logout.isPending}
-            >
-              Sair
-            </button>
-          </div>
-        </div>
+      <header className="topbar">
+        <button
+          type="button"
+          className="topbar-icon-button menu-toggle"
+          aria-label={menuOpen ? 'Fechar menu' : 'Abrir menu'}
+          aria-expanded={menuOpen}
+          aria-controls="menu-lateral"
+          onClick={() => setOpenFor(menuOpen ? null : location.pathname)}
+        >
+          {menuOpen ? (
+            <X size={22} aria-hidden />
+          ) : (
+            <Menu size={22} aria-hidden />
+          )}
+        </button>
+        <Link to="/" className="topbar-brand">
+          <BrandLogo surface="onDark" />
+          <span className="topbar-divider" aria-hidden />
+          <span className="topbar-title">Central de Manutenção</span>
+        </Link>
+        <UserMenu account={account} />
       </header>
-      <main className="main">
-        <Outlet />
-      </main>
+
+      <div className="shell">
+        <nav
+          id="menu-lateral"
+          className={`sidebar${menuOpen ? ' open' : ''}`}
+          aria-label="Principal"
+        >
+          {items.map(({ to, label, icon: Icon }) => (
+            <NavLink key={to} to={to} end={to === '/'} onClick={closeMenu}>
+              <Icon size={22} aria-hidden />
+              {label}
+            </NavLink>
+          ))}
+        </nav>
+        <div
+          className={`sidebar-backdrop${menuOpen ? ' open' : ''}`}
+          onClick={closeMenu}
+          aria-hidden
+        />
+        <main className="main">
+          <Outlet />
+        </main>
+      </div>
     </>
   );
 }

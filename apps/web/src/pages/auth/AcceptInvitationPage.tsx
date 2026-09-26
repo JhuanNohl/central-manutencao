@@ -9,12 +9,12 @@ import { Link, useNavigate } from 'react-router';
 import { post } from '../../api/client';
 import { useSetSession } from '../../auth/session';
 import {
-  Field,
+  Alert,
   FormAlert,
   Loading,
   QueryError,
-  SubmitButton,
-} from '../../components/ui';
+} from '../../components/feedback';
+import { Field, SubmitButton } from '../../components/ui';
 import { AuthLayout } from '../../layouts/AuthLayout';
 import { formatDateTime } from '../../lib/format';
 import { raw, text, useSchemaForm } from '../../lib/forms';
@@ -49,9 +49,9 @@ export function AcceptInvitationPage() {
   if (!token) {
     return (
       <AuthLayout title="Convite">
-        <div className="alert alert-error">
+        <Alert tone="error">
           Abra o link exatamente como recebido no e-mail.
-        </div>
+        </Alert>
       </AuthLayout>
     );
   }

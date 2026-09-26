@@ -1,23 +1,43 @@
 import {
-  ACCOUNT_STATUSES,
   ROLE_LABELS,
   ROLES,
   STAFF_ROLES,
   isStaffRole,
+  type AccountStatus,
   type AccountView,
   type StaffRole,
 } from '@central/contracts';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Ban, CircleCheck, MailWarning } from 'lucide-react';
 import { useState } from 'react';
 import { ApiError, patch, post } from '../../api/client';
 import { hasPermission, useSession } from '../../auth/session';
+import { Badge, type StatusStyle } from '../../components/Badge';
+import { FilterTabs, SearchInput } from '../../components/filters';
 import { PagedResults } from '../../components/PagedResults';
 import { ReasonDialog } from '../../components/ReasonDialog';
-import { Badge, PageHeader, SelectField } from '../../components/ui';
+import { PageHeader, SelectField } from '../../components/ui';
 import { formatDateTime } from '../../lib/format';
 import { usePagedList } from '../../lib/paged-list';
 
 const PATH = '/accounts';
+
+const STATUS: Record<AccountStatus, StatusStyle> = {
+  ativa: { label: 'Ativa', tone: 'success', icon: CircleCheck },
+  desativada: { label: 'Desativada', tone: 'neutral', icon: Ban },
+};
+
+const EMAIL_PENDING: StatusStyle = {
+  label: 'E-mail não confirmado',
+  tone: 'warning',
+  icon: MailWarning,
+};
+
+const STATUS_TABS = [
+  { value: '' as const, label: 'Todas' },
+  { value: 'ativa' as const, label: 'Ativas' },
+  { value: 'desativada' as const, label: 'Desativadas' },
+];
 
 type ActionKind = 'role' | 'disable' | 'enable';
 type Action = { kind: ActionKind; account: AccountView };
@@ -70,7 +90,7 @@ export function AccountsPage() {
   const canManage = hasPermission(me, 'accounts.manage');
   const list = usePagedList<
     AccountView,
-    Record<'search' | 'role' | 'status', string>
+    { search: string; role: string; status: AccountStatus | '' }
   >(PATH, { search: '', role: '', status: '' });
   const [action, setAction] = useState<Action | null>(null);
   const mutation = useAccountAction(() => setAction(null));
@@ -87,87 +107,86 @@ export function AccountsPage() {
         title="Contas"
         description="Clientes e integrantes da equipe com acesso à Central."
       />
-      <div className="toolbar">
-        <input
-          type="search"
-          placeholder="Buscar por nome ou e-mail"
-          aria-label="Buscar"
-          value={list.filters.search}
-          onChange={(e) => list.setFilter({ search: e.target.value })}
-        />
-        <select
-          aria-label="Papel"
-          value={list.filters.role}
-          onChange={(e) => list.setFilter({ role: e.target.value })}
-        >
-          <option value="">Todos os papéis</option>
-          {ROLES.map((role) => (
-            <option key={role} value={role}>
-              {ROLE_LABELS[role]}
-            </option>
-          ))}
-        </select>
-        <select
-          aria-label="Situação"
-          value={list.filters.status}
-          onChange={(e) => list.setFilter({ status: e.target.value })}
-        >
-          <option value="">Todas as situações</option>
-          {ACCOUNT_STATUSES.map((status) => (
-            <option key={status} value={status}>
-              {status === 'ativa' ? 'Ativas' : 'Desativadas'}
-            </option>
-          ))}
-        </select>
-      </div>
 
-      <PagedResults
-        query={list.query}
-        emptyMessage="Nenhuma conta encontrada."
-        onPage={list.setPage}
-      >
-        {(accounts) => (
-          <table>
-            <thead>
-              <tr>
-                <th>Nome</th>
-                <th>Papel</th>
-                <th>Situação</th>
-                <th>Último acesso</th>
-                {canManage && <th aria-label="Ações" />}
-              </tr>
-            </thead>
-            <tbody>
-              {accounts.map((account) => (
-                <tr key={account.id}>
-                  <td>
-                    {account.name}
-                    <span className="sub">{account.email}</span>
-                    {account.customer && (
-                      <span className="sub">{account.customer.name}</span>
-                    )}
-                  </td>
-                  <td>{ROLE_LABELS[account.role]}</td>
-                  <td>
-                    <AccountStatusBadges account={account} />
-                  </td>
-                  <td>{formatDateTime(account.lastLoginAt)}</td>
-                  {canManage && (
+      <section className="panel">
+        <div className="panel-header">
+          <FilterTabs
+            label="Situação da conta"
+            value={list.filters.status}
+            options={STATUS_TABS}
+            onChange={(status) => list.setFilter({ status })}
+          />
+          <div className="panel-tools">
+            <SearchInput
+              label="Buscar por nome ou e-mail"
+              value={list.filters.search}
+              onChange={(search) => list.setFilter({ search })}
+            />
+            <select
+              className="toolbar-select"
+              aria-label="Papel"
+              value={list.filters.role}
+              onChange={(e) => list.setFilter({ role: e.target.value })}
+            >
+              <option value="">Todos os papéis</option>
+              {ROLES.map((role) => (
+                <option key={role} value={role}>
+                  {ROLE_LABELS[role]}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <PagedResults list={list} emptyMessage="Nenhuma conta encontrada.">
+          {(accounts) => (
+            <table>
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Papel</th>
+                  <th>Situação</th>
+                  <th>Último acesso</th>
+                  {canManage && <th aria-label="Ações" />}
+                </tr>
+              </thead>
+              <tbody>
+                {accounts.map((account) => (
+                  <tr key={account.id}>
                     <td>
-                      {account.id !== me?.id && (
-                        <AccountActions
-                          account={account}
-                          onAction={(kind) => setAction({ kind, account })}
-                        />
+                      {account.name}
+                      <span className="sub">{account.email}</span>
+                      {account.customer && (
+                        <span className="sub">{account.customer.name}</span>
                       )}
                     </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </PagedResults>
+                    <td>{ROLE_LABELS[account.role]}</td>
+                    <td>
+                      <div className="badges">
+                        <Badge status={STATUS[account.status]} />
+                        {!account.emailVerified && (
+                          <Badge status={EMAIL_PENDING} />
+                        )}
+                      </div>
+                    </td>
+                    <td>{formatDateTime(account.lastLoginAt)}</td>
+                    {canManage && (
+                      <td>
+                        {account.id !== me?.id && (
+                          <AccountActions
+                            account={account}
+                            onAction={(kind) => setAction({ kind, account })}
+                          />
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </PagedResults>
+      </section>
 
       <ReasonDialog
         open={action !== null}
@@ -202,21 +221,6 @@ export function AccountsPage() {
         )}
       </ReasonDialog>
     </div>
-  );
-}
-
-function AccountStatusBadges({ account }: { account: AccountView }) {
-  return (
-    <>
-      {account.status === 'ativa' ? (
-        <Badge tone="success">Ativa</Badge>
-      ) : (
-        <Badge tone="danger">Desativada</Badge>
-      )}{' '}
-      {!account.emailVerified && (
-        <Badge tone="warning">E-mail não confirmado</Badge>
-      )}
-    </>
   );
 }
 

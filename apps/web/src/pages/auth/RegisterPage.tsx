@@ -11,7 +11,8 @@ import {
   CustomerKindField,
   customerKindLabels,
 } from '../../components/CustomerKindField';
-import { Field, FormAlert, SubmitButton } from '../../components/ui';
+import { FormAlert } from '../../components/feedback';
+import { Field, SubmitButton } from '../../components/ui';
 import { AuthLayout } from '../../layouts/AuthLayout';
 import { raw, text, useSchemaForm } from '../../lib/forms';
 

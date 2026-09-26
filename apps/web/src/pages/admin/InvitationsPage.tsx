@@ -7,17 +7,17 @@ import {
   type InvitationView,
 } from '@central/contracts';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Ban, CircleCheck, Clock, Hourglass, Send } from 'lucide-react';
 import { post } from '../../api/client';
+import { Badge, type StatusStyle } from '../../components/Badge';
+import { Alert, FormAlert, QueryError } from '../../components/feedback';
+import { FilterTabs } from '../../components/filters';
 import { PagedResults } from '../../components/PagedResults';
 import {
-  Badge,
   Field,
-  FormAlert,
   PageHeader,
-  QueryError,
   SelectField,
   SubmitButton,
-  type BadgeTone,
 } from '../../components/ui';
 import { formatDateTime } from '../../lib/format';
 import { text, useSchemaForm } from '../../lib/forms';
@@ -25,12 +25,20 @@ import { usePagedList } from '../../lib/paged-list';
 
 const PATH = '/invitations';
 
-const STATUS: Record<InvitationStatus, { label: string; tone: BadgeTone }> = {
-  pendente: { label: 'Pendente', tone: 'info' },
-  aceito: { label: 'Aceito', tone: 'success' },
-  revogado: { label: 'Revogado', tone: 'neutral' },
-  expirado: { label: 'Expirado', tone: 'warning' },
+const STATUS: Record<InvitationStatus, StatusStyle> = {
+  pendente: { label: 'Pendente', tone: 'warning', icon: Clock },
+  aceito: { label: 'Aceito', tone: 'success', icon: CircleCheck },
+  revogado: { label: 'Revogado', tone: 'neutral', icon: Ban },
+  expirado: { label: 'Expirado', tone: 'neutral', icon: Hourglass },
 };
+
+const STATUS_TABS = [
+  { value: '' as const, label: 'Todos' },
+  ...INVITATION_STATUSES.map((status) => ({
+    value: status,
+    label: STATUS[status].label,
+  })),
+];
 
 function useRefreshInvitations() {
   const client = useQueryClient();
@@ -55,9 +63,9 @@ function StaffInvitationForm() {
       <form onSubmit={form.onSubmit} noValidate>
         <FormAlert message={form.formError} />
         {form.done && (
-          <div className="alert alert-success" role="status">
+          <Alert tone="success">
             Convite registrado. O e-mail será enviado em instantes.
-          </div>
+          </Alert>
         )}
         <div className="field-row">
           <Field
@@ -79,7 +87,10 @@ function StaffInvitationForm() {
           />
         </div>
         <div className="actions">
-          <SubmitButton pending={form.pending}>Enviar convite</SubmitButton>
+          <SubmitButton pending={form.pending}>
+            Enviar convite
+            <Send size={18} aria-hidden />
+          </SubmitButton>
         </div>
       </form>
     </section>
@@ -88,9 +99,10 @@ function StaffInvitationForm() {
 
 export function InvitationsPage() {
   const refresh = useRefreshInvitations();
-  const list = usePagedList<InvitationView, { status: string }>(PATH, {
-    status: '',
-  });
+  const list = usePagedList<InvitationView, { status: InvitationStatus | '' }>(
+    PATH,
+    { status: '' },
+  );
   const revoke = useMutation({
     mutationFn: (id: string) => post<InvitationView>(`${PATH}/${id}/revoke`),
     onSuccess: refresh,
@@ -104,27 +116,22 @@ export function InvitationsPage() {
       />
       <StaffInvitationForm />
 
-      <section>
-        <div className="toolbar">
-          <select
-            aria-label="Situação"
+      <section className="panel">
+        <div className="panel-header">
+          <h2>Convites enviados</h2>
+          <FilterTabs
+            label="Situação do convite"
             value={list.filters.status}
-            onChange={(e) => list.setFilter({ status: e.target.value })}
-          >
-            <option value="">Todas as situações</option>
-            {INVITATION_STATUSES.map((status) => (
-              <option key={status} value={status}>
-                {STATUS[status].label}
-              </option>
-            ))}
-          </select>
+            options={STATUS_TABS}
+            onChange={(status) => list.setFilter({ status })}
+          />
         </div>
-        {revoke.isError && <QueryError error={revoke.error} />}
-        <PagedResults
-          query={list.query}
-          emptyMessage="Nenhum convite."
-          onPage={list.setPage}
-        >
+        {revoke.isError && (
+          <div className="panel-body">
+            <QueryError error={revoke.error} />
+          </div>
+        )}
+        <PagedResults list={list} emptyMessage="Nenhum convite.">
           {(invitations) => (
             <table>
               <thead>
@@ -152,9 +159,7 @@ export function InvitationsPage() {
                     </td>
                     <td>{ROLE_LABELS[invitation.role]}</td>
                     <td>
-                      <Badge tone={STATUS[invitation.status].tone}>
-                        {STATUS[invitation.status].label}
-                      </Badge>
+                      <Badge status={STATUS[invitation.status]} />
                     </td>
                     <td>
                       {formatDateTime(

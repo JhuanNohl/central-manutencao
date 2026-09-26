@@ -4,6 +4,7 @@ import {
   type CustomerSummary,
   type CustomerView,
 } from '@central/contracts';
+import { Plus, X } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { post } from '../../api/client';
@@ -12,13 +13,10 @@ import {
   CustomerKindField,
   customerKindLabels,
 } from '../../components/CustomerKindField';
+import { FormAlert } from '../../components/feedback';
+import { SearchInput } from '../../components/filters';
 import { PagedResults } from '../../components/PagedResults';
-import {
-  Field,
-  FormAlert,
-  PageHeader,
-  SubmitButton,
-} from '../../components/ui';
+import { Field, PageHeader, SubmitButton } from '../../components/ui';
 import { formatDocument } from '../../lib/format';
 import { text, useSchemaForm } from '../../lib/forms';
 import { usePagedList } from '../../lib/paged-list';
@@ -89,26 +87,28 @@ export function CustomersPage() {
               onClick={() => setCreating((open) => !open)}
             >
               {creating ? 'Fechar' : 'Novo cliente'}
+              {creating ? (
+                <X size={20} aria-hidden />
+              ) : (
+                <Plus size={20} aria-hidden />
+              )}
             </button>
           )
         }
       />
       {creating && <NewCustomerForm />}
-      <section>
-        <div className="toolbar">
-          <input
-            type="search"
-            placeholder="Buscar por nome ou documento"
-            aria-label="Buscar"
-            value={list.filters.search}
-            onChange={(e) => list.setFilter({ search: e.target.value })}
-          />
+      <section className="panel">
+        <div className="panel-header">
+          <h2>Clientes cadastrados</h2>
+          <div className="panel-tools">
+            <SearchInput
+              label="Buscar por nome ou documento"
+              value={list.filters.search}
+              onChange={(search) => list.setFilter({ search })}
+            />
+          </div>
         </div>
-        <PagedResults
-          query={list.query}
-          emptyMessage="Nenhum cliente encontrado."
-          onPage={list.setPage}
-        >
+        <PagedResults list={list} emptyMessage="Nenhum cliente encontrado.">
           {(customers) => (
             <table>
               <thead>

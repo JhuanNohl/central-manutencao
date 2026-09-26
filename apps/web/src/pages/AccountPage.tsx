@@ -2,7 +2,8 @@ import { changePasswordSchema, ROLE_LABELS } from '@central/contracts';
 import { useMutation } from '@tanstack/react-query';
 import { post } from '../api/client';
 import { useSession } from '../auth/session';
-import { Field, FormAlert, PageHeader, SubmitButton } from '../components/ui';
+import { Alert, FormAlert } from '../components/feedback';
+import { Field, PageHeader, SubmitButton } from '../components/ui';
 import { raw, useSchemaForm } from '../lib/forms';
 
 export function EmailVerificationNotice() {
@@ -13,22 +14,26 @@ export function EmailVerificationNotice() {
   if (!account || account.emailVerified) return null;
 
   return (
-    <div className="alert alert-warning" role="status">
-      Confirme seu e-mail pelo link que enviamos para{' '}
-      <strong>{account.email}</strong>.{' '}
-      {resend.isSuccess ? (
-        'Novo link enviado.'
-      ) : (
-        <button
-          type="button"
-          className="btn btn-secondary btn-sm"
-          onClick={() => resend.mutate()}
-          disabled={resend.isPending}
-        >
-          Reenviar link
-        </button>
-      )}
-    </div>
+    <Alert tone="warning">
+      <div className="actions">
+        <span>
+          Confirme seu e-mail pelo link que enviamos para{' '}
+          <strong>{account.email}</strong>.
+        </span>
+        {resend.isSuccess ? (
+          <span>Novo link enviado.</span>
+        ) : (
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => resend.mutate()}
+            disabled={resend.isPending}
+          >
+            Reenviar link
+          </button>
+        )}
+      </div>
+    </Alert>
   );
 }
 
@@ -72,9 +77,9 @@ export function AccountPage() {
           <form onSubmit={form.onSubmit} noValidate>
             <FormAlert message={form.formError} />
             {form.done && (
-              <div className="alert alert-success" role="status">
+              <Alert tone="success">
                 Senha alterada. As outras sessões foram encerradas.
-              </div>
+              </Alert>
             )}
             <Field
               label="Senha atual"

@@ -2,7 +2,8 @@ import { loginRequestSchema, type MeResponse } from '@central/contracts';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { post } from '../../api/client';
 import { useSetSession } from '../../auth/session';
-import { Field, FormAlert, SubmitButton } from '../../components/ui';
+import { FormAlert } from '../../components/feedback';
+import { Field, SubmitButton } from '../../components/ui';
 import { AuthLayout } from '../../layouts/AuthLayout';
 import { raw, text, useSchemaForm } from '../../lib/forms';
 

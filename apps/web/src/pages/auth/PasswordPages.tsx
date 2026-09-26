@@ -4,7 +4,8 @@ import {
 } from '@central/contracts';
 import { Link } from 'react-router';
 import { post } from '../../api/client';
-import { Field, FormAlert, SubmitButton } from '../../components/ui';
+import { Alert, FormAlert } from '../../components/feedback';
+import { Field, SubmitButton } from '../../components/ui';
 import { AuthLayout } from '../../layouts/AuthLayout';
 import { raw, text, useSchemaForm } from '../../lib/forms';
 import { useEmailLinkToken } from '../../lib/token';
@@ -22,10 +23,10 @@ export function ForgotPasswordPage() {
       lead="Informe o e-mail da sua conta. Enviaremos um link válido por 1 hora."
     >
       {form.done ? (
-        <div className="alert alert-success" role="status">
+        <Alert tone="success">
           Se houver uma conta ativa com esse e-mail, o link foi enviado. Confira
           também a caixa de spam.
-        </div>
+        </Alert>
       ) : (
         <form onSubmit={form.onSubmit} noValidate>
           <FormAlert message={form.formError} />
@@ -60,9 +61,9 @@ export function ResetPasswordPage() {
   if (!token) {
     return (
       <AuthLayout title="Link incompleto">
-        <div className="alert alert-error">
+        <Alert tone="error">
           Abra o link exatamente como recebido no e-mail ou peça um novo.
-        </div>
+        </Alert>
         <div className="auth-links">
           <Link to="/esqueci-senha">Pedir novo link</Link>
         </div>
@@ -74,10 +75,10 @@ export function ResetPasswordPage() {
     <AuthLayout title="Nova senha">
       {form.done ? (
         <>
-          <div className="alert alert-success" role="status">
+          <Alert tone="success">
             Senha redefinida. Por segurança, as sessões abertas foram
             encerradas.
-          </div>
+          </Alert>
           <div className="auth-links">
             <Link to="/entrar">Entrar com a nova senha</Link>
           </div>

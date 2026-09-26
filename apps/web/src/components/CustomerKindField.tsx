@@ -32,6 +32,7 @@ export function customerKindLabels(kind: CustomerKind) {
   const company = kind === 'pessoa_juridica';
   return {
     company,
+    kind: company ? 'Pessoa jurídica' : 'Pessoa física',
     name: company ? 'Razão social' : 'Nome completo',
     document: company ? 'CNPJ' : 'CPF',
   };

@@ -5,20 +5,26 @@ import {
   type InvitationView,
 } from '@central/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft, CircleCheck, CircleMinus, Send } from 'lucide-react';
 import { Link, useParams } from 'react-router';
 import { get, post } from '../../api/client';
 import { hasPermission, useSession } from '../../auth/session';
+import { Badge, type StatusStyle } from '../../components/Badge';
+import { customerKindLabels } from '../../components/CustomerKindField';
 import {
-  Badge,
-  Field,
+  Alert,
   FormAlert,
   Loading,
-  PageHeader,
   QueryError,
-  SubmitButton,
-} from '../../components/ui';
+} from '../../components/feedback';
+import { Field, PageHeader, SubmitButton } from '../../components/ui';
 import { formatDateTime, formatDocument } from '../../lib/format';
 import { text, useSchemaForm } from '../../lib/forms';
+
+const PORTAL_ACCESS: Record<'with' | 'without', StatusStyle> = {
+  with: { label: 'Com acesso', tone: 'success', icon: CircleCheck },
+  without: { label: 'Sem acesso', tone: 'neutral', icon: CircleMinus },
+};
 
 export function CustomerDetailPage() {
   const { id = '' } = useParams();
@@ -53,6 +59,8 @@ export function CustomerDetailPage() {
   if (query.isPending) return <Loading />;
   if (query.isError) return <QueryError error={query.error} />;
   const customer = query.data;
+  const labels = customerKindLabels(customer.kind);
+  const canInvite = hasPermission(account, 'customers.invite_contact');
 
   return (
     <div className="stack">
@@ -61,6 +69,7 @@ export function CustomerDetailPage() {
         description={customer.tradeName ?? undefined}
         actions={
           <Link to="/clientes" className="btn btn-secondary">
+            <ArrowLeft size={18} aria-hidden />
             Voltar
           </Link>
         }
@@ -68,25 +77,27 @@ export function CustomerDetailPage() {
       <section className="card">
         <dl className="details">
           <dt>Tipo</dt>
-          <dd>
-            {customer.kind === 'pessoa_juridica'
-              ? 'Pessoa jurídica'
-              : 'Pessoa física'}
-          </dd>
-          <dt>{customer.kind === 'pessoa_juridica' ? 'CNPJ' : 'CPF'}</dt>
+          <dd>{labels.kind}</dd>
+          <dt>{labels.document}</dt>
           <dd>{formatDocument(customer.document)}</dd>
           <dt>Cadastro</dt>
           <dd>{formatDateTime(customer.createdAt)}</dd>
         </dl>
       </section>
 
-      <section>
-        <h2 className="section-title">Contatos</h2>
-        {invite.isError && <QueryError error={invite.error} />}
-        {invite.isSuccess && (
-          <div className="alert alert-success" role="status">
-            Convite registrado para {invite.data.email}. O e-mail será enviado
-            em instantes.
+      <section className="panel">
+        <div className="panel-header">
+          <h2>Contatos</h2>
+        </div>
+        {(invite.isError || invite.isSuccess) && (
+          <div className="panel-body">
+            {invite.isError && <QueryError error={invite.error} />}
+            {invite.isSuccess && (
+              <Alert tone="success">
+                Convite registrado para {invite.data.email}. O e-mail será
+                enviado em instantes.
+              </Alert>
+            )}
           </div>
         )}
         <div className="table-wrap">
@@ -95,9 +106,7 @@ export function CustomerDetailPage() {
               <tr>
                 <th>Contato</th>
                 <th>Portal</th>
-                {hasPermission(account, 'customers.invite_contact') && (
-                  <th aria-label="Ações" />
-                )}
+                {canInvite && <th aria-label="Ações" />}
               </tr>
             </thead>
             <tbody>
@@ -111,13 +120,15 @@ export function CustomerDetailPage() {
                     )}
                   </td>
                   <td>
-                    {contact.hasPortalAccess ? (
-                      <Badge tone="success">Com acesso</Badge>
-                    ) : (
-                      <Badge>Sem acesso</Badge>
-                    )}
+                    <Badge
+                      status={
+                        PORTAL_ACCESS[
+                          contact.hasPortalAccess ? 'with' : 'without'
+                        ]
+                      }
+                    />
                   </td>
-                  {hasPermission(account, 'customers.invite_contact') && (
+                  {canInvite && (
                     <td>
                       {!contact.hasPortalAccess && (
                         <button
@@ -126,6 +137,7 @@ export function CustomerDetailPage() {
                           disabled={invite.isPending}
                           onClick={() => invite.mutate(contact.id)}
                         >
+                          <Send size={16} aria-hidden />
                           Convidar ao portal
                         </button>
                       )}

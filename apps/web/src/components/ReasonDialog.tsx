@@ -6,6 +6,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from 'react';
+import { FormAlert } from './feedback';
 
 /**
  * Confirmação com justificativa obrigatória, para ações auditadas
@@ -70,11 +71,7 @@ export function ReasonDialog(props: {
               maxLength={500}
             />
           </div>
-          {error && (
-            <div className="alert alert-error" role="alert">
-              {error}
-            </div>
-          )}
+          <FormAlert message={error ?? null} />
           <div className="actions">
             <button
               type="submit"

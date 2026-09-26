@@ -1,7 +1,7 @@
 import type { Permission } from '@central/contracts';
 import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router';
-import { Loading, QueryError } from '../components/ui';
+import { Alert, Loading, QueryError } from '../components/feedback';
 import { hasPermission, useSession } from './session';
 
 /** Exige sessão; sem ela, envia ao login e volta depois para a página pedida. */
@@ -26,9 +26,9 @@ export function RequirePermission(props: {
   const { data: account } = useSession();
   if (!hasPermission(account, props.permission)) {
     return (
-      <div className="alert alert-warning" role="alert">
+      <Alert tone="warning">
         Você não tem permissão para acessar esta página.
-      </div>
+      </Alert>
     );
   }
   return props.children;

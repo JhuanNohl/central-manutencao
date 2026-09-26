@@ -1,20 +1,25 @@
-import type { Page } from '@central/contracts';
-import type { UseQueryResult } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
-import { Pagination, QueryError } from './ui';
+import type { PagedList } from '../lib/paged-list';
+import { QueryError } from './feedback';
+import { Pagination } from './Pagination';
 
 /**
- * Moldura comum das listagens: erro, tabela, mensagem de vazio e paginação.
+ * Corpo comum das listagens: erro, tabela, mensagem de vazio e paginação.
  * A página só define a tabela dos itens.
  */
 export function PagedResults<Item>(props: {
-  query: UseQueryResult<Page<Item>>;
+  list: PagedList<Item>;
   emptyMessage: string;
-  onPage: (page: number) => void;
   children: (items: Item[]) => ReactNode;
 }) {
-  const { query } = props;
-  if (query.isError) return <QueryError error={query.error} />;
+  const { query, setPage, setPageSize } = props.list;
+  if (query.isError) {
+    return (
+      <div className="panel-body">
+        <QueryError error={query.error} />
+      </div>
+    );
+  }
   if (!query.data) return null;
 
   return (
@@ -25,7 +30,7 @@ export function PagedResults<Item>(props: {
           <div className="empty">{props.emptyMessage}</div>
         )}
       </div>
-      <Pagination {...query.data} onPage={props.onPage} />
+      <Pagination {...query.data} onPage={setPage} onPageSize={setPageSize} />
     </>
   );
 }
