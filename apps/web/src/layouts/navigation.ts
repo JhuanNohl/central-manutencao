@@ -1,6 +1,7 @@
 import type { Permission } from '@central/contracts';
 import {
   Bell,
+  ClipboardList,
   House,
   UserCog,
   UserPlus,
@@ -19,6 +20,12 @@ export interface NavItem {
 /** Itens do menu lateral, na ordem de exibição. */
 export const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Visão geral', icon: House },
+  {
+    to: '/chamados',
+    label: 'Chamados',
+    icon: ClipboardList,
+    permission: 'rma.read',
+  },
   {
     to: '/clientes',
     label: 'Clientes',

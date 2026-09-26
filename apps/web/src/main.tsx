@@ -21,6 +21,8 @@ import { RegisterPage } from './pages/auth/RegisterPage';
 import { CustomerDetailPage } from './pages/customers/CustomerDetailPage';
 import { CustomersPage } from './pages/customers/CustomersPage';
 import { HomePage } from './pages/HomePage';
+import { RmaDetailPage } from './pages/rmas/RmaDetailPage';
+import { RmasPage } from './pages/rmas/RmasPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import '@fontsource/ibm-plex-sans/400.css';
 import '@fontsource/ibm-plex-sans/500.css';
@@ -72,6 +74,22 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <HomePage /> },
       { path: 'conta', element: <AccountPage /> },
+      {
+        path: 'chamados',
+        element: (
+          <RequirePermission permission="rma.read">
+            <RmasPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: 'chamados/:number',
+        element: (
+          <RequirePermission permission="rma.read">
+            <RmaDetailPage />
+          </RequirePermission>
+        ),
+      },
       {
         path: 'clientes',
         element: (

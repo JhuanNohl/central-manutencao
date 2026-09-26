@@ -43,7 +43,7 @@
   --radius: 2px;
   --radius-badge: 6px;
   --header-height: 56px;
-  --sidebar-width: 256px;
+  --sidebar-width: 240px;
 
   color-scheme: light;
 }
@@ -319,7 +319,7 @@ svg {
 .main {
   width: 100%;
   max-width: 1280px;
-  padding: 32px 32px 48px;
+  padding: 28px 24px 48px;
   min-width: 0;
 }
 
@@ -855,7 +855,7 @@ table {
 th,
 td {
   text-align: left;
-  padding: 12px 16px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
 }
@@ -992,6 +992,12 @@ td .sub {
   gap: 6px;
 }
 
+/* Nas tabelas, os badges ficam mais compactos para caber nas colunas. */
+td .badge {
+  padding: 3px 8px;
+  font-size: 13px;
+}
+
 /* ---------- Outros ---------- */
 
 dl.details {
@@ -1009,6 +1015,11 @@ dl.details dd {
   margin: 0;
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+/* Em colunas estreitas de detalhe, o rótulo do badge pode quebrar linha. */
+dl.details .badge {
+  white-space: normal;
 }
 
 .dialog {
@@ -1041,4 +1052,41 @@ dl.details dd {
 /* Símbolo neutro usado quando a marca real não está disponível. */
 .brand-mark {
   aspect-ratio: 1;
+}
+
+.grid-3 {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+}
+
+.strong {
+  font-weight: 600;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.with-icon,
+.panel-header h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inline-icon {
+  color: var(--brand-strong);
+}
+
+.panel-footnote {
+  margin: 0;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+th.col-wide {
+  min-width: 160px;
 }

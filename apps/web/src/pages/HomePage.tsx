@@ -1,11 +1,5 @@
 import { isStaffRole, type Permission } from '@central/contracts';
-import {
-  ClipboardList,
-  UserPlus,
-  Users,
-  Wrench,
-  type LucideIcon,
-} from 'lucide-react';
+import { ClipboardList, UserPlus, Users, type LucideIcon } from 'lucide-react';
 import { Link } from 'react-router';
 import { hasPermission, useSession } from '../auth/session';
 import { PageHeader } from '../components/ui';
@@ -20,6 +14,14 @@ interface Shortcut {
 }
 
 const STAFF_SHORTCUTS: Shortcut[] = [
+  {
+    to: '/chamados',
+    title: 'Chamados',
+    description:
+      'Fila de RMAs com etapa de cada equipamento, cliente, nota fiscal e responsável.',
+    icon: ClipboardList,
+    permission: 'rma.read',
+  },
   {
     to: '/clientes',
     title: 'Clientes',
@@ -88,10 +90,6 @@ export function HomePage() {
         title="Visão geral"
         description="Acompanhe os atendimentos e os prazos de manutenção."
       />
-      <UpcomingSection icon={Wrench} title="Fila de manutenção">
-        A fila de RMAs e itens, com filtros por etapa, responsável e prazo,
-        chega com a entrega E1 (abertura até recebimento).
-      </UpcomingSection>
       {shortcuts.length > 0 && (
         <div className="grid-2">
           {shortcuts.map(({ to, title, description, icon: Icon }) => (
