@@ -35,6 +35,7 @@ Estas regras valem para todo código novo e para qualquer código tocado. O cód
 
 - **Tokens de cor, espaçamento e raio** ficam em `apps/web/src/styles.css`, com variantes clara e escura (`prefers-color-scheme`). Componentes usam só os tokens, nunca cores soltas.
 - **Verde da marca:** `--brand` (#7DC142) é cor de **fundo** (botão principal, página atual, indicador ativo), sempre com texto `--on-brand`. Texto e ícone verdes sobre fundo claro usam `--brand-strong`, que atinge o contraste AA.
+- **Tipografia:** IBM Plex Sans no texto. **Share Tech em caixa alta** (`--font-display`, peso regular) só no nome do produto, no título da página, nos itens do menu lateral e nos títulos de card; a regra fica centralizada em `styles.css`. Não use a fonte de destaque em textos corridos, rótulos de formulário ou tabelas.
 - **Estrutura:** barra superior sempre escura (logo branco); menu lateral com item ativo marcado por borda verde; superfícies planas com borda (`card`, `panel`, `tile`), sem sombra, cantos de 2px.
 - **Situações:** use `Badge` com uma tabela `Record<Situação, StatusStyle>` por tela, com tom `success`, `warning`, `danger` ou `neutral` e ícone do `lucide-react`. Crie uma entrada só para uma situação que o sistema realmente tem, e nunca use a cor como único indicador.
 - **Filtro de situação** é `FilterTabs`; filtros secundários são `select` ou `SearchInput` no `panel-header`.

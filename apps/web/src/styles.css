@@ -9,6 +9,8 @@
   --font:
     'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, Arial,
     sans-serif;
+  /* Títulos em caixa alta: produto, página, menu e cards. */
+  --font-display: 'Share Tech', var(--font);
 
   --bg: #f2f4f4;
   --surface: #ffffff;
@@ -114,6 +116,28 @@ h3 {
 
 svg {
   flex-shrink: 0;
+}
+
+/*
+ * Fonte de destaque, sempre em caixa alta: nome do produto, título da
+ * página, itens do menu lateral e títulos de card. A Share Tech só tem peso
+ * regular; negrito sintético é evitado de propósito.
+ */
+.topbar-title,
+.auth-product,
+.page-header h1,
+.sidebar a,
+.sidebar a.active,
+.card h2,
+.tile h2,
+.panel-header h2,
+.empty-state h2,
+.auth-card h1,
+.dialog h2 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 :focus-visible {
