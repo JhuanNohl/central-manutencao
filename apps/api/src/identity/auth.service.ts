@@ -66,6 +66,8 @@ export class AuthService {
 
   /** Autocadastro: cliente, contato e conta nascem juntos ou não nascem. */
   async register(input: RegisterRequest): Promise<SignedIn> {
+    const passwordHash = await hashPassword(input.password);
+
     return this.db.transaction(async (tx) => {
       if (await isDocumentRegistered(tx, input.customer.document)) {
         // Não vincular a um cliente existente: daria acesso a atendimentos de terceiros.
@@ -81,7 +83,7 @@ export class AuthService {
         .values({
           email: input.email,
           name: input.contact.name,
-          passwordHash: await hashPassword(input.password),
+          passwordHash,
           role: 'cliente',
         })
         .returning({ id: accounts.id });

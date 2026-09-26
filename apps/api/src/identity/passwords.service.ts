@@ -59,6 +59,7 @@ export class PasswordsService {
   }
 
   async confirmReset(input: PasswordResetConfirm): Promise<void> {
+    const passwordHash = await hashPassword(input.password);
     await this.db.transaction(async (tx) => {
       const accountId = await this.tokens.consume(
         tx,
@@ -70,7 +71,7 @@ export class PasswordsService {
       const [account] = await tx
         .update(accounts)
         .set({
-          passwordHash: await hashPassword(input.password),
+          passwordHash,
           // O link chegou ao e-mail: a posse do endereço está comprovada.
           emailVerifiedAt: sql`coalesce(${accounts.emailVerifiedAt}, now())`,
         })
@@ -91,11 +92,12 @@ export class PasswordsService {
   /** Troca a senha e encerra as demais sessões da conta. */
   async change(auth: AuthContext, input: ChangePasswordRequest): Promise<void> {
     await this.assertCurrentPassword(auth.account.id, input.currentPassword);
+    const passwordHash = await hashPassword(input.newPassword);
 
     await this.db.transaction(async (tx) => {
       await tx
         .update(accounts)
-        .set({ passwordHash: await hashPassword(input.newPassword) })
+        .set({ passwordHash })
         .where(eq(accounts.id, auth.account.id));
       await this.sessions.revokeAll(tx, auth.account.id, auth.sessionId);
       await this.audit.record(tx, {

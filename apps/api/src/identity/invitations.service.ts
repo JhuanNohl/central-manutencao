@@ -212,6 +212,8 @@ export class InvitationsService {
 
   /** Aceite de uso único: a marcação do convite e a criação da conta são atômicas. */
   async accept(input: AcceptInvitationRequest): Promise<SignedIn> {
+    const passwordHash = await hashPassword(input.password);
+
     return this.db.transaction(async (tx) => {
       const [invitation] = await tx
         .update(invitations)
@@ -232,7 +234,7 @@ export class InvitationsService {
         .values({
           email: invitation.email,
           name: input.name,
-          passwordHash: await hashPassword(input.password),
+          passwordHash,
           role: invitation.role,
           // O convite chegou ao e-mail: posse do endereço comprovada.
           emailVerifiedAt: sql`now()`,
