@@ -11,3 +11,8 @@ storage/
 
 # Documento de escopo interno: mantido apenas localmente
 Escopo-*.md
+
+# Marca ZKTeco: arquivos mantidos só localmente (repositório público).
+apps/web/public/brand/
+/ZKTeco_logo-*.png
+/favicon.png
