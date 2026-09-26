@@ -1,0 +1,36 @@
+import {
+  RMA_ITEM_STAGES,
+  type RmaItemStage,
+  type RmaStageCount,
+} from '@central/contracts';
+
+/**
+ * Assunto exibido na lista, derivado dos itens (não é digitado):
+ * um item → "Manutenção — VR10 (S/N 123)";
+ * vários → "Manutenção — 3 equipamentos: 2× SpeedFace V5L, Inbio 260".
+ */
+export function rmaSubject(
+  items: { model: string; serialNumber: string }[],
+): string {
+  if (items.length === 0) return 'Manutenção — sem equipamentos';
+  if (items.length === 1) {
+    const [item] = items;
+    return `Manutenção — ${item.model} (S/N ${item.serialNumber})`;
+  }
+  const perModel = new Map<string, number>();
+  for (const { model } of items) {
+    perModel.set(model, (perModel.get(model) ?? 0) + 1);
+  }
+  const models = [...perModel].map(([model, count]) =>
+    count > 1 ? `${count}× ${model}` : model,
+  );
+  return `Manutenção — ${items.length} equipamentos: ${models.join(', ')}`;
+}
+
+/** Quantidade de itens por etapa, na ordem do fluxo (A5.1). */
+export function stageCounts(stages: RmaItemStage[]): RmaStageCount[] {
+  return RMA_ITEM_STAGES.map((stage) => ({
+    stage,
+    count: stages.filter((current) => current === stage).length,
+  })).filter(({ count }) => count > 0);
+}

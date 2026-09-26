@@ -13,6 +13,7 @@ import { AuthGuard } from './identity/auth.guard.js';
 import { SENSITIVE_RATE_LIMIT } from './identity/decorators.js';
 import { IdentityModule } from './identity/identity.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
+import { RmasModule } from './rmas/rmas.module.js';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { NotificationsModule } from './notifications/notifications.module.js';
     NotificationsModule,
     IdentityModule,
     CustomersModule,
+    RmasModule,
     ThrottlerModule.forRootAsync({
       inject: [ENV],
       useFactory: (env: Env) => ({
