@@ -62,6 +62,8 @@ npm run dev
 
 ## Convenções
 
+As diretrizes completas de código (Clean Code, SOLID, DRY, commits) estão em [CLAUDE.md](CLAUDE.md). Resumo:
+
 - **Contratos primeiro:** toda entrada da API é validada no servidor com o esquema de `packages/contracts`. O frontend usa o mesmo esquema para orientar o preenchimento.
 - **Erros:** envelope `{ error: { code, message, issues?, requestId } }`. O `requestId` também aparece no cabeçalho `X-Request-Id` e nos logs.
 - **Autorização:** toda rota exige sessão, salvo `@Public()`. As permissões são declaradas com `@RequirePermissions()`. O escopo do cliente (só o próprio cadastro) é verificado no serviço e responde 404, sem confirmar que o registro existe.
