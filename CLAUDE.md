@@ -29,7 +29,17 @@ Estas regras valem para todo código novo e para qualquer código tocado. O cód
   - cookie de sessão em `SessionCookies`.
 - Utilitários existentes devem ser reutilizados antes de criar outro:
   - **API:** `pageWindow`/`toPage` (paginação), `containsPattern` (busca), `reference` (referência de LEFT JOIN), `validate()` (entrada), `AuditService.record`, `NotificationsService.enqueue`;
-  - **Web:** `usePagedList`, `PagedResults`, `useSchemaForm`, `CustomerKindField` e os componentes de `components/ui.tsx`.
+  - **Web:** `usePagedList` + `PagedResults` (listagens), `useSchemaForm` (formulários), `FilterTabs` e `SearchInput` (filtros), `Badge` com `StatusStyle` (situações), `Alert`/`FormAlert`/`QueryError` (mensagens), `CustomerKindField`, `BrandLogo` e os campos de `components/ui.tsx`.
+
+## Design system (web)
+
+- **Tokens de cor, espaçamento e raio** ficam em `apps/web/src/styles.css`, com variantes clara e escura (`prefers-color-scheme`). Componentes usam só os tokens, nunca cores soltas.
+- **Verde da marca:** `--brand` (#7DC142) é cor de **fundo** (botão principal, página atual, indicador ativo), sempre com texto `--on-brand`. Texto e ícone verdes sobre fundo claro usam `--brand-strong`, que atinge o contraste AA.
+- **Estrutura:** barra superior sempre escura (logo branco); menu lateral com item ativo marcado por borda verde; superfícies planas com borda (`card`, `panel`, `tile`), sem sombra, cantos de 2px.
+- **Situações:** use `Badge` com uma tabela `Record<Situação, StatusStyle>` por tela, com tom `success`, `warning`, `danger` ou `neutral` e ícone do `lucide-react`. Crie uma entrada só para uma situação que o sistema realmente tem, e nunca use a cor como único indicador.
+- **Filtro de situação** é `FilterTabs`; filtros secundários são `select` ou `SearchInput` no `panel-header`.
+- **Logo:** `BrandLogo surface="onDark"` em fundos sempre escuros e `surface="auto"` nos demais, que alterna entre as versões cinza e branca. Os arquivos da marca ZKTeco ficam **só localmente**, em `apps/web/public/brand/` (ignorado pelo git). Sem eles, `brand.config.ts` faz o build usar o símbolo neutro (`public/favicon.svg`). Nunca versionar logos, favicon ou outros ativos da marca neste repositório.
+- **Ícones:** somente `lucide-react`, decorativos com `aria-hidden`. Botões só de ícone levam `aria-label`.
 - **Regra de três:** duplicação acidental (parecida hoje, com motivos diferentes para mudar) pode ficar. Extraia quando o mesmo conhecimento aparecer pela terceira vez, ou já na segunda se for regra de negócio ou de segurança.
 - **KISS e YAGNI:** não crie camadas, genéricos ou abstrações "para o futuro". Uma abstração precisa de pelo menos dois usos reais ou de um motivo de teste. Genéricos que exigem `as unknown as` são sinal de abstração errada.
 

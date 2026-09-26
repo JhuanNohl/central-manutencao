@@ -46,6 +46,16 @@ npm run dev
 - E-mails de desenvolvimento: http://localhost:8025
 - Contas sintéticas: `admin@central.local`, `agente@central.local`, `consulta@central.local`, `cliente@exemplo.local`, `fabio@pessoa.local`. A senha de todas é `central-dev-2026` (apenas para desenvolvimento).
 
+### Marca (opcional, só local)
+
+O repositório traz um símbolo neutro. Para exibir a marca real, coloque os três arquivos abaixo em `apps/web/public/brand/` e reinicie o `npm run dev`. A pasta é ignorada pelo git e nunca vai para o repositório.
+
+| Arquivo | Uso |
+|---|---|
+| `logo-cinza.png` | Logo para fundos claros |
+| `logo-branco.png` | Logo para fundos escuros (barra superior e modo escuro) |
+| `favicon.png` | Ícone da aba (192×192) |
+
 ## Comandos
 
 | Comando | O que faz |
