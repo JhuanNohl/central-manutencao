@@ -7,6 +7,10 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { post } from '../../api/client';
 import { useSetSession } from '../../auth/session';
+import {
+  CustomerKindField,
+  customerKindLabels,
+} from '../../components/CustomerKindField';
 import { Field, FormAlert, SubmitButton } from '../../components/ui';
 import { AuthLayout } from '../../layouts/AuthLayout';
 import { raw, text, useSchemaForm } from '../../lib/forms';
@@ -15,7 +19,8 @@ export function RegisterPage() {
   const setSession = useSetSession();
   const navigate = useNavigate();
   const [kind, setKind] = useState<CustomerKind>('pessoa_juridica');
-  const company = kind === 'pessoa_juridica';
+  const labels = customerKindLabels(kind);
+  const { company } = labels;
 
   const form = useSchemaForm({
     schema: registerRequestSchema,
@@ -49,34 +54,11 @@ export function RegisterPage() {
 
         <fieldset>
           <legend>Quem é o cliente</legend>
-          <div
-            className="radio-group"
-            role="radiogroup"
-            aria-label="Tipo de cliente"
-          >
-            <label>
-              <input
-                type="radio"
-                name="kind"
-                checked={company}
-                onChange={() => setKind('pessoa_juridica')}
-              />
-              Empresa (CNPJ)
-            </label>
-            <label>
-              <input
-                type="radio"
-                name="kind"
-                checked={!company}
-                onChange={() => setKind('pessoa_fisica')}
-              />
-              Pessoa física (CPF)
-            </label>
-          </div>
+          <CustomerKindField value={kind} onChange={setKind} />
           {company && (
             <div className="field-row">
               <Field
-                label="Razão social"
+                label={labels.name}
                 name="customerName"
                 errorPath="customer.name"
                 autoComplete="organization"
@@ -90,7 +72,7 @@ export function RegisterPage() {
             </div>
           )}
           <Field
-            label={company ? 'CNPJ' : 'CPF'}
+            label={labels.document}
             name="document"
             errorPath="customer.document"
             hint={

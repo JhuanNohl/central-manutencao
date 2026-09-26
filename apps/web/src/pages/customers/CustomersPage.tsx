@@ -11,6 +11,10 @@ import { Link, useNavigate } from 'react-router';
 import { get, post, toQuery } from '../../api/client';
 import { hasPermission, useSession } from '../../auth/session';
 import {
+  CustomerKindField,
+  customerKindLabels,
+} from '../../components/CustomerKindField';
+import {
   Field,
   FormAlert,
   PageHeader,
@@ -24,13 +28,13 @@ import { text, useSchemaForm } from '../../lib/forms';
 function NewCustomerForm() {
   const navigate = useNavigate();
   const [kind, setKind] = useState<CustomerKind>('pessoa_juridica');
-  const company = kind === 'pessoa_juridica';
+  const labels = customerKindLabels(kind);
   const form = useSchemaForm({
     schema: customerInputSchema,
     read: (data) => ({
       kind,
       name: text(data, 'name'),
-      tradeName: company ? text(data, 'tradeName') : undefined,
+      tradeName: labels.company ? text(data, 'tradeName') : undefined,
       document: text(data, 'document') ?? '',
     }),
     submit: (body) => post<CustomerView>('/customers', body),
@@ -42,35 +46,10 @@ function NewCustomerForm() {
       <h2>Novo cliente</h2>
       <form onSubmit={form.onSubmit} noValidate>
         <FormAlert message={form.formError} />
-        <div
-          className="radio-group"
-          role="radiogroup"
-          aria-label="Tipo de cliente"
-        >
-          <label>
-            <input
-              type="radio"
-              checked={company}
-              onChange={() => setKind('pessoa_juridica')}
-            />
-            Empresa (CNPJ)
-          </label>
-          <label>
-            <input
-              type="radio"
-              checked={!company}
-              onChange={() => setKind('pessoa_fisica')}
-            />
-            Pessoa física (CPF)
-          </label>
-        </div>
+        <CustomerKindField value={kind} onChange={setKind} />
         <div className="field-row">
-          <Field
-            label={company ? 'Razão social' : 'Nome completo'}
-            name="name"
-            errors={form.fieldErrors}
-          />
-          {company && (
+          <Field label={labels.name} name="name" errors={form.fieldErrors} />
+          {labels.company && (
             <Field
               label="Nome fantasia (opcional)"
               name="tradeName"
@@ -78,7 +57,7 @@ function NewCustomerForm() {
             />
           )}
           <Field
-            label={company ? 'CNPJ' : 'CPF'}
+            label={labels.document}
             name="document"
             errors={form.fieldErrors}
           />
