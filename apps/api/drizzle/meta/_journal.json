@@ -15,6 +15,13 @@
       "when": 1790337239256,
       "tag": "0001_auditoria_imutavel",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790456793253,
+      "tag": "0002_rmas_itens_notas",
+      "breakpoints": true
     }
   ]
 }
