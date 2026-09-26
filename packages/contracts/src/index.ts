@@ -18,3 +18,4 @@ export * from './documents.js';
 export * from './errors.js';
 export * from './invitations.js';
 export * from './notifications.js';
+export * from './rmas.js';
