@@ -10,6 +10,8 @@ import type {
 } from '@central/contracts';
 import { and, asc, count, eq, ilike, or } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service.js';
+import { pageWindow, toPage } from '../common/db/pagination.js';
+import { containsPattern } from '../common/db/search.js';
 import { ApiException } from '../common/http/api-exception.js';
 import { DATABASE } from '../database/database.module.js';
 import type { Database, Executor } from '../database/database.types.js';
@@ -61,9 +63,7 @@ export class CustomersService {
   ) {}
 
   async list(query: ListCustomersQuery): Promise<Page<CustomerSummary>> {
-    const term = query.search
-      ? `%${query.search.replace(/[\\%_]/g, (c) => `\\${c}`)}%`
-      : undefined;
+    const term = containsPattern(query.search);
     const where = term
       ? or(
           ilike(customers.name, term),
@@ -71,22 +71,19 @@ export class CustomersService {
           ilike(customers.document, term),
         )
       : undefined;
-    const [rows, [{ total }]] = await Promise.all([
+    const { limit, offset } = pageWindow(query);
+    return toPage(
+      query,
       this.db
         .select()
         .from(customers)
         .where(where)
         .orderBy(asc(customers.name))
-        .limit(query.pageSize)
-        .offset((query.page - 1) * query.pageSize),
+        .limit(limit)
+        .offset(offset),
       this.db.select({ total: count() }).from(customers).where(where),
-    ]);
-    return {
-      items: rows.map(toSummary),
-      page: query.page,
-      pageSize: query.pageSize,
-      total,
-    };
+      toSummary,
+    );
   }
 
   async get(auth: AuthContext, id: string): Promise<CustomerView> {

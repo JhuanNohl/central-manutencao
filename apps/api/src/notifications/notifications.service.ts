@@ -7,6 +7,7 @@ import type {
 } from '@central/contracts';
 import { and, count, desc, eq, sql } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service.js';
+import { pageWindow, toPage } from '../common/db/pagination.js';
 import { ApiException } from '../common/http/api-exception.js';
 import { ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
@@ -68,22 +69,19 @@ export class NotificationsService {
     const where = query.status
       ? eq(notifications.status, query.status)
       : undefined;
-    const [rows, [{ total }]] = await Promise.all([
+    const { limit, offset } = pageWindow(query);
+    return toPage(
+      query,
       this.db
         .select()
         .from(notifications)
         .where(where)
         .orderBy(desc(notifications.createdAt))
-        .limit(query.pageSize)
-        .offset((query.page - 1) * query.pageSize),
+        .limit(limit)
+        .offset(offset),
       this.db.select({ total: count() }).from(notifications).where(where),
-    ]);
-    return {
-      items: rows.map(toView),
-      page: query.page,
-      pageSize: query.pageSize,
-      total,
-    };
+      toView,
+    );
   }
 
   /** Reagenda um aviso que esgotou as tentativas, preservando o histórico de tentativas. */

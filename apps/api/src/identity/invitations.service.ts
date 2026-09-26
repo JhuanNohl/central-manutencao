@@ -25,6 +25,8 @@ import { AuditService } from '../audit/audit.service.js';
 import { hashPassword } from '../common/crypto/passwords.js';
 import { generateToken, hashToken } from '../common/crypto/tokens.js';
 import { ApiException } from '../common/http/api-exception.js';
+import { pageWindow, toPage } from '../common/db/pagination.js';
+import { reference } from '../common/mapping.js';
 import { formatInstant } from '../common/time/format.js';
 import { ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
@@ -151,20 +153,17 @@ export class InvitationsService {
 
   async list(query: ListInvitationsQuery): Promise<Page<InvitationView>> {
     const where = query.status ? statusFilter(query.status) : undefined;
-    const [rows, [{ total }]] = await Promise.all([
+    const { limit, offset } = pageWindow(query);
+    return toPage(
+      query,
       this.selectViews()
         .where(where)
         .orderBy(desc(invitations.createdAt))
-        .limit(query.pageSize)
-        .offset((query.page - 1) * query.pageSize),
+        .limit(limit)
+        .offset(offset),
       this.db.select({ total: count() }).from(invitations).where(where),
-    ]);
-    return {
-      items: rows.map((row) => this.toView(row)),
-      page: query.page,
-      pageSize: query.pageSize,
-      total,
-    };
+      toView,
+    );
   }
 
   async revoke(auth: AuthContext, id: string): Promise<InvitationView> {
@@ -368,28 +367,24 @@ export class InvitationsService {
   private async get(id: string, db: Executor = this.db) {
     const [row] = await this.selectViews(db).where(eq(invitations.id, id));
     if (!row) throw ApiException.notFound('Convite não encontrado.');
-    return this.toView(row);
+    return toView(row);
   }
+}
 
-  private toView(
-    row: Awaited<ReturnType<InvitationsService['selectViews']>>[number],
-  ): InvitationView {
-    return {
-      id: row.id,
-      email: row.email,
-      role: row.role,
-      status: statusOf(row),
-      customer:
-        row.customerId && row.customerName
-          ? { id: row.customerId, name: row.customerName }
-          : null,
-      invitedBy:
-        row.inviterId && row.inviterName
-          ? { id: row.inviterId, name: row.inviterName }
-          : null,
-      createdAt: row.createdAt.toISOString(),
-      expiresAt: row.expiresAt.toISOString(),
-      acceptedAt: row.acceptedAt?.toISOString() ?? null,
-    };
-  }
+type InvitationRow = Awaited<
+  ReturnType<InvitationsService['selectViews']>
+>[number];
+
+function toView(row: InvitationRow): InvitationView {
+  return {
+    id: row.id,
+    email: row.email,
+    role: row.role,
+    status: statusOf(row),
+    customer: reference(row.customerId, row.customerName),
+    invitedBy: reference(row.inviterId, row.inviterName),
+    createdAt: row.createdAt.toISOString(),
+    expiresAt: row.expiresAt.toISOString(),
+    acceptedAt: row.acceptedAt?.toISOString() ?? null,
+  };
 }

@@ -9,7 +9,10 @@ import {
 } from '@central/contracts';
 import { and, asc, count, eq, ilike, or, sql } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service.js';
+import { pageWindow, toPage } from '../common/db/pagination.js';
+import { containsPattern } from '../common/db/search.js';
 import { ApiException } from '../common/http/api-exception.js';
+import { reference } from '../common/mapping.js';
 import { DATABASE } from '../database/database.module.js';
 import type {
   Database,
@@ -27,10 +30,6 @@ import { SessionsService } from './sessions.service.js';
 /** Chave do lock consultivo que serializa mudanças de administradores. */
 const ADMIN_CHANGES_LOCK = 7_301_001;
 
-function escapeLike(value: string): string {
-  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
-}
-
 @Injectable()
 export class AccountsService {
   constructor(
@@ -40,7 +39,7 @@ export class AccountsService {
   ) {}
 
   async list(query: ListAccountsQuery): Promise<Page<AccountView>> {
-    const term = query.search ? `%${escapeLike(query.search)}%` : undefined;
+    const term = containsPattern(query.search);
     const where = and(
       term
         ? or(ilike(accounts.name, term), ilike(accounts.email, term))
@@ -48,20 +47,17 @@ export class AccountsService {
       query.role ? eq(accounts.role, query.role) : undefined,
       query.status ? eq(accounts.status, query.status) : undefined,
     );
-    const [rows, [{ total }]] = await Promise.all([
+    const { limit, offset } = pageWindow(query);
+    return toPage(
+      query,
       this.selectViews()
         .where(where)
         .orderBy(asc(accounts.name))
-        .limit(query.pageSize)
-        .offset((query.page - 1) * query.pageSize),
+        .limit(limit)
+        .offset(offset),
       this.db.select({ total: count() }).from(accounts).where(where),
-    ]);
-    return {
-      items: rows.map(toView),
-      page: query.page,
-      pageSize: query.pageSize,
-      total,
-    };
+      toView,
+    );
   }
 
   async changeRole(
@@ -235,10 +231,7 @@ function toView(row: {
     role: row.role,
     status: row.status,
     emailVerified: row.emailVerifiedAt !== null,
-    customer:
-      row.customerId && row.customerName
-        ? { id: row.customerId, name: row.customerName }
-        : null,
+    customer: reference(row.customerId, row.customerName),
     createdAt: row.createdAt.toISOString(),
     lastLoginAt: row.lastLoginAt?.toISOString() ?? null,
   };
