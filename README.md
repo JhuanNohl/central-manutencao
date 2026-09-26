@@ -2,7 +2,7 @@
 
 Aplicação própria para o cliente solicitar manutenção e acompanhar cada equipamento até recebê-lo de volta, e para a equipe registrar o trabalho, controlar prazos e organizar recebimentos e devoluções parciais. O documento de escopo (Escopo 1.0) é mantido fora deste repositório; os identificadores citados no código e em `docs/` (D, RF, CA, P) referem-se a ele.
 
-**Situação:** entrega **E0 — Fundação** concluída. Veja [docs/E0-fundacao.md](docs/E0-fundacao.md).
+**Situação:** entrega **E0 — Fundação** concluída ([docs/E0-fundacao.md](docs/E0-fundacao.md)). Primeira fatia da **E1** entregue: a visão de chamados do agente ([docs/E1-visao-do-agente.md](docs/E1-visao-do-agente.md)).
 
 ## Estrutura
 

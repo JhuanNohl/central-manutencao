@@ -29,7 +29,7 @@ Estas regras valem para todo código novo e para qualquer código tocado. O cód
   - cookie de sessão em `SessionCookies`.
 - Utilitários existentes devem ser reutilizados antes de criar outro:
   - **API:** `pageWindow`/`toPage` (paginação), `containsPattern` (busca), `reference` (referência de LEFT JOIN), `validate()` (entrada), `AuditService.record`, `NotificationsService.enqueue`;
-  - **Web:** `usePagedList` + `PagedResults` (listagens), `useSchemaForm` (formulários), `FilterTabs` e `SearchInput` (filtros), `Badge` com `StatusStyle` (situações), `Alert`/`FormAlert`/`QueryError` (mensagens), `CustomerKindField`, `BrandLogo` e os campos de `components/ui.tsx`.
+  - **Web:** `usePagedList` + `PagedResults` (listagens), `useSchemaForm` (formulários), `FilterTabs` e `SearchInput` (filtros), `Badge` com `StatusStyle` (situações), `Alert`/`FormAlert`/`QueryError` (mensagens), `CustomerKindField`, `BrandLogo`, `StageSummary` e `STAGE_STYLES`/`PRIORITY_STYLES`/`WARRANTY_STYLES` (`pages/rmas/rma-styles.ts`) e os campos de `components/ui.tsx`.
 
 ## Design system (web)
 
@@ -49,6 +49,7 @@ Estas regras valem para todo código novo e para qualquer código tocado. O cód
 - **Concorrência:** unicidade e uso único são garantidos no banco (índices únicos, `UPDATE … WHERE … RETURNING`). Verificações prévias existem só para dar mensagem clara.
 - **Autorização:** permissões com `@RequirePermissions()`; escopo do cliente verificado no serviço, com resposta 404 quando o registro é de outro cliente.
 - **Banco:** esquema em `apps/api/src/database/schema`; toda mudança gera migration com `npm run db:generate` (SQL manual com `--custom`). Nunca editar uma migration já publicada.
+- **RMA sem status único:** cada item tem a própria etapa (A5.1), e o chamado mostra a contagem por etapa. Não crie um campo de status geral nem porcentagem de progresso.
 - **Datas:** `timestamptz` em UTC, exibidas no fuso operacional.
 
 ## Testes
