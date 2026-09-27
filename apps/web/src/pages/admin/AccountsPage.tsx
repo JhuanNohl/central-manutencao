@@ -104,8 +104,7 @@ export function AccountsPage() {
   return (
     <div>
       <PageHeader
-        title="Contas"
-        description="Clientes e integrantes da equipe com acesso à Central."
+        title="Agentes"
       />
 
       <section className="panel">

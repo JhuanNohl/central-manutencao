@@ -19,7 +19,7 @@ export interface NavItem {
 
 /** Itens do menu lateral, na ordem de exibição. */
 export const NAV_ITEMS: NavItem[] = [
-  { to: '/', label: 'Visão geral', icon: House },
+  { to: '/', label: 'Início', icon: House },
   {
     to: '/chamados',
     label: 'Chamados',
@@ -34,7 +34,7 @@ export const NAV_ITEMS: NavItem[] = [
   },
   {
     to: '/admin/contas',
-    label: 'Contas',
+    label: 'Agentes',
     icon: UserCog,
     permission: 'accounts.read',
   },

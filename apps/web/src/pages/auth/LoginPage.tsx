@@ -28,8 +28,7 @@ export function LoginPage() {
 
   return (
     <AuthLayout
-      title="Entrar"
-      lead="Solicite e acompanhe a manutenção dos seus equipamentos."
+      title="Acesse sua conta"
     >
       <form onSubmit={form.onSubmit} noValidate>
         <FormAlert message={form.formError} />
@@ -54,7 +53,7 @@ export function LoginPage() {
       </form>
       <div className="auth-links">
         <Link to="/esqueci-senha">Esqueci minha senha</Link>
-        <Link to="/cadastro">Criar conta de cliente</Link>
+        <Link to="/cadastro">Criar conta</Link>
       </div>
     </AuthLayout>
   );

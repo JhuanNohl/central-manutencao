@@ -112,7 +112,6 @@ export function InvitationsPage() {
     <div className="stack">
       <PageHeader
         title="Convites"
-        description="Convites são pessoais, valem por 7 dias e podem ser usados uma única vez."
       />
       <StaffInvitationForm />
 

@@ -54,7 +54,6 @@ export function NotificationsPage() {
     <div>
       <PageHeader
         title="Avisos por e-mail"
-        description="Falhas de envio não desfazem as operações; aqui é possível reenviar depois de corrigir a causa."
       />
       <section className="panel">
         <div className="panel-header">

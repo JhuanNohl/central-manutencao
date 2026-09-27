@@ -44,7 +44,6 @@ export function RmasPage() {
     <div>
       <PageHeader
         title="Chamados"
-        description="Solicitações de manutenção e a situação de cada equipamento."
       />
       <section className="panel">
         <div className="panel-header">

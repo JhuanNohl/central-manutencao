@@ -87,8 +87,7 @@ export function HomePage() {
   return (
     <div className="stack">
       <PageHeader
-        title="Visão geral"
-        description="Acompanhe os atendimentos e os prazos de manutenção."
+        title="Início"
       />
       {shortcuts.length > 0 && (
         <div className="grid-2">
