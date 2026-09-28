@@ -57,6 +57,7 @@ describe('Autenticação e sessão', () => {
     expect(res.body.account.permissions).toEqual([
       'rma.own.read',
       'rma.own.create',
+      'rma.own.ship',
     ]);
 
     const cookie = String(res.headers['set-cookie']);

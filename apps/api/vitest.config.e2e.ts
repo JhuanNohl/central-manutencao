@@ -14,6 +14,7 @@ export const TEST_ENV = {
   MAIL_FROM: 'Central de Manutenção <teste@central.local>',
   NOTIFICATIONS_WORKER_ENABLED: 'false',
   NOTIFICATIONS_MAX_ATTEMPTS: '2',
+  FILES_CLEANUP_ENABLED: 'false',
 };
 
 export default defineConfig({

@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs';
+import { isValidCnpj, normalizeDocument } from '@central/contracts';
 import { z } from 'zod';
 
 const booleanString = z
@@ -29,6 +30,18 @@ const envSchema = z.object({
   NOTIFICATIONS_WORKER_ENABLED: booleanString.default(true),
   NOTIFICATIONS_POLL_SECONDS: z.coerce.number().positive().default(5),
   NOTIFICATIONS_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
+  // Prazo padrão por equipamento (P01: 30 períodos de 24 horas desde o recebimento).
+  RMA_SLA_HOURS: z.coerce.number().int().positive().default(720),
+  // Arquivos privados em disco local (P03); a pasta precisa entrar no backup.
+  FILES_STORAGE_DIR: z.string().min(1).default('storage/files'),
+  FILES_TEMP_TTL_HOURS: z.coerce.number().positive().default(24),
+  FILES_CLEANUP_ENABLED: booleanString.default(true),
+  // CNPJ que deve constar como destinatário nas notas de remessa (P04).
+  INVOICE_RECIPIENT_DOCUMENT: z
+    .string()
+    .optional()
+    .transform((value) => (value ? normalizeDocument(value) : undefined))
+    .refine((value) => !value || isValidCnpj(value), 'CNPJ inválido'),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -49,6 +62,9 @@ export function parseEnv(source: NodeJS.ProcessEnv = process.env): Env {
   const env = result.data;
   if (env.NODE_ENV === 'production' && !env.COOKIE_SECURE) {
     throw new Error('Em produção, COOKIE_SECURE deve ser true.');
+  }
+  if (env.NODE_ENV === 'production' && !env.INVOICE_RECIPIENT_DOCUMENT) {
+    throw new Error('Em produção, INVOICE_RECIPIENT_DOCUMENT é obrigatório.');
   }
   return env;
 }

@@ -31,6 +31,7 @@ export const PERMISSIONS = [
   // Portal do cliente — sempre limitado ao próprio cadastro.
   'rma.own.read',
   'rma.own.create',
+  'rma.own.ship',
   // Equipe
   'rma.read',
   'rma.write',
@@ -59,7 +60,7 @@ const AGENT: Permission[] = [
 ];
 
 export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
-  cliente: ['rma.own.read', 'rma.own.create'],
+  cliente: ['rma.own.read', 'rma.own.create', 'rma.own.ship'],
   agente_consulta: STAFF_READ,
   agente: AGENT,
   administrador: [

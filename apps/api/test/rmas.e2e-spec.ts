@@ -63,6 +63,9 @@ describe('Chamados (visão da equipe)', () => {
         receivedAt: ['aguardando_envio', 'em_transporte'].includes(item.stage)
           ? null
           : new Date(),
+        slaHours: ['aguardando_envio', 'em_transporte'].includes(item.stage)
+          ? null
+          : 720,
         internalNote: item.note ?? null,
       })),
     );

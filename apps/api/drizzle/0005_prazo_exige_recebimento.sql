@@ -1,0 +1,1 @@
+ALTER TABLE "rma_items" ADD CONSTRAINT "rma_items_sla_with_receipt" CHECK (("rma_items"."received_at" is null) = ("rma_items"."sla_hours" is null) and ("rma_items"."sla_hours" is null or "rma_items"."sla_hours" > 0));

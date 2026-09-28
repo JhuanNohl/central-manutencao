@@ -358,6 +358,8 @@ async function seedRmas(db: Database): Promise<void> {
             item.receivedDaysAgo === undefined
               ? null
               : daysAgo(item.receivedDaysAgo),
+          slaHours:
+            item.receivedDaysAgo === undefined ? null : env.RMA_SLA_HOURS,
           technicalReport: item.technicalReport ?? null,
           internalNote: item.internalNote ?? null,
         })),

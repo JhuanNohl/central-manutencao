@@ -1,5 +1,8 @@
 import { z } from 'zod';
 import { paginationQuerySchema } from './common.js';
+import type { StoredFileView } from './files.js';
+import type { InvoiceValidation } from './invoice-validation.js';
+import type { ReceiptView, ShipmentView } from './rma-logistics.js';
 
 /**
  * Etapas de um item do RMA (escopo A5.1). Cada equipamento tem a sua;
@@ -33,6 +36,18 @@ export const RMA_ITEM_STAGE_LABELS: Record<RmaItemStage, string> = {
   em_devolucao: 'Em devolução',
   entregue: 'Recebido pelo cliente',
 };
+
+/** Etapas em que o cliente ainda pode confirmar o envio do item. */
+export const SHIPPABLE_STAGES: readonly RmaItemStage[] = ['aguardando_envio'];
+
+/**
+ * Etapas em que o item pode ser recebido. Inclui "aguardando envio" porque
+ * o equipamento pode chegar sem envio declarado (ex.: aberto pela equipe).
+ */
+export const RECEIVABLE_STAGES: readonly RmaItemStage[] = [
+  'aguardando_envio',
+  'em_transporte',
+];
 
 export const RMA_PRIORITIES = ['normal', 'alta', 'urgente'] as const;
 export type RmaPriority = (typeof RMA_PRIORITIES)[number];
@@ -97,6 +112,35 @@ export interface RmaSummary {
   stages: RmaStageCount[];
 }
 
+/** Situação do prazo do item: começa só no recebimento físico (RN04). */
+export const SLA_STATUSES = ['nao_iniciado', 'no_prazo', 'atrasado'] as const;
+export type SlaStatus = (typeof SLA_STATUSES)[number];
+
+export const SLA_STATUS_LABELS: Record<SlaStatus, string> = {
+  nao_iniciado: 'Não iniciado',
+  no_prazo: 'No prazo',
+  atrasado: 'Atrasado',
+};
+
+export interface ItemSlaView {
+  status: SlaStatus;
+  startedAt: string | null;
+  dueAt: string | null;
+  /** Prazo aplicado no recebimento, em horas; não muda com a configuração. */
+  hours: number | null;
+}
+
+export const RMA_DOCUMENT_KINDS = ['nota_xml', 'declaracao'] as const;
+export type RmaDocumentKind = (typeof RMA_DOCUMENT_KINDS)[number];
+
+export interface RmaDocumentView {
+  id: string;
+  kind: RmaDocumentKind;
+  file: StoredFileView;
+  /** Resultado registrado na abertura; só existe para o XML. */
+  validation: Omit<InvoiceValidation, 'invoice'> | null;
+}
+
 export interface RmaItemView {
   id: string;
   position: number;
@@ -118,4 +162,29 @@ export interface RmaDetail extends Omit<RmaSummary, 'invoice' | 'requester'> {
   openedBy: { id: string; name: string } | null;
   invoices: RmaInvoiceView[];
   items: RmaItemView[];
+}
+
+/* ---------- Portal do cliente: sem nota interna nem contas da equipe ---------- */
+
+export const listOwnRmasQuerySchema = paginationQuerySchema;
+export type ListOwnRmasQuery = z.infer<typeof listOwnRmasQuerySchema>;
+
+export type PortalRmaItemView = Omit<RmaItemView, 'internalNote'>;
+
+export interface PortalRmaSummary {
+  number: number;
+  subject: string;
+  createdAt: string;
+  updatedAt: string;
+  itemCount: number;
+  stages: RmaStageCount[];
+}
+
+export interface PortalRmaDetail extends PortalRmaSummary {
+  requester: { name: string; email: string; phone: string | null } | null;
+  invoices: RmaInvoiceView[];
+  documents: RmaDocumentView[];
+  items: PortalRmaItemView[];
+  shipments: ShipmentView[];
+  receipts: ReceiptView[];
 }

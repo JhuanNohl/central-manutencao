@@ -22,6 +22,27 @@
       "when": 1790456793253,
       "tag": "0002_rmas_itens_notas",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790614835975,
+      "tag": "0003_arquivos_envios_recebimentos",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790614879027,
+      "tag": "0004_prazo_aplicado_itens_recebidos",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790614919456,
+      "tag": "0005_prazo_exige_recebimento",
+      "breakpoints": true
     }
   ]
 }
