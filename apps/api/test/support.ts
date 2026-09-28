@@ -15,6 +15,7 @@ import {
   customerContacts,
   customers,
 } from '../src/database/schema/index.js';
+import { FILE_STORAGE, type FileStorage } from '../src/files/file-storage.js';
 import {
   MAIL_TRANSPORT,
   type MailMessage,
@@ -47,10 +48,33 @@ export class FakeMailTransport implements MailTransport {
   }
 }
 
+/** Armazenamento em memória com o mesmo contrato do disco local. */
+export class MemoryFileStorage implements FileStorage {
+  readonly contents = new Map<string, Buffer>();
+  failing = false;
+
+  async put(key: string, content: Buffer): Promise<void> {
+    if (this.failing) throw new Error('Armazenamento indisponível (simulado)');
+    if (this.contents.has(key)) throw new Error(`Chave já existe: ${key}`);
+    this.contents.set(key, Buffer.from(content));
+  }
+
+  async read(key: string): Promise<Buffer> {
+    const content = this.contents.get(key);
+    if (!content) throw new Error(`Chave inexistente: ${key}`);
+    return content;
+  }
+
+  async remove(key: string): Promise<void> {
+    this.contents.delete(key);
+  }
+}
+
 export interface TestContext {
   app: INestApplication;
   db: Database;
   mail: FakeMailTransport;
+  storage: MemoryFileStorage;
   processor: NotificationProcessor;
   /** Cliente HTTP sem cookies, já com a Origin do frontend. */
   http: () => TestAgent;
@@ -58,9 +82,12 @@ export interface TestContext {
 
 export async function createTestApp(): Promise<TestContext> {
   const mail = new FakeMailTransport();
+  const storage = new MemoryFileStorage();
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(MAIL_TRANSPORT)
     .useValue(mail)
+    .overrideProvider(FILE_STORAGE)
+    .useValue(storage)
     .compile();
   const app = moduleRef.createNestApplication<NestExpressApplication>({
     bodyParser: false,
@@ -72,6 +99,7 @@ export async function createTestApp(): Promise<TestContext> {
   return {
     app,
     mail,
+    storage,
     db: app.get<Database>(DATABASE),
     processor: app.get(NotificationProcessor),
     http: () => request.agent(app.getHttpServer()).set('Origin', ORIGIN),

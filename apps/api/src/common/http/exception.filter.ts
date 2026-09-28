@@ -17,11 +17,13 @@ const STATUS_CODES: Partial<Record<number, ErrorCode>> = {
   403: 'FORBIDDEN',
   404: 'NOT_FOUND',
   409: 'CONFLICT',
+  413: 'VALIDATION_ERROR',
   429: 'TOO_MANY_REQUESTS',
 };
 
 const STATUS_MESSAGES: Partial<Record<number, string>> = {
   404: 'Recurso não encontrado.',
+  413: 'O arquivo passa do tamanho máximo aceito.',
   429: 'Muitas tentativas. Aguarde um instante e tente novamente.',
 };
 

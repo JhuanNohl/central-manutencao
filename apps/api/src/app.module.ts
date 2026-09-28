@@ -8,6 +8,7 @@ import { ConfigModule, ENV } from './config/config.module.js';
 import type { Env } from './config/env.js';
 import { CustomersModule } from './customers/customers.module.js';
 import { DatabaseModule } from './database/database.module.js';
+import { FilesModule } from './files/files.module.js';
 import { HealthController } from './health/health.controller.js';
 import { AuthGuard } from './identity/auth.guard.js';
 import { SENSITIVE_RATE_LIMIT } from './identity/decorators.js';
@@ -23,6 +24,7 @@ import { RmasModule } from './rmas/rmas.module.js';
     NotificationsModule,
     IdentityModule,
     CustomersModule,
+    FilesModule,
     RmasModule,
     ThrottlerModule.forRootAsync({
       inject: [ENV],

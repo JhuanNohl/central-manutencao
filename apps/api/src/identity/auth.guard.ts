@@ -8,6 +8,7 @@ import type { Permission } from '@central/contracts';
 import { ApiException } from '../common/http/api-exception.js';
 import { can } from './auth-context.js';
 import {
+  ANY_OF_PERMISSIONS,
   type AuthenticatedRequest,
   PUBLIC_ROUTE,
   REQUIRED_PERMISSIONS,
@@ -17,7 +18,8 @@ import { SessionsService } from './sessions.service.js';
 
 /**
  * Guard global: toda rota exige sessão válida, salvo `@Public()`.
- * Em seguida confere as permissões de `@RequirePermissions()` (classe e método).
+ * Em seguida confere as permissões de `@RequirePermissions()` (classe e método)
+ * e de `@RequireAnyPermission()`.
  * O escopo por cliente é verificado nos serviços, junto da consulta.
  */
 @Injectable()
@@ -52,7 +54,14 @@ export class AuthGuard implements CanActivate {
       ) ?? []),
     ];
     const auth = req.auth;
-    if (!required.every((permission) => can(auth, permission))) {
+    const anyOf = this.reflector.getAllAndOverride<Permission[] | undefined>(
+      ANY_OF_PERMISSIONS,
+      targets,
+    );
+    if (
+      !required.every((permission) => can(auth, permission)) ||
+      (anyOf && !anyOf.some((permission) => can(auth, permission)))
+    ) {
       throw ApiException.forbidden();
     }
     return true;
