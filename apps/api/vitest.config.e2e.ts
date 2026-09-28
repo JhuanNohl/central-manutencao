@@ -15,6 +15,8 @@ export const TEST_ENV = {
   NOTIFICATIONS_WORKER_ENABLED: 'false',
   NOTIFICATIONS_MAX_ATTEMPTS: '2',
   FILES_CLEANUP_ENABLED: 'false',
+  // CNPJ fictício da fábrica, para exercitar a regra do destinatário.
+  INVOICE_RECIPIENT_DOCUMENT: '11444777000161',
 };
 
 export default defineConfig({
