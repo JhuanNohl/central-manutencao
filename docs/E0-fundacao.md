@@ -38,7 +38,7 @@ Referência: Escopo 1.0, seção A13. Saída verificável esperada: *ambiente re
 | ORM | **Drizzle** | Próximo do SQL. Permite índices parciais, `CHECK` e SQL manual versionado, que as regras de SLA (pausas sem sobreposição) vão exigir |
 | Frontend | **React + Vite (SPA)** | Um só frontend para os dois perfis, servido na mesma origem da API |
 | Sessão | **Cookie `HttpOnly` com sessão no PostgreSQL** | Revogação imediata (desativar conta, trocar senha); o token não fica acessível a JavaScript |
-| Armazenamento de arquivos | **Em aberto** | Decidir no início da E1, com o primeiro upload (disco local com backup coordenado ou compatível com S3) |
+| Armazenamento de arquivos | **Disco local** (decidido em 28/09/2026) | Atrás da porta `FILE_STORAGE`, com backup coordenado; detalhes em [E1-abertura-envio-recebimento.md](E1-abertura-envio-recebimento.md) |
 
 Versões verificadas na criação: Node 24, NestJS 12.1, TypeScript 6.0 (a CLI do Nest exige `~6.0`), Drizzle ORM 0.45, PostgreSQL 18, React 19.3, Vite 8, React Router 8, Zod 4.
 
@@ -55,7 +55,7 @@ Regras adotadas:
 
 - A equipe entra **somente por convite** (7 dias, uso único). O cliente pode se cadastrar sozinho ou ser convidado como contato de um cliente já cadastrado.
 - O autocadastro **não** se vincula a um CPF/CNPJ já existente, porque isso daria acesso a atendimentos de terceiros. Nesse caso, a pessoa pede um convite à equipe.
-- A confirmação de e-mail no autocadastro é enviada e registrada, mas **ainda não bloqueia** nada. **Pendente:** decidir se a abertura de RMA exige e-mail confirmado (fechar antes da E1).
+- A confirmação de e-mail no autocadastro é enviada e registrada. **Decidido em 28/09/2026:** a abertura de RMA pelo cliente exige e-mail confirmado.
 - Recebimento (`rma.receive`) e despacho (`rma.dispatch`) já são permissões separadas, para o caso de haver setores distintos (escopo §3.1). Hoje ambas pertencem ao `agente`.
 - Ninguém altera o próprio papel nem desativa a própria conta. O sistema mantém ao menos um administrador ativo.
 
@@ -63,11 +63,10 @@ Regras adotadas:
 
 - Proposta mantida: **720 horas** a partir do instante do recebimento físico, descontadas as pausas válidas.
 - Fuso operacional configurado: `OPERATIONAL_TIMEZONE=America/Sao_Paulo`. Todos os instantes são persistidos em `timestamptz` (UTC).
-- **Pendente:** confirmação do responsável pela operação. Nada do SLA foi implementado na E0.
+- **Decidido em 28/09/2026:** 720 horas, com o prazo aplicado gravado em cada item. O início do prazo entrou na E1; pausas ficam para a condução técnica.
 
 ## Pendências e riscos conhecidos
 
-- **Armazenamento de arquivos (P03):** decidir no início da E1.
 - **Limite de tentativas:** fica em memória por instância da API. Com mais de uma instância, será necessário um armazenamento compartilhado.
 - **Entrega de avisos:** é "pelo menos uma vez". Se o SMTP aceitar e a gravação do resultado falhar, o aviso pode ser repetido (o escopo não promete "exatamente uma vez").
 - **Links com token:** ficam no registro do aviso até o envio e são removidos logo depois.

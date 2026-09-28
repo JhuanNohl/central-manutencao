@@ -1,6 +1,8 @@
 # E1 — Fatia inicial: visão de chamados do agente
 
-Primeiro incremento da E1: o modelo de RMA e as telas de consulta da equipe. O objetivo é validar como o agente enxerga os chamados antes de fechar o escopo da E1. A abertura pelo cliente, o XML e o motor de prazos continuam pendentes.
+Primeiro incremento da E1: o modelo de RMA e as telas de consulta da equipe. O objetivo é validar como o agente enxerga os chamados antes de fechar o escopo da E1.
+
+> **Atualização (28/09/2026):** a abertura pelo cliente e pela equipe, as fotos, o XML, o envio, o recebimento e o início do prazo entraram na entrega seguinte ([E1-abertura-envio-recebimento.md](E1-abertura-envio-recebimento.md)), que também registra as decisões P01, P03, P04 e P05 citadas abaixo.
 
 ## O que foi entregue
 

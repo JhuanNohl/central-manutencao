@@ -2,7 +2,12 @@
 
 Aplicação própria para o cliente solicitar manutenção e acompanhar cada equipamento até recebê-lo de volta, e para a equipe registrar o trabalho, controlar prazos e organizar recebimentos e devoluções parciais. O documento de escopo (Escopo 1.0) é mantido fora deste repositório; os identificadores citados no código e em `docs/` (D, RF, CA, P) referem-se a ele.
 
-**Situação:** entrega **E0 — Fundação** concluída ([docs/E0-fundacao.md](docs/E0-fundacao.md)). Primeira fatia da **E1** entregue: a visão de chamados do agente ([docs/E1-visao-do-agente.md](docs/E1-visao-do-agente.md)).
+**Situação:** entrega **E0 — Fundação** concluída ([docs/E0-fundacao.md](docs/E0-fundacao.md)). **E1** em andamento:
+
+- visão de chamados do agente ([docs/E1-visao-do-agente.md](docs/E1-visao-do-agente.md));
+- abertura com fotos e XML, envio pelo cliente e recebimento parcial com início do prazo ([docs/E1-abertura-envio-recebimento.md](docs/E1-abertura-envio-recebimento.md)).
+
+A condução técnica (etapas, garantia, laudo e pausas) e as devoluções ainda não foram implementadas, então o ciclo completo de manutenção não está pronto para produção.
 
 ## Estrutura
 
@@ -45,6 +50,7 @@ npm run dev
 - Aplicação: http://localhost:5173 (a API é servida pela mesma origem em `/api`)
 - E-mails de desenvolvimento: http://localhost:8025
 - Contas sintéticas: `admin@central.local`, `agente@central.local`, `consulta@central.local`, `cliente@exemplo.local`, `fabio@pessoa.local`. A senha de todas é `central-dev-2026` (apenas para desenvolvimento).
+- Arquivos enviados (fotos, XML e declarações) ficam em `apps/api/storage/files`, pasta ignorada pelo git. Em produção, essa pasta entra no backup junto do banco.
 
 ### Marca (opcional, só local)
 
