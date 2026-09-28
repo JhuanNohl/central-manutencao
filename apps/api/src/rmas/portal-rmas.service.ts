@@ -1,0 +1,185 @@
+import { Inject, Injectable } from '@nestjs/common';
+import type {
+  ListOwnRmasQuery,
+  Page,
+  PortalRmaDetail,
+  PortalRmaItemView,
+  PortalRmaSummary,
+  ReceiptView,
+  RmaItemStage,
+  RmaItemView,
+  ShipmentView,
+  StaffReceiptView,
+  StaffShipmentView,
+} from '@central/contracts';
+import { and, count, desc, eq } from 'drizzle-orm';
+import { pageWindow, toPage } from '../common/db/pagination.js';
+import { ApiException } from '../common/http/api-exception.js';
+import { DATABASE } from '../database/database.module.js';
+import type { Database } from '../database/database.types.js';
+import { customerContacts, rmas } from '../database/schema/index.js';
+import type { FileRow } from '../files/files.service.js';
+import type { AuthContext } from '../identity/auth-context.js';
+import {
+  findRmaFile,
+  groupBy,
+  itemsOf,
+  loadDetailParts,
+} from './rma-details.js';
+import { rmaSubject, stageCounts } from './rma-presentation.js';
+
+type RmaRow = typeof rmas.$inferSelect;
+
+/*
+ * Visões do portal por lista explícita de campos: um campo novo só da equipe
+ * não chega ao cliente por descuido (RN11).
+ */
+
+function toPortalItem(item: RmaItemView): PortalRmaItemView {
+  return {
+    id: item.id,
+    position: item.position,
+    model: item.model,
+    serialNumber: item.serialNumber,
+    reportedFailure: item.reportedFailure,
+    notes: item.notes,
+    warrantyRequested: item.warrantyRequested,
+    stage: item.stage,
+    warranty: item.warranty,
+    receivedAt: item.receivedAt,
+    sla: item.sla,
+    photos: item.photos,
+    technicalReport: item.technicalReport,
+  };
+}
+
+function toPortalShipment(shipment: StaffShipmentView): ShipmentView {
+  return {
+    id: shipment.id,
+    method: shipment.method,
+    carrier: shipment.carrier,
+    trackingCode: shipment.trackingCode,
+    confirmedAt: shipment.confirmedAt,
+    itemIds: shipment.itemIds,
+  };
+}
+
+function toPortalReceipt(receipt: StaffReceiptView): ReceiptView {
+  return {
+    id: receipt.id,
+    receivedAt: receipt.receivedAt,
+    itemIds: receipt.itemIds,
+  };
+}
+
+function summaryOf(
+  row: RmaRow,
+  items: {
+    model: string;
+    serialNumber: string;
+    stage: RmaItemStage;
+  }[],
+): PortalRmaSummary {
+  return {
+    number: row.number,
+    subject: rmaSubject(items),
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+    itemCount: items.length,
+    stages: stageCounts(items.map((item) => item.stage)),
+  };
+}
+
+/**
+ * Atendimentos na visão do cliente: sempre limitados ao próprio cadastro.
+ * Registro de outro cliente responde como inexistente (CA04). Nota interna
+ * e contas da equipe não saem daqui (RN11).
+ */
+@Injectable()
+export class PortalRmasService {
+  constructor(@Inject(DATABASE) private readonly db: Database) {}
+
+  async list(
+    auth: AuthContext,
+    query: ListOwnRmasQuery,
+  ): Promise<Page<PortalRmaSummary>> {
+    const where = eq(rmas.customerId, this.customerIdOf(auth));
+    const { limit, offset } = pageWindow(query);
+    const rows = await this.db
+      .select()
+      .from(rmas)
+      .where(where)
+      .orderBy(desc(rmas.updatedAt), desc(rmas.number))
+      .limit(limit)
+      .offset(offset);
+    const items = rows.length
+      ? await itemsOf(
+          this.db,
+          rows.map((row) => row.id),
+        )
+      : [];
+    const itemsByRma = groupBy(items, (item) => item.rmaId);
+    return toPage(
+      query,
+      Promise.resolve(rows),
+      this.db.select({ total: count() }).from(rmas).where(where),
+      (row) => summaryOf(row, itemsByRma.get(row.id) ?? []),
+    );
+  }
+
+  async get(auth: AuthContext, number: number): Promise<PortalRmaDetail> {
+    const row = await this.findOwn(auth, number);
+    const [requester] = row.requesterContactId
+      ? await this.db
+          .select({
+            name: customerContacts.name,
+            email: customerContacts.email,
+            phone: customerContacts.phone,
+          })
+          .from(customerContacts)
+          .where(eq(customerContacts.id, row.requesterContactId))
+      : [];
+    const parts = await loadDetailParts(this.db, row.id);
+    return {
+      ...summaryOf(row, parts.items),
+      requester: requester ?? null,
+      invoices: parts.invoices,
+      documents: parts.documents,
+      items: parts.items.map(toPortalItem),
+      shipments: parts.shipments.map(toPortalShipment),
+      receipts: parts.receipts.map(toPortalReceipt),
+    };
+  }
+
+  async file(
+    auth: AuthContext,
+    number: number,
+    fileId: string,
+  ): Promise<FileRow> {
+    const row = await this.findOwn(auth, number);
+    const file = await findRmaFile(this.db, row.id, fileId);
+    if (!file) throw ApiException.notFound('Arquivo não encontrado.');
+    return file;
+  }
+
+  /** RMA do próprio cliente, para as operações do portal. */
+  async findOwn(auth: AuthContext, number: number): Promise<RmaRow> {
+    const [row] = await this.db
+      .select()
+      .from(rmas)
+      .where(
+        and(
+          eq(rmas.number, number),
+          eq(rmas.customerId, this.customerIdOf(auth)),
+        ),
+      );
+    if (!row) throw ApiException.notFound('Atendimento não encontrado.');
+    return row;
+  }
+
+  private customerIdOf(auth: AuthContext): string {
+    const customer = auth.account.customer;
+    if (!customer) throw ApiException.forbidden();
+    return customer.id;
+  }
+}

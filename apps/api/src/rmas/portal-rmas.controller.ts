@@ -10,61 +10,62 @@ import {
   Query,
 } from '@nestjs/common';
 import {
-  listRmasQuerySchema,
-  openRmaForCustomerSchema,
-  type ListRmasQuery,
-  type OpenRmaForCustomerRequest,
+  listOwnRmasQuerySchema,
+  openOwnRmaSchema,
+  type ListOwnRmasQuery,
+  type OpenOwnRmaRequest,
 } from '@central/contracts';
 import { validate } from '../common/http/zod-validation.pipe.js';
 import { fileResponse } from '../files/file-response.js';
 import { FilesService } from '../files/files.service.js';
 import type { AuthContext } from '../identity/auth-context.js';
 import { CurrentAuth, RequirePermissions } from '../identity/decorators.js';
+import { PortalRmasService } from './portal-rmas.service.js';
 import { RmaOpeningService } from './rma-opening.service.js';
-import { RmasService } from './rmas.service.js';
 
-/** Chamados na visão da equipe. */
-@Controller('rmas')
-@RequirePermissions('rma.read')
-export class RmasController {
+/** Atendimentos do próprio cliente, no portal. */
+@Controller('portal/rmas')
+@RequirePermissions('rma.own.read')
+export class PortalRmasController {
   constructor(
-    private readonly rmas: RmasService,
+    private readonly rmas: PortalRmasService,
     private readonly opening: RmaOpeningService,
     private readonly files: FilesService,
   ) {}
 
-  /** Abertura em nome de um cliente identificado (RN01). */
-  @Post()
-  @RequirePermissions('rma.write')
-  open(
-    @CurrentAuth() auth: AuthContext,
-    @Body(validate(openRmaForCustomerSchema)) body: OpenRmaForCustomerRequest,
-  ) {
-    return this.opening.open(auth, body);
-  }
-
   @Get()
   list(
     @CurrentAuth() auth: AuthContext,
-    @Query(validate(listRmasQuerySchema)) query: ListRmasQuery,
+    @Query(validate(listOwnRmasQuerySchema)) query: ListOwnRmasQuery,
   ) {
     return this.rmas.list(auth, query);
   }
 
-  /** Pelo número público (o mesmo exibido como "#100001"). */
-  @Get(':number')
-  get(@Param('number', ParseIntPipe) number: number) {
-    return this.rmas.get(number);
+  @Post()
+  @RequirePermissions('rma.own.create')
+  open(
+    @CurrentAuth() auth: AuthContext,
+    @Body(validate(openOwnRmaSchema)) body: OpenOwnRmaRequest,
+  ) {
+    return this.opening.open(auth, body);
   }
 
-  /** Foto ou documento do chamado. */
+  @Get(':number')
+  get(
+    @CurrentAuth() auth: AuthContext,
+    @Param('number', ParseIntPipe) number: number,
+  ) {
+    return this.rmas.get(auth, number);
+  }
+
   @Get(':number/files/:fileId')
   @Header('Cache-Control', 'private, max-age=3600')
   async file(
+    @CurrentAuth() auth: AuthContext,
     @Param('number', ParseIntPipe) number: number,
     @Param('fileId', ParseUUIDPipe) fileId: string,
   ) {
-    const file = await this.rmas.file(number, fileId);
+    const file = await this.rmas.file(auth, number, fileId);
     return fileResponse(file, await this.files.read(file));
   }
 }

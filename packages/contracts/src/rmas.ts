@@ -2,7 +2,12 @@ import { z } from 'zod';
 import { paginationQuerySchema } from './common.js';
 import type { StoredFileView } from './files.js';
 import type { InvoiceValidation } from './invoice-validation.js';
-import type { ReceiptView, ShipmentView } from './rma-logistics.js';
+import type {
+  ReceiptView,
+  ShipmentView,
+  StaffReceiptView,
+  StaffShipmentView,
+} from './rma-logistics.js';
 
 /**
  * Etapas de um item do RMA (escopo A5.1). Cada equipamento tem a sua;
@@ -148,9 +153,12 @@ export interface RmaItemView {
   serialNumber: string;
   reportedFailure: string;
   notes: string | null;
+  warrantyRequested: boolean;
   stage: RmaItemStage;
   warranty: WarrantyStatus;
   receivedAt: string | null;
+  sla: ItemSlaView;
+  photos: StoredFileView[];
   /** Laudo técnico, visível ao cliente. */
   technicalReport: string | null;
   /** Somente equipe: nunca é enviado ao portal nem aos avisos do cliente. */
@@ -161,7 +169,10 @@ export interface RmaDetail extends Omit<RmaSummary, 'invoice' | 'requester'> {
   requester: { name: string; email: string; phone: string | null } | null;
   openedBy: { id: string; name: string } | null;
   invoices: RmaInvoiceView[];
+  documents: RmaDocumentView[];
   items: RmaItemView[];
+  shipments: StaffShipmentView[];
+  receipts: StaffReceiptView[];
 }
 
 /* ---------- Portal do cliente: sem nota interna nem contas da equipe ---------- */

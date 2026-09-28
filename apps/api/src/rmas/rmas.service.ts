@@ -3,18 +3,16 @@ import type {
   ListRmasQuery,
   Page,
   RmaDetail,
-  RmaInvoiceView,
+  RmaItemStage,
   RmaSummary,
 } from '@central/contracts';
 import {
   and,
-  asc,
   count,
   desc,
   eq,
   exists,
   ilike,
-  inArray,
   isNull,
   or,
   sql,
@@ -35,7 +33,16 @@ import {
   rmaItems,
   rmas,
 } from '../database/schema/index.js';
+import type { FileRow } from '../files/files.service.js';
 import type { AuthContext } from '../identity/auth-context.js';
+import {
+  findRmaFile,
+  groupBy,
+  invoicesOf,
+  itemsOf,
+  loadDetailParts,
+  toInvoice,
+} from './rma-details.js';
 import { rmaSubject, stageCounts } from './rma-presentation.js';
 
 const assignee = alias(accounts, 'assignee');
@@ -61,24 +68,6 @@ const headerColumns = {
 };
 
 type HeaderRow = Awaited<ReturnType<RmasService['selectHeaders']>>[number];
-type ItemRow = typeof rmaItems.$inferSelect;
-type InvoiceRow = typeof rmaInvoices.$inferSelect;
-
-function toInvoice(row: InvoiceRow): RmaInvoiceView {
-  return {
-    number: row.number,
-    issuerName: row.issuerName,
-    issuerDocument: row.issuerDocument,
-  };
-}
-
-function groupByRma<Row extends { rmaId: string }>(rows: Row[]) {
-  const groups = new Map<string, Row[]>();
-  for (const row of rows) {
-    groups.set(row.rmaId, [...(groups.get(row.rmaId) ?? []), row]);
-  }
-  return groups;
-}
 
 /**
  * Consulta de RMAs pela equipe. Notas internas são devolvidas aqui porque a
@@ -113,10 +102,10 @@ export class RmasService {
 
     const ids = headers.map((row) => row.id);
     const [items, invoices] = ids.length
-      ? await Promise.all([this.itemsOf(ids), this.invoicesOf(ids)])
+      ? await Promise.all([itemsOf(this.db, ids), invoicesOf(this.db, ids)])
       : [[], []];
-    const itemsByRma = groupByRma(items);
-    const invoicesByRma = groupByRma(invoices);
+    const itemsByRma = groupBy(items, (item) => item.rmaId);
+    const invoicesByRma = groupBy(invoices, (invoice) => invoice.rmaId);
 
     return toPage(query, Promise.resolve(headers), total, (row) => {
       const firstInvoice = invoicesByRma.get(row.id)?.[0];
@@ -131,16 +120,10 @@ export class RmasService {
   }
 
   async get(number: number): Promise<RmaDetail> {
-    const [row] = await this.selectHeaders().where(eq(rmas.number, number));
-    if (!row) throw ApiException.notFound('Chamado não encontrado.');
-
-    const [items, invoices] = await Promise.all([
-      this.itemsOf([row.id]),
-      this.invoicesOf([row.id]),
-    ]);
-
+    const row = await this.findHeader(number);
+    const parts = await loadDetailParts(this.db, row.id);
     return {
-      ...this.toSummaryBase(row, items),
+      ...this.toSummaryBase(row, parts.items),
       requester: row.requesterName
         ? {
             name: row.requesterName,
@@ -149,21 +132,22 @@ export class RmasService {
           }
         : null,
       openedBy: reference(row.openedById, row.openedByName),
-      invoices: invoices.map(toInvoice),
-      items: items.map((item) => ({
-        id: item.id,
-        position: item.position,
-        model: item.model,
-        serialNumber: item.serialNumber,
-        reportedFailure: item.reportedFailure,
-        notes: item.notes,
-        stage: item.stage,
-        warranty: item.warranty,
-        receivedAt: item.receivedAt?.toISOString() ?? null,
-        technicalReport: item.technicalReport,
-        internalNote: item.internalNote,
-      })),
+      ...parts,
     };
+  }
+
+  /** Foto ou documento do RMA, para a equipe com permissão de consulta. */
+  async file(number: number, fileId: string): Promise<FileRow> {
+    const row = await this.findHeader(number);
+    const file = await findRmaFile(this.db, row.id, fileId);
+    if (!file) throw ApiException.notFound('Arquivo não encontrado.');
+    return file;
+  }
+
+  private async findHeader(number: number): Promise<HeaderRow> {
+    const [row] = await this.selectHeaders().where(eq(rmas.number, number));
+    if (!row) throw ApiException.notFound('Chamado não encontrado.');
+    return row;
   }
 
   private selectHeaders() {
@@ -180,23 +164,10 @@ export class RmasService {
       .$dynamic();
   }
 
-  private itemsOf(rmaIds: string[]): Promise<ItemRow[]> {
-    return this.db
-      .select()
-      .from(rmaItems)
-      .where(inArray(rmaItems.rmaId, rmaIds))
-      .orderBy(asc(rmaItems.position));
-  }
-
-  private invoicesOf(rmaIds: string[]): Promise<InvoiceRow[]> {
-    return this.db
-      .select()
-      .from(rmaInvoices)
-      .where(inArray(rmaInvoices.rmaId, rmaIds))
-      .orderBy(asc(rmaInvoices.createdAt));
-  }
-
-  private toSummaryBase(row: HeaderRow, items: ItemRow[]) {
+  private toSummaryBase(
+    row: HeaderRow,
+    items: { model: string; serialNumber: string; stage: RmaItemStage }[],
+  ) {
     return {
       number: row.number,
       subject: rmaSubject(items),

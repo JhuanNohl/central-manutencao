@@ -37,6 +37,16 @@ export class ApiException extends HttpException {
     return new ApiException(HttpStatus.NOT_FOUND, 'NOT_FOUND', message);
   }
 
+  static emailNotVerified(
+    message = 'Confirme seu e-mail para abrir atendimentos.',
+  ) {
+    return new ApiException(
+      HttpStatus.FORBIDDEN,
+      'EMAIL_NOT_VERIFIED',
+      message,
+    );
+  }
+
   static conflict(message: string, issues?: FieldIssue[]) {
     return new ApiException(HttpStatus.CONFLICT, 'CONFLICT', message, issues);
   }
