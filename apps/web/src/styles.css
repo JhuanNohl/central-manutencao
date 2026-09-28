@@ -119,12 +119,12 @@ svg {
 }
 
 /*
- * Fonte de destaque, sempre em caixa alta: nome do produto, título da
- * página, itens do menu lateral e títulos de card. A Share Tech só tem peso
- * regular; negrito sintético é evitado de propósito.
+ * Fonte de destaque, sempre em caixa alta: nome do produto na barra
+ * superior, título da página, itens do menu lateral e títulos de card. A
+ * Share Tech só tem peso regular; negrito sintético é evitado de propósito.
+ * A tela de acesso fica de fora: usa só a IBM Plex Sans.
  */
 .topbar-title,
-.auth-product,
 .page-header h1,
 .sidebar a,
 .sidebar a.active,
@@ -132,7 +132,6 @@ svg {
 .tile h2,
 .panel-header h2,
 .empty-state h2,
-.auth-card h1,
 .dialog h2 {
   font-family: var(--font-display);
   font-weight: 400;
@@ -546,9 +545,15 @@ a.tile:hover {
   padding: 24px 16px;
 }
 
+/*
+ * Cartão compacto e de cantos retos: o `--radius` redefinido aqui vale para o
+ * próprio cartão, os campos, o botão e os alertas dentro dele.
+ */
 .auth-card {
+  --radius: 0;
   width: 100%;
-  max-width: 460px;
+  max-width: 420px;
+  padding: 32px;
   border-top: 4px solid var(--brand);
 }
 
@@ -560,23 +565,39 @@ a.tile:hover {
   display: block;
   height: 48px;
   width: auto;
-  margin-bottom: 8px;
+  margin-bottom: 16px;
 }
 
-.auth-product {
+.auth-heading {
   margin: 0 0 24px;
-  color: var(--text-muted);
+}
+
+.auth-heading h1 {
+  font-size: 24px;
   font-weight: 500;
 }
 
-.auth-card h1 {
-  font-size: 24px;
-  margin-bottom: 4px;
+.auth-heading p {
+  margin: 4px 0 0;
+  font-size: 14px;
 }
 
-.auth-card .lead {
+.auth-heading .lead {
   color: var(--text-muted);
-  margin: 0 0 20px;
+}
+
+.auth-card form,
+.auth-card fieldset {
+  gap: 24px;
+}
+
+.auth-card .field {
+  gap: 8px;
+}
+
+.auth-card .field input,
+.auth-card .field select {
+  min-height: 48px;
 }
 
 .auth-links {
@@ -584,8 +605,12 @@ a.tile:hover {
   flex-wrap: wrap;
   justify-content: space-between;
   gap: 8px;
-  margin-top: 16px;
-  font-size: 15px;
+  margin-top: 24px;
+  font-size: 14px;
+}
+
+.auth-links a {
+  text-decoration: underline;
 }
 
 /* ---------- Formulários ---------- */
