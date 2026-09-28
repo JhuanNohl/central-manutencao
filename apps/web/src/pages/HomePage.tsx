@@ -1,9 +1,22 @@
-import { isStaffRole, type Permission } from '@central/contracts';
+import {
+  isStaffRole,
+  type Page,
+  type Permission,
+  type PortalRmaSummary,
+} from '@central/contracts';
+import { useQuery } from '@tanstack/react-query';
 import { ClipboardList, UserPlus, Users, type LucideIcon } from 'lucide-react';
 import { Link } from 'react-router';
+import { get, toQuery } from '../api/client';
 import { hasPermission, useSession } from '../auth/session';
+import { QueryError } from '../components/feedback';
 import { PageHeader } from '../components/ui';
 import { EmailVerificationNotice } from './AccountPage';
+import {
+  NewRmaLink,
+  PORTAL_RMAS_PATH,
+  PortalRmasTable,
+} from './portal/MyRmasPage';
 
 interface Shortcut {
   to: string;
@@ -39,21 +52,50 @@ const STAFF_SHORTCUTS: Shortcut[] = [
   },
 ];
 
-/** Espaço reservado para um fluxo que chega em uma entrega futura. */
-function UpcomingSection(props: {
-  icon: LucideIcon;
-  title: string;
-  children: string;
-}) {
-  const Icon = props.icon;
+const RECENT_RMAS = 5;
+
+/** Atendimentos mais recentes do cliente, ou o convite para abrir o primeiro. */
+function RecentRmas() {
+  const query = useQuery({
+    queryKey: [PORTAL_RMAS_PATH, 'recentes'],
+    queryFn: () =>
+      get<Page<PortalRmaSummary>>(
+        `${PORTAL_RMAS_PATH}${toQuery({ pageSize: RECENT_RMAS })}`,
+      ),
+  });
+  if (query.isError) return <QueryError error={query.error} />;
+  if (!query.data) return null;
+  if (query.data.total === 0) {
+    return (
+      <section className="empty-state">
+        <span className="icon-square" aria-hidden>
+          <ClipboardList size={28} />
+        </span>
+        <div>
+          <h2>Meus atendimentos</h2>
+          <p>
+            Abra uma solicitação de manutenção com um ou vários equipamentos,
+            fotos e a nota fiscal, e acompanhe cada item até recebê-lo de volta.
+          </p>
+        </div>
+      </section>
+    );
+  }
   return (
-    <section className="empty-state">
-      <span className="icon-square" aria-hidden>
-        <Icon size={28} />
-      </span>
-      <div>
-        <h2>{props.title}</h2>
-        <p>{props.children}</p>
+    <section className="panel">
+      <div className="panel-header">
+        <h2>
+          <ClipboardList size={20} aria-hidden className="inline-icon" />
+          Meus atendimentos
+        </h2>
+        <div className="panel-tools">
+          {query.data.total > RECENT_RMAS && (
+            <Link to="/atendimentos">Ver todos ({query.data.total})</Link>
+          )}
+        </div>
+      </div>
+      <div className="table-wrap">
+        <PortalRmasTable rmas={query.data.items} />
       </div>
     </section>
   );
@@ -70,13 +112,10 @@ export function HomePage() {
         <PageHeader
           title={`Olá, ${firstName}`}
           description={account.customer?.name}
+          actions={<NewRmaLink />}
         />
         <EmailVerificationNotice />
-        <UpcomingSection icon={ClipboardList} title="Meus atendimentos">
-          Em breve você poderá abrir solicitações de manutenção (RMA) com vários
-          equipamentos, fotos e documentação, e acompanhar cada item até
-          recebê-lo de volta.
-        </UpcomingSection>
+        <RecentRmas />
       </div>
     );
   }
@@ -86,9 +125,7 @@ export function HomePage() {
   );
   return (
     <div className="stack">
-      <PageHeader
-        title="Início"
-      />
+      <PageHeader title="Início" />
       {shortcuts.length > 0 && (
         <div className="grid-2">
           {shortcuts.map(({ to, title, description, icon: Icon }) => (

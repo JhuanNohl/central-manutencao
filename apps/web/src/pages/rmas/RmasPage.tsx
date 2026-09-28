@@ -1,6 +1,8 @@
 import type { RmaItemStage, RmaPriority, RmaSummary } from '@central/contracts';
 import { RMA_PRIORITIES, RMA_PRIORITY_LABELS } from '@central/contracts';
+import { Plus } from 'lucide-react';
 import { Link } from 'react-router';
+import { hasPermission, useSession } from '../../auth/session';
 import { Badge } from '../../components/Badge';
 import { FilterTabs, SearchInput } from '../../components/filters';
 import { PagedResults } from '../../components/PagedResults';
@@ -33,6 +35,7 @@ type Filters = {
 };
 
 export function RmasPage() {
+  const { data: account } = useSession();
   const list = usePagedList<RmaSummary, Filters>(PATH, {
     search: '',
     stage: '',
@@ -44,6 +47,14 @@ export function RmasPage() {
     <div>
       <PageHeader
         title="Chamados"
+        actions={
+          hasPermission(account, 'rma.write') && (
+            <Link to="/chamados/novo" className="btn btn-primary">
+              <Plus size={18} aria-hidden />
+              Novo chamado
+            </Link>
+          )
+        }
       />
       <section className="panel">
         <div className="panel-header">

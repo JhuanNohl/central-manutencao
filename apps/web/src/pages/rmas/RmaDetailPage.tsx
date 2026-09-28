@@ -4,11 +4,17 @@ import { ArrowLeft, Lock, Wrench } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { get } from '../../api/client';
+import { hasPermission, useSession } from '../../auth/session';
 import { Badge } from '../../components/Badge';
 import { Alert, Loading, QueryError } from '../../components/feedback';
 import { SearchInput } from '../../components/filters';
 import { PageHeader } from '../../components/ui';
 import { formatDateTime, formatDocument } from '../../lib/format';
+import { ItemPhotos } from './ItemPhotos';
+import { ItemSla } from './ItemSla';
+import { ReceiveItemsAction } from './ReceiveItemsAction';
+import { RmaDocuments } from './RmaDocuments';
+import { RmaMovements } from './RmaMovements';
 import {
   PRIORITY_STYLES,
   STAGE_STYLES,
@@ -28,6 +34,7 @@ function matches(item: RmaItemView, term: string): boolean {
 
 export function RmaDetailPage() {
   const { number = '' } = useParams();
+  const { data: account } = useSession();
   const query = useQuery({
     queryKey: ['/rmas', number],
     queryFn: () => get<RmaDetail>(`/rmas/${number}`),
@@ -36,6 +43,7 @@ export function RmaDetailPage() {
   if (query.isPending) return <Loading />;
   if (query.isError) return <QueryError error={query.error} />;
   const rma = query.data;
+  const fileUrl = (fileId: string) => `/api/rmas/${rma.number}/files/${fileId}`;
 
   return (
     <div className="stack">
@@ -43,10 +51,15 @@ export function RmaDetailPage() {
         title={`Chamado ${rmaLabel(rma.number)}`}
         description={rma.subject}
         actions={
-          <Link to="/chamados" className="btn btn-secondary">
-            <ArrowLeft size={18} aria-hidden />
-            Voltar
-          </Link>
+          <>
+            {hasPermission(account, 'rma.receive') && (
+              <ReceiveItemsAction rma={rma} />
+            )}
+            <Link to="/chamados" className="btn btn-secondary">
+              <ArrowLeft size={18} aria-hidden />
+              Voltar
+            </Link>
+          </>
         }
       />
       {rma.assignee ? (
@@ -60,10 +73,19 @@ export function RmaDetailPage() {
       <div className="grid-3">
         <ServiceCard rma={rma} />
         <CustomerCard rma={rma} />
-        <InvoicesCard rma={rma} />
+        <RmaDocuments
+          documents={rma.documents}
+          invoices={rma.invoices}
+          fileUrl={fileUrl}
+        />
       </div>
 
-      <ItemsPanel rma={rma} />
+      <ItemsPanel rma={rma} fileUrl={fileUrl} />
+      <RmaMovements
+        shipments={rma.shipments}
+        receipts={rma.receipts}
+        items={rma.items}
+      />
     </div>
   );
 }
@@ -88,10 +110,6 @@ function ServiceCard({ rma }: { rma: RmaDetail }) {
         <dd>{formatDateTime(rma.updatedAt)}</dd>
         <dt>Responsável</dt>
         <dd>{rma.assignee?.name ?? '—'}</dd>
-        <dt>Prazo (SLA)</dt>
-        <dd className="muted">
-          Por equipamento, desde o recebimento. Vencimento após a P01.
-        </dd>
       </dl>
     </section>
   );
@@ -119,33 +137,11 @@ function CustomerCard({ rma }: { rma: RmaDetail }) {
   );
 }
 
-function InvoicesCard({ rma }: { rma: RmaDetail }) {
-  return (
-    <section className="card">
-      <h2>Nota fiscal</h2>
-      {rma.invoices.length === 0 ? (
-        <p className="muted">
-          Nenhuma nota vinculada. O envio e a validação do XML chegam na E1.
-        </p>
-      ) : (
-        <div className="stack">
-          {rma.invoices.map((invoice) => (
-            <dl className="details" key={invoice.number}>
-              <dt>Número</dt>
-              <dd>{invoice.number}</dd>
-              <dt>Emitente</dt>
-              <dd>{invoice.issuerName}</dd>
-              <dt>CNPJ/CPF</dt>
-              <dd>{formatDocument(invoice.issuerDocument)}</dd>
-            </dl>
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function ItemsPanel({ rma }: { rma: RmaDetail }) {
+function ItemsPanel(props: {
+  rma: RmaDetail;
+  fileUrl: (fileId: string) => string;
+}) {
+  const { rma } = props;
   const [search, setSearch] = useState('');
   const items = rma.items.filter((item) => matches(item, search));
 
@@ -172,6 +168,7 @@ function ItemsPanel({ rma }: { rma: RmaDetail }) {
               <th className="col-wide">Equipamento</th>
               <th className="col-wide">Problema relatado</th>
               <th>Etapa</th>
+              <th>Prazo</th>
               <th>Garantia</th>
               <th>Laudo (visível ao cliente)</th>
               <th>
@@ -189,6 +186,11 @@ function ItemsPanel({ rma }: { rma: RmaDetail }) {
                 <td>
                   <span className="strong">{item.model}</span>
                   <span className="sub">S/N {item.serialNumber}</span>
+                  <ItemPhotos
+                    photos={item.photos}
+                    model={item.model}
+                    fileUrl={props.fileUrl}
+                  />
                 </td>
                 <td>
                   {item.reportedFailure}
@@ -201,6 +203,9 @@ function ItemsPanel({ rma }: { rma: RmaDetail }) {
                       Recebido em {formatDateTime(item.receivedAt)}
                     </span>
                   )}
+                </td>
+                <td>
+                  <ItemSla sla={item.sla} />
                 </td>
                 <td>
                   <Badge status={WARRANTY_STYLES[item.warranty]} />

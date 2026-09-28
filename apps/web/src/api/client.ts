@@ -1,4 +1,10 @@
-import type { ApiErrorBody, ErrorCode, FieldIssue } from '@central/contracts';
+import type {
+  ApiErrorBody,
+  ErrorCode,
+  FieldIssue,
+  FilePurpose,
+  StoredFileView,
+} from '@central/contracts';
 
 export class ApiError extends Error {
   constructor(
@@ -12,7 +18,25 @@ export class ApiError extends Error {
   }
 }
 
+/** Mensagem para o usuário a partir do erro de uma chamada, ou `null`. */
+export function errorMessage(error: unknown): string | null {
+  if (!error) return null;
+  return error instanceof ApiError
+    ? error.message
+    : 'Erro inesperado. Tente novamente.';
+}
+
 type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE';
+
+/** JSON, ou multipart quando o corpo é um FormData (o navegador define o tipo). */
+function requestBody(body: unknown): Pick<RequestInit, 'headers' | 'body'> {
+  if (body === undefined) return {};
+  if (body instanceof FormData) return { body };
+  return {
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  };
+}
 
 /**
  * Chamada à API na mesma origem. O cookie de sessão viaja automaticamente;
@@ -28,8 +52,7 @@ export async function api<T>(
     response = await fetch(`/api${path}`, {
       method,
       credentials: 'same-origin',
-      headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      ...requestBody(body),
     });
   } catch {
     throw new ApiError(
@@ -63,6 +86,17 @@ export const post = <T>(path: string, body?: unknown) =>
   api<T>('POST', path, body ?? {});
 export const patch = <T>(path: string, body?: unknown) =>
   api<T>('PATCH', path, body ?? {});
+
+/** Envia um arquivo temporário; o vínculo acontece na operação que o usa. */
+export function uploadFile(
+  purpose: FilePurpose,
+  file: File,
+): Promise<StoredFileView> {
+  const form = new FormData();
+  form.set('purpose', purpose);
+  form.set('file', file);
+  return api<StoredFileView>('POST', '/files', form);
+}
 
 export function toQuery(params: Record<string, string | number | undefined>) {
   const search = new URLSearchParams();

@@ -21,6 +21,12 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Início', icon: House },
   {
+    to: '/atendimentos',
+    label: 'Meus atendimentos',
+    icon: ClipboardList,
+    permission: 'rma.own.read',
+  },
+  {
     to: '/chamados',
     label: 'Chamados',
     icon: ClipboardList,

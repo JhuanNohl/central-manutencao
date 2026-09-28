@@ -17,6 +17,28 @@ export function PageHeader(props: {
   );
 }
 
+/** Ligação acessível entre o campo e a mensagem de erro ou dica. */
+function describedBy(id: string, error?: string, hint?: string) {
+  if (error) return `${id}-error`;
+  return hint ? `${id}-hint` : undefined;
+}
+
+function FieldMessage(props: { id: string; error?: string; hint?: string }) {
+  if (props.error) {
+    return (
+      <span id={`${props.id}-error`} className="error">
+        {props.error}
+      </span>
+    );
+  }
+  return props.hint ? (
+    <span id={`${props.id}-hint`} className="hint">
+      {props.hint}
+    </span>
+  ) : null;
+}
+
+/** Campo de texto. Com `value` e `onChange`, é controlado pelo formulário. */
 export function Field(props: {
   label: string;
   name: string;
@@ -27,17 +49,15 @@ export function Field(props: {
   type?: string;
   autoComplete?: string;
   defaultValue?: string;
+  value?: string;
+  onChange?: (value: string) => void;
   required?: boolean;
   inputMode?: 'text' | 'email' | 'numeric' | 'tel';
   placeholder?: string;
+  maxLength?: number;
 }) {
   const id = useId();
   const error = props.errors?.[props.errorPath ?? props.name];
-  const describedBy = error
-    ? `${id}-error`
-    : props.hint
-      ? `${id}-hint`
-      : undefined;
   return (
     <div className="field">
       <label htmlFor={id}>{props.label}</label>
@@ -47,23 +67,48 @@ export function Field(props: {
         type={props.type ?? 'text'}
         autoComplete={props.autoComplete}
         defaultValue={props.defaultValue}
+        value={props.value}
+        onChange={props.onChange && ((e) => props.onChange?.(e.target.value))}
         required={props.required}
         inputMode={props.inputMode}
         placeholder={props.placeholder}
+        maxLength={props.maxLength}
         aria-invalid={error ? true : undefined}
-        aria-describedby={describedBy}
+        aria-describedby={describedBy(id, error, props.hint)}
       />
-      {error ? (
-        <span id={`${id}-error`} className="error">
-          {error}
-        </span>
-      ) : (
-        props.hint && (
-          <span id={`${id}-hint`} className="hint">
-            {props.hint}
-          </span>
-        )
-      )}
+      <FieldMessage id={id} error={error} hint={props.hint} />
+    </div>
+  );
+}
+
+/** Texto longo controlado (descrição da falha, observações). */
+export function TextAreaField(props: {
+  label: string;
+  name: string;
+  value: string;
+  onChange: (value: string) => void;
+  errors?: FieldErrors;
+  errorPath?: string;
+  hint?: string;
+  rows?: number;
+  maxLength?: number;
+}) {
+  const id = useId();
+  const error = props.errors?.[props.errorPath ?? props.name];
+  return (
+    <div className="field">
+      <label htmlFor={id}>{props.label}</label>
+      <textarea
+        id={id}
+        name={props.name}
+        rows={props.rows ?? 3}
+        maxLength={props.maxLength}
+        value={props.value}
+        onChange={(e) => props.onChange(e.target.value)}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy(id, error, props.hint)}
+      />
+      <FieldMessage id={id} error={error} hint={props.hint} />
     </div>
   );
 }

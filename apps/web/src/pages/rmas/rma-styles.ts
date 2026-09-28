@@ -1,17 +1,26 @@
 import {
+  INVOICE_VALIDATION_STATUS_LABELS,
   RMA_ITEM_STAGE_LABELS,
   RMA_PRIORITY_LABELS,
+  SLA_STATUS_LABELS,
   WARRANTY_STATUS_LABELS,
+  type InvoiceValidationStatus,
   type RmaItemStage,
   type RmaPriority,
+  type SlaStatus,
   type WarrantyStatus,
 } from '@central/contracts';
 import {
+  AlarmClock,
   ArrowUp,
   CircleCheck,
   ClipboardCheck,
   Clock,
+  FileCheck,
+  FileWarning,
+  FileX,
   Flame,
+  Hourglass,
   Minus,
   Package,
   PackageCheck,
@@ -20,6 +29,7 @@ import {
   ShieldCheck,
   ShieldQuestion,
   ShieldX,
+  Timer,
   Truck,
   UserRoundSearch,
   Wrench,
@@ -88,6 +98,31 @@ export const WARRANTY_STYLES: Record<WarrantyStatus, StatusStyle> = {
   ),
   coberta: style(WARRANTY_STATUS_LABELS.coberta, 'success', ShieldCheck),
   nao_coberta: style(WARRANTY_STATUS_LABELS.nao_coberta, 'neutral', ShieldX),
+};
+
+/** Prazo do item: só começa no recebimento físico (RN04). */
+export const SLA_STYLES: Record<SlaStatus, StatusStyle> = {
+  nao_iniciado: style(SLA_STATUS_LABELS.nao_iniciado, 'neutral', Hourglass),
+  no_prazo: style(SLA_STATUS_LABELS.no_prazo, 'success', Timer),
+  atrasado: style(SLA_STATUS_LABELS.atrasado, 'danger', AlarmClock),
+};
+
+/** Resultado da validação do XML; falha técnica não é divergência (RN12). */
+export const INVOICE_VALIDATION_STYLES: Record<
+  InvoiceValidationStatus,
+  StatusStyle
+> = {
+  valido: style(INVOICE_VALIDATION_STATUS_LABELS.valido, 'success', FileCheck),
+  com_divergencias: style(
+    INVOICE_VALIDATION_STATUS_LABELS.com_divergencias,
+    'warning',
+    FileWarning,
+  ),
+  nao_validado: style(
+    INVOICE_VALIDATION_STATUS_LABELS.nao_validado,
+    'danger',
+    FileX,
+  ),
 };
 
 /** Número público no formato exibido ao usuário. */

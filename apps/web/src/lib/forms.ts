@@ -1,14 +1,25 @@
 import { useMutation } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import type { z } from 'zod';
-import { ApiError } from '../api/client';
+import { ApiError, errorMessage } from '../api/client';
 
 export type FieldErrors = Record<string, string>;
 
-function issuesToErrors(issues: { path: string; message: string }[]) {
+/** Primeira mensagem de cada campo, pelo caminho (ex.: "items.0.model"). */
+export function issuesToErrors(issues: { path: string; message: string }[]) {
   const errors: FieldErrors = {};
   for (const issue of issues) errors[issue.path] ??= issue.message;
   return errors;
+}
+
+/** Erros de validação do esquema, no mesmo formato dos erros da API. */
+export function zodErrors(error: z.ZodError): FieldErrors {
+  return issuesToErrors(
+    error.issues.map((issue) => ({
+      path: issue.path.map(String).join('.'),
+      message: issue.message,
+    })),
+  );
 }
 
 /**
@@ -37,14 +48,7 @@ export function useSchemaForm<S extends z.ZodType, R>(options: {
 
     const parsed = options.schema.safeParse(options.read(new FormData(form)));
     if (!parsed.success) {
-      setFieldErrors(
-        issuesToErrors(
-          parsed.error.issues.map((issue) => ({
-            path: issue.path.map(String).join('.'),
-            message: issue.message,
-          })),
-        ),
-      );
+      setFieldErrors(zodErrors(parsed.error));
       return;
     }
     setFieldErrors({});
@@ -55,11 +59,7 @@ export function useSchemaForm<S extends z.ZodType, R>(options: {
         if (error instanceof ApiError && error.issues.length > 0) {
           setFieldErrors(issuesToErrors(error.issues));
         }
-        setFormError(
-          error instanceof ApiError
-            ? error.message
-            : 'Erro inesperado. Tente novamente.',
-        );
+        setFormError(errorMessage(error));
       },
     });
   }

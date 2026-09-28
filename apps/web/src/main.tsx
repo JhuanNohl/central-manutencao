@@ -21,6 +21,10 @@ import { RegisterPage } from './pages/auth/RegisterPage';
 import { CustomerDetailPage } from './pages/customers/CustomerDetailPage';
 import { CustomersPage } from './pages/customers/CustomersPage';
 import { HomePage } from './pages/HomePage';
+import { MyRmasPage } from './pages/portal/MyRmasPage';
+import { NewRmaPage } from './pages/portal/NewRmaPage';
+import { PortalRmaDetailPage } from './pages/portal/PortalRmaDetailPage';
+import { NewStaffRmaPage } from './pages/rmas/NewStaffRmaPage';
 import { RmaDetailPage } from './pages/rmas/RmaDetailPage';
 import { RmasPage } from './pages/rmas/RmasPage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -76,10 +80,42 @@ const router = createBrowserRouter([
       { index: true, element: <HomePage /> },
       { path: 'conta', element: <AccountPage /> },
       {
+        path: 'atendimentos',
+        element: (
+          <RequirePermission permission="rma.own.read">
+            <MyRmasPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: 'atendimentos/novo',
+        element: (
+          <RequirePermission permission="rma.own.create">
+            <NewRmaPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: 'atendimentos/:number',
+        element: (
+          <RequirePermission permission="rma.own.read">
+            <PortalRmaDetailPage />
+          </RequirePermission>
+        ),
+      },
+      {
         path: 'chamados',
         element: (
           <RequirePermission permission="rma.read">
             <RmasPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: 'chamados/novo',
+        element: (
+          <RequirePermission permission="rma.write">
+            <NewStaffRmaPage />
           </RequirePermission>
         ),
       },
