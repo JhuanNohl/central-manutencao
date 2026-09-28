@@ -13,6 +13,8 @@ export const NOTIFICATION_TEMPLATES = [
   'convite',
   'redefinicao_senha',
   'confirmacao_email',
+  'rma_aberto',
+  'rma_itens_recebidos',
 ] as const;
 export type NotificationTemplate = (typeof NOTIFICATION_TEMPLATES)[number];
 

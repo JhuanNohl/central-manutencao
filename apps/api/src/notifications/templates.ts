@@ -20,6 +20,15 @@ function str(payload: Record<string, unknown>, key: string): string {
   return value;
 }
 
+/** Lista de linhas do payload (ex.: equipamentos recebidos). */
+function lines(payload: Record<string, unknown>, key: string): string[] {
+  const value = payload[key];
+  if (!Array.isArray(value) || !value.every((v) => typeof v === 'string')) {
+    throw new Error(`Campo "${key}" ausente no payload da notificação.`);
+  }
+  return value;
+}
+
 function layout(
   subject: string,
   paragraphs: string[],
@@ -83,6 +92,28 @@ export function renderNotification(
         ],
         { label: 'Confirmar e-mail', link: str(payload, 'link') },
         'Se você não criou esta conta, ignore esta mensagem.',
+      );
+    case 'rma_aberto':
+      return layout(
+        `Atendimento #${str(payload, 'number')} aberto — Central de Manutenção`,
+        [
+          `Olá, ${str(payload, 'name')}.`,
+          `Registramos o atendimento #${str(payload, 'number')} com ${str(payload, 'itemsLabel')}.`,
+          'Quando enviar os equipamentos, informe o envio no portal. O prazo de cada equipamento começa quando ele chega à fábrica.',
+        ],
+        { label: 'Ver atendimento', link: str(payload, 'link') },
+        'Você recebe esta mensagem porque é o solicitante do atendimento.',
+      );
+    case 'rma_itens_recebidos':
+      return layout(
+        `Equipamentos recebidos — atendimento #${str(payload, 'number')}`,
+        [
+          `Olá, ${str(payload, 'name')}.`,
+          `Recebemos na fábrica os equipamentos abaixo do atendimento #${str(payload, 'number')}:`,
+          ...lines(payload, 'items'),
+        ],
+        { label: 'Acompanhar atendimento', link: str(payload, 'link') },
+        'Você recebe esta mensagem porque é o solicitante do atendimento.',
       );
   }
 }

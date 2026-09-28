@@ -22,6 +22,8 @@ const TEMPLATE_LABELS: Record<NotificationTemplate, string> = {
   convite: 'Convite',
   redefinicao_senha: 'Redefinição de senha',
   confirmacao_email: 'Confirmação de e-mail',
+  rma_aberto: 'Atendimento aberto',
+  rma_itens_recebidos: 'Equipamentos recebidos',
 };
 
 const STATUS: Record<NotificationStatus, StatusStyle> = {
