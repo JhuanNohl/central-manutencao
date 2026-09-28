@@ -12,8 +12,10 @@ import {
 import {
   listRmasQuerySchema,
   openRmaForCustomerSchema,
+  registerReceiptSchema,
   type ListRmasQuery,
   type OpenRmaForCustomerRequest,
+  type RegisterReceiptRequest,
 } from '@central/contracts';
 import { validate } from '../common/http/zod-validation.pipe.js';
 import { fileResponse } from '../files/file-response.js';
@@ -21,6 +23,7 @@ import { FilesService } from '../files/files.service.js';
 import type { AuthContext } from '../identity/auth-context.js';
 import { CurrentAuth, RequirePermissions } from '../identity/decorators.js';
 import { RmaOpeningService } from './rma-opening.service.js';
+import { RmaReceiptsService } from './rma-receipts.service.js';
 import { RmasService } from './rmas.service.js';
 
 /** Chamados na visão da equipe. */
@@ -30,6 +33,7 @@ export class RmasController {
   constructor(
     private readonly rmas: RmasService,
     private readonly opening: RmaOpeningService,
+    private readonly receipts: RmaReceiptsService,
     private readonly files: FilesService,
   ) {}
 
@@ -55,6 +59,17 @@ export class RmasController {
   @Get(':number')
   get(@Param('number', ParseIntPipe) number: number) {
     return this.rmas.get(number);
+  }
+
+  /** Registra os itens fisicamente recebidos; cada um inicia o prazo (RF07). */
+  @Post(':number/receipts')
+  @RequirePermissions('rma.receive')
+  registerReceipt(
+    @CurrentAuth() auth: AuthContext,
+    @Param('number', ParseIntPipe) number: number,
+    @Body(validate(registerReceiptSchema)) body: RegisterReceiptRequest,
+  ) {
+    return this.receipts.register(auth, number, body);
   }
 
   /** Foto ou documento do chamado. */

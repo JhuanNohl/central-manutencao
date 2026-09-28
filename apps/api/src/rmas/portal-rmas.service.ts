@@ -12,7 +12,7 @@ import type {
   StaffReceiptView,
   StaffShipmentView,
 } from '@central/contracts';
-import { and, count, desc, eq } from 'drizzle-orm';
+import { count, desc, eq } from 'drizzle-orm';
 import { pageWindow, toPage } from '../common/db/pagination.js';
 import { ApiException } from '../common/http/api-exception.js';
 import { DATABASE } from '../database/database.module.js';
@@ -27,8 +27,7 @@ import {
   loadDetailParts,
 } from './rma-details.js';
 import { rmaSubject, stageCounts } from './rma-presentation.js';
-
-type RmaRow = typeof rmas.$inferSelect;
+import { findOwnRma, ownCustomerId, type RmaRow } from './rma-scope.js';
 
 /*
  * Visões do portal por lista explícita de campos: um campo novo só da equipe
@@ -103,7 +102,7 @@ export class PortalRmasService {
     auth: AuthContext,
     query: ListOwnRmasQuery,
   ): Promise<Page<PortalRmaSummary>> {
-    const where = eq(rmas.customerId, this.customerIdOf(auth));
+    const where = eq(rmas.customerId, ownCustomerId(auth));
     const { limit, offset } = pageWindow(query);
     const rows = await this.db
       .select()
@@ -128,7 +127,7 @@ export class PortalRmasService {
   }
 
   async get(auth: AuthContext, number: number): Promise<PortalRmaDetail> {
-    const row = await this.findOwn(auth, number);
+    const row = await findOwnRma(this.db, auth, number);
     const [requester] = row.requesterContactId
       ? await this.db
           .select({
@@ -156,30 +155,9 @@ export class PortalRmasService {
     number: number,
     fileId: string,
   ): Promise<FileRow> {
-    const row = await this.findOwn(auth, number);
+    const row = await findOwnRma(this.db, auth, number);
     const file = await findRmaFile(this.db, row.id, fileId);
     if (!file) throw ApiException.notFound('Arquivo não encontrado.');
     return file;
-  }
-
-  /** RMA do próprio cliente, para as operações do portal. */
-  async findOwn(auth: AuthContext, number: number): Promise<RmaRow> {
-    const [row] = await this.db
-      .select()
-      .from(rmas)
-      .where(
-        and(
-          eq(rmas.number, number),
-          eq(rmas.customerId, this.customerIdOf(auth)),
-        ),
-      );
-    if (!row) throw ApiException.notFound('Atendimento não encontrado.');
-    return row;
-  }
-
-  private customerIdOf(auth: AuthContext): string {
-    const customer = auth.account.customer;
-    if (!customer) throw ApiException.forbidden();
-    return customer.id;
   }
 }

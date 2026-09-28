@@ -129,9 +129,10 @@ async function shipmentsOf(
       rmaShipmentItems,
       eq(rmaShipmentItems.shipmentId, rmaShipments.id),
     )
+    .innerJoin(rmaItems, eq(rmaItems.id, rmaShipmentItems.itemId))
     .leftJoin(accounts, eq(accounts.id, rmaShipments.confirmedByAccountId))
     .where(eq(rmaShipments.rmaId, rmaId))
-    .orderBy(asc(rmaShipments.confirmedAt));
+    .orderBy(asc(rmaShipments.confirmedAt), asc(rmaItems.position));
   return [...groupBy(rows, (row) => row.shipment.id).values()].map((group) => {
     const [{ shipment, byName }] = group;
     return {
@@ -158,9 +159,10 @@ async function receiptsOf(
     })
     .from(rmaReceipts)
     .innerJoin(rmaReceiptItems, eq(rmaReceiptItems.receiptId, rmaReceipts.id))
+    .innerJoin(rmaItems, eq(rmaItems.id, rmaReceiptItems.itemId))
     .leftJoin(accounts, eq(accounts.id, rmaReceipts.receivedByAccountId))
     .where(eq(rmaReceipts.rmaId, rmaId))
-    .orderBy(asc(rmaReceipts.receivedAt));
+    .orderBy(asc(rmaReceipts.receivedAt), asc(rmaItems.position));
   return [...groupBy(rows, (row) => row.receipt.id).values()].map((group) => {
     const [{ receipt, byName }] = group;
     return {

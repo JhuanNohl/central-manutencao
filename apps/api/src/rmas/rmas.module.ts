@@ -5,6 +5,8 @@ import { InvoiceValidationService } from './invoice-validation.service.js';
 import { PortalRmasController } from './portal-rmas.controller.js';
 import { PortalRmasService } from './portal-rmas.service.js';
 import { RmaOpeningService } from './rma-opening.service.js';
+import { RmaReceiptsService } from './rma-receipts.service.js';
+import { RmaShipmentsService } from './rma-shipments.service.js';
 import { RmasController } from './rmas.controller.js';
 import { RmasService } from './rmas.service.js';
 
@@ -20,6 +22,8 @@ import { RmasService } from './rmas.service.js';
     RmasService,
     PortalRmasService,
     RmaOpeningService,
+    RmaShipmentsService,
+    RmaReceiptsService,
     InvoiceValidationService,
   ],
 })

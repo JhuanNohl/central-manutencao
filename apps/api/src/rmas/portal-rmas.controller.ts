@@ -10,8 +10,10 @@ import {
   Query,
 } from '@nestjs/common';
 import {
+  confirmShipmentSchema,
   listOwnRmasQuerySchema,
   openOwnRmaSchema,
+  type ConfirmShipmentRequest,
   type ListOwnRmasQuery,
   type OpenOwnRmaRequest,
 } from '@central/contracts';
@@ -22,6 +24,7 @@ import type { AuthContext } from '../identity/auth-context.js';
 import { CurrentAuth, RequirePermissions } from '../identity/decorators.js';
 import { PortalRmasService } from './portal-rmas.service.js';
 import { RmaOpeningService } from './rma-opening.service.js';
+import { RmaShipmentsService } from './rma-shipments.service.js';
 
 /** Atendimentos do próprio cliente, no portal. */
 @Controller('portal/rmas')
@@ -30,6 +33,7 @@ export class PortalRmasController {
   constructor(
     private readonly rmas: PortalRmasService,
     private readonly opening: RmaOpeningService,
+    private readonly shipments: RmaShipmentsService,
     private readonly files: FilesService,
   ) {}
 
@@ -56,6 +60,17 @@ export class PortalRmasController {
     @Param('number', ParseIntPipe) number: number,
   ) {
     return this.rmas.get(auth, number);
+  }
+
+  /** Confirma o envio à fábrica dos itens selecionados (RF06). */
+  @Post(':number/shipments')
+  @RequirePermissions('rma.own.ship')
+  confirmShipment(
+    @CurrentAuth() auth: AuthContext,
+    @Param('number', ParseIntPipe) number: number,
+    @Body(validate(confirmShipmentSchema)) body: ConfirmShipmentRequest,
+  ) {
+    return this.shipments.confirm(auth, number, body);
   }
 
   @Get(':number/files/:fileId')
