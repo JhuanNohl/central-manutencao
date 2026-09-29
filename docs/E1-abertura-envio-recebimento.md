@@ -42,9 +42,15 @@ Revisão: branch `feat/e1-abertura-recebimento`, a partir de `3b68d79`.
 - **Portal:** 404 fora do próprio cadastro (CA04). Os campos são listados explicitamente, então nota interna e contas da equipe não chegam ao cliente (RN11).
 - **Prazo:** não começa no envio nem na atribuição de responsável (RN04). O detalhe mostra "Não iniciado" até o recebimento e, depois, o vencimento e o saldo por extenso.
 
+## Fila e início da equipe (29/09/2026)
+
+- **Fila em cards:** cada chamado mostra cliente, modelos, etapas por item, responsável, prazo e prioridade. A borda lateral repete o tom do prazo, que também aparece por escrito.
+- **Prazo do chamado:** é o do item que **vence primeiro** entre os que têm prazo em curso. Itens já despachados (em devolução ou recebidos pelo cliente) não contam (RN08). Fica **"Vence em breve"** a partir de `SLA_DUE_SOON_HOURS` (72 h, proposta) do vencimento.
+- **Requer atenção** (`GET /api/rmas?attention=true`): chamados abertos com prazo vencido, prazo perto do fim ou sem responsável, do vencimento mais próximo para o mais distante. O início mostra os cinco primeiros, e "Ver todos" abre a fila com o filtro marcado.
+
 ## Critérios exercitados
 
-Os testes de integração (`npm run test:e2e`, 77 cenários contra PostgreSQL real) cobrem:
+Os testes de integração (`npm run test:e2e`, 79 cenários contra PostgreSQL real) cobrem:
 
 | Critério | Arquivo |
 |---|---|
@@ -52,6 +58,7 @@ Os testes de integração (`npm run test:e2e`, 77 cenários contra PostgreSQL re
 | S2-04/CA02, S2-05/CA03 | `test/rma-opening.e2e-spec.ts`, `test/files.e2e-spec.ts`, `test/invoice-validation.e2e-spec.ts` |
 | S2-07/CA04, S2-08/CA05 | todos os arquivos acima e `test/rma-logistics.e2e-spec.ts` |
 | S2-10/CA06, S2-11/CA07, S2-12/CA16, S2-15/CA15, S2-20/RN04 | `test/rma-logistics.e2e-spec.ts` |
+| RN08 (prazo do chamado), fila "Requer atenção" | `test/rmas.e2e-spec.ts` |
 
 Também conferidos no navegador, com os dados sintéticos: abertura com dois equipamentos, reordenação com as fotos no item certo (S2-03), troca de XML com divergência por um válido, foto falsa recusada, envio parcial com transportadora, recebimento parcial pelo administrador, ações escondidas do agente somente consulta, uso em 375 px sem rolagem horizontal e troca para o tema claro sem perder o rascunho (S2-17, S2-18).
 
