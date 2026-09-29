@@ -339,9 +339,11 @@ svg {
   display: none;
 }
 
+/* Em telas largas (ou com zoom reduzido), o conteúdo fica centrado ao lado do menu. */
 .main {
   width: 100%;
   max-width: 1280px;
+  margin-inline: auto;
   padding: 28px 24px 48px;
   min-width: 0;
 }
