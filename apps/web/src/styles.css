@@ -545,6 +545,17 @@ a.tile:hover {
   padding: 24px 16px;
 }
 
+/* Fundo da marca: os desenhos ficam nas laterais e o centro livre para o cartão. */
+.auth-shell.branded {
+  background: var(--bg) url('/brand/fundo-claro.png') center / cover no-repeat;
+}
+
+@media (prefers-color-scheme: dark) {
+  .auth-shell.branded {
+    background-image: url('/brand/fundo-escuro.png');
+  }
+}
+
 /*
  * Cartão compacto e de cantos retos: o `--radius` redefinido aqui vale para o
  * próprio cartão, os campos, o botão e os alertas dentro dele.

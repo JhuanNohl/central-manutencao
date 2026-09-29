@@ -3,11 +3,17 @@ import { fileURLToPath } from 'node:url';
 import type { Plugin } from 'vite';
 
 /**
- * A marca real (logos e favicon da ZKTeco) fica só na máquina de quem tem
- * autorização para usá-la, em `public/brand/` (fora do git). Sem esses
- * arquivos, o build usa a marca neutra versionada em `public/`.
+ * A marca real (logos, favicon e fundos da tela de acesso da ZKTeco) fica só
+ * na máquina de quem tem autorização para usá-la, em `public/brand/` (fora do
+ * git). Sem esses arquivos, o build usa a marca neutra versionada em `public/`.
  */
-const BRAND_FILES = ['logo-cinza.png', 'logo-branco.png', 'favicon.png'];
+const BRAND_FILES = [
+  'logo-cinza.png',
+  'logo-branco.png',
+  'favicon.png',
+  'fundo-claro.png',
+  'fundo-escuro.png',
+];
 const brandDir = fileURLToPath(new URL('./public/brand/', import.meta.url));
 
 export const hasBrandAssets = BRAND_FILES.every((file) =>

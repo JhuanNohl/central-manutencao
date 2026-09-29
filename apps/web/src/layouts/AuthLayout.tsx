@@ -1,6 +1,9 @@
 import type { ReactNode } from 'react';
 import { BrandLogo } from '../components/BrandLogo';
 
+// Os fundos são ativos da marca: sem eles (repositório público), a tela fica lisa.
+const SHELL_CLASS = __BRAND_ASSETS__ ? 'auth-shell branded' : 'auth-shell';
+
 export function AuthLayout(props: {
   title: string;
   lead?: ReactNode;
@@ -8,7 +11,7 @@ export function AuthLayout(props: {
   children: ReactNode;
 }) {
   return (
-    <main className="auth-shell">
+    <main className={SHELL_CLASS}>
       <div className={`card auth-card${props.wide ? ' wide' : ''}`}>
         <BrandLogo surface="auto" className="auth-logo" />
         <hgroup className="auth-heading">
