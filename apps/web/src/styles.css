@@ -1385,3 +1385,217 @@ th.col-wide {
 .pick-option:hover {
   border-color: var(--brand);
 }
+
+/* ---------- Fila de chamados e início ---------- */
+
+.rma-queue .tabs {
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 16px;
+}
+
+.toolbar .search {
+  flex: 1 1 320px;
+}
+
+.toolbar-check {
+  min-height: 44px;
+  padding: 0 4px;
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .toolbar > * {
+    flex: 1 1 100%;
+  }
+}
+
+.rma-cards {
+  display: grid;
+  gap: 12px;
+}
+
+.rma-cards .empty,
+.rma-queue .pagination {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.rma-queue .pagination {
+  margin-top: 16px;
+}
+
+.rma-card {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.rma-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.rma-card-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.rma-card-title a {
+  text-decoration: none;
+}
+
+.rma-card-title a:hover {
+  text-decoration: underline;
+}
+
+.rma-card-equipment {
+  margin: 0;
+}
+
+.rma-card-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.rma-card-footer .more-link {
+  margin-left: auto;
+}
+
+/* Ligação de ação com seta ("Ver chamado", "Ver todos"). */
+.more-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.more-link:hover {
+  text-decoration: underline;
+}
+
+/* Atalhos do início: ícone, título e seta, sem descrição. */
+.shortcut {
+  align-items: center;
+}
+
+.shortcut h2 {
+  flex: 1;
+  margin: 0;
+}
+
+.shortcut > svg {
+  color: var(--text-muted);
+}
+
+a.shortcut:hover > svg {
+  color: var(--brand-strong);
+}
+
+.count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-family: var(--font);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.attention-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.attention-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.attention-body {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+.attention-title {
+  display: block;
+  font-weight: 600;
+}
+
+.attention-danger > svg,
+.attention-danger .attention-title {
+  color: var(--danger);
+}
+
+.attention-warning > svg {
+  color: var(--warning-accent);
+}
+
+.attention-warning .attention-title {
+  color: var(--warning);
+}
+
+.attention-neutral > svg {
+  color: var(--text-muted);
+}
+
+/* Faixa lateral no tom da situação; vem depois das bordas das superfícies. */
+.accent-success,
+.accent-warning,
+.accent-danger,
+.accent-neutral {
+  border-left-width: 4px;
+}
+
+.accent-success {
+  border-left-color: var(--brand);
+}
+
+.accent-warning {
+  border-left-color: var(--warning-accent);
+}
+
+.accent-danger {
+  border-left-color: var(--danger);
+}
+
+.accent-neutral {
+  border-left-color: var(--border-strong);
+}

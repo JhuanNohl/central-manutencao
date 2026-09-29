@@ -2,11 +2,13 @@ import {
   INVOICE_VALIDATION_STATUS_LABELS,
   RMA_ITEM_STAGE_LABELS,
   RMA_PRIORITY_LABELS,
+  RMA_SLA_STATUS_LABELS,
   SLA_STATUS_LABELS,
   WARRANTY_STATUS_LABELS,
   type InvoiceValidationStatus,
   type RmaItemStage,
   type RmaPriority,
+  type RmaSlaStatus,
   type SlaStatus,
   type WarrantyStatus,
 } from '@central/contracts';
@@ -16,6 +18,7 @@ import {
   CircleCheck,
   ClipboardCheck,
   Clock,
+  ClockAlert,
   FileCheck,
   FileWarning,
   FileX,
@@ -105,6 +108,17 @@ export const SLA_STYLES: Record<SlaStatus, StatusStyle> = {
   nao_iniciado: style(SLA_STATUS_LABELS.nao_iniciado, 'neutral', Hourglass),
   no_prazo: style(SLA_STATUS_LABELS.no_prazo, 'success', Timer),
   atrasado: style(SLA_STATUS_LABELS.atrasado, 'danger', AlarmClock),
+};
+
+/** Prazo do chamado, pelo item que vence primeiro. */
+export const RMA_SLA_STYLES: Record<RmaSlaStatus, StatusStyle> = {
+  no_prazo: style(RMA_SLA_STATUS_LABELS.no_prazo, 'success', Timer),
+  vence_em_breve: style(
+    RMA_SLA_STATUS_LABELS.vence_em_breve,
+    'warning',
+    ClockAlert,
+  ),
+  atrasado: style(RMA_SLA_STATUS_LABELS.atrasado, 'danger', AlarmClock),
 };
 
 /** Resultado da validação do XML; falha técnica não é divergência (RN12). */

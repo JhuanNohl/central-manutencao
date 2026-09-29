@@ -5,11 +5,12 @@ import { Pagination } from './Pagination';
 
 /**
  * Corpo comum das listagens: erro, tabela, mensagem de vazio e paginação.
- * A página só define a tabela dos itens.
+ * A página só define a tabela dos itens (ou os cards, com `bodyClassName`).
  */
 export function PagedResults<Item>(props: {
   list: PagedList<Item>;
   emptyMessage: string;
+  bodyClassName?: string;
   children: (items: Item[]) => ReactNode;
 }) {
   const { query, setPage, setPageSize } = props.list;
@@ -24,7 +25,7 @@ export function PagedResults<Item>(props: {
 
   return (
     <>
-      <div className="table-wrap">
+      <div className={props.bodyClassName ?? 'table-wrap'}>
         {props.children(query.data.items)}
         {query.data.items.length === 0 && (
           <div className="empty">{props.emptyMessage}</div>

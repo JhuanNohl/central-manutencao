@@ -5,7 +5,13 @@ import {
   type PortalRmaSummary,
 } from '@central/contracts';
 import { useQuery } from '@tanstack/react-query';
-import { ClipboardList, UserPlus, Users, type LucideIcon } from 'lucide-react';
+import {
+  ArrowRight,
+  ClipboardList,
+  UserPlus,
+  Users,
+  type LucideIcon,
+} from 'lucide-react';
 import { Link } from 'react-router';
 import { get, toQuery } from '../api/client';
 import { hasPermission, useSession } from '../auth/session';
@@ -17,11 +23,12 @@ import {
   PORTAL_RMAS_PATH,
   PortalRmasTable,
 } from './portal/MyRmasPage';
+import { AttentionPanel } from './rmas/AttentionPanel';
+import { NewStaffRmaLink } from './rmas/RmasPage';
 
 interface Shortcut {
   to: string;
   title: string;
-  description: string;
   icon: LucideIcon;
   permission: Permission;
 }
@@ -30,23 +37,18 @@ const STAFF_SHORTCUTS: Shortcut[] = [
   {
     to: '/chamados',
     title: 'Chamados',
-    description:
-      'Fila de RMAs com etapa de cada equipamento, cliente, nota fiscal e responsável.',
     icon: ClipboardList,
     permission: 'rma.read',
   },
   {
     to: '/clientes',
     title: 'Clientes',
-    description:
-      'Cadastro de clientes, contatos e convites de acesso ao portal.',
     icon: Users,
     permission: 'customers.read',
   },
   {
     to: '/admin/convites',
     title: 'Equipe',
-    description: 'Convide agentes e defina papéis e permissões.',
     icon: UserPlus,
     permission: 'accounts.manage',
   },
@@ -125,22 +127,21 @@ export function HomePage() {
   );
   return (
     <div className="stack">
-      <PageHeader title="Início" />
+      <PageHeader title="Início" actions={<NewStaffRmaLink />} />
       {shortcuts.length > 0 && (
-        <div className="grid-2">
-          {shortcuts.map(({ to, title, description, icon: Icon }) => (
-            <Link key={to} to={to} className="tile">
+        <nav className="grid-3" aria-label="Atalhos">
+          {shortcuts.map(({ to, title, icon: Icon }) => (
+            <Link key={to} to={to} className="tile shortcut">
               <span className="icon-square" aria-hidden>
-                <Icon size={28} />
+                <Icon size={24} />
               </span>
-              <div>
-                <h2>{title}</h2>
-                <p>{description}</p>
-              </div>
+              <h2>{title}</h2>
+              <ArrowRight size={20} aria-hidden />
             </Link>
           ))}
-        </div>
+        </nav>
       )}
+      {hasPermission(account, 'rma.read') && <AttentionPanel />}
     </div>
   );
 }
