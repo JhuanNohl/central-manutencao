@@ -54,6 +54,12 @@ export const RECEIVABLE_STAGES: readonly RmaItemStage[] = [
   'em_transporte',
 ];
 
+/** Etapas em que o prazo do item já terminou: o despacho o finaliza (RN08). */
+export const SLA_FINISHED_STAGES: readonly RmaItemStage[] = [
+  'em_devolucao',
+  'entregue',
+];
+
 export const RMA_PRIORITIES = ['normal', 'alta', 'urgente'] as const;
 export type RmaPriority = (typeof RMA_PRIORITIES)[number];
 
@@ -88,6 +94,11 @@ export const listRmasQuerySchema = paginationQuerySchema.extend({
   stage: z.enum(RMA_ITEM_STAGES).optional(),
   priority: z.enum(RMA_PRIORITIES).optional(),
   assignee: z.enum(RMA_ASSIGNEE_FILTERS).optional(),
+  /**
+   * Só chamados abertos que pedem ação: prazo vencido, prazo perto do fim
+   * ou sem responsável. Ordena pelo vencimento mais próximo.
+   */
+  attention: z.stringbool().optional(),
 });
 export type ListRmasQuery = z.infer<typeof listRmasQuerySchema>;
 
@@ -114,7 +125,36 @@ export interface RmaSummary {
   /** Primeira nota fiscal vinculada, quando houver. */
   invoice: RmaInvoiceView | null;
   itemCount: number;
+  /** Modelos distintos, na ordem dos itens. */
+  models: string[];
   stages: RmaStageCount[];
+  /** Prazo do item que vence primeiro; nulo antes do primeiro recebimento. */
+  sla: RmaSlaView | null;
+}
+
+/**
+ * Situação do prazo do chamado, pela do item que vence primeiro. O chamado
+ * não tem prazo próprio: cada item mantém o seu (D10).
+ */
+export const RMA_SLA_STATUSES = [
+  'no_prazo',
+  'vence_em_breve',
+  'atrasado',
+] as const;
+export type RmaSlaStatus = (typeof RMA_SLA_STATUSES)[number];
+
+export const RMA_SLA_STATUS_LABELS: Record<RmaSlaStatus, string> = {
+  no_prazo: 'No prazo',
+  vence_em_breve: 'Vence em breve',
+  atrasado: 'Atrasado',
+};
+
+/** Antecedência com que o chamado passa a "vence em breve" e pede atenção. */
+export const SLA_DUE_SOON_HOURS = 72;
+
+export interface RmaSlaView {
+  status: RmaSlaStatus;
+  dueAt: string;
 }
 
 /** Situação do prazo do item: começa só no recebimento físico (RN04). */

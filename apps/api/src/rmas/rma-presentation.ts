@@ -27,6 +27,11 @@ export function rmaSubject(
   return `Manutenção — ${items.length} equipamentos: ${models.join(', ')}`;
 }
 
+/** Modelos distintos do chamado, na ordem em que os itens aparecem. */
+export function distinctModels(items: { model: string }[]): string[] {
+  return [...new Set(items.map((item) => item.model))];
+}
+
 /** Quantidade de itens por etapa, na ordem do fluxo (A5.1). */
 export function stageCounts(stages: RmaItemStage[]): RmaStageCount[] {
   return RMA_ITEM_STAGES.map((stage) => ({

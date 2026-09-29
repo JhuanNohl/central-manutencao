@@ -11,6 +11,8 @@ import {
   type TestContext,
 } from './support.js';
 
+const HOUR_MS = 3_600_000;
+
 describe('Chamados (visão da equipe)', () => {
   let ctx: TestContext;
   let agentId: string;
@@ -40,6 +42,8 @@ describe('Chamados (visão da equipe)', () => {
       serial: string;
       stage: RmaItemStage;
       note?: string;
+      /** Recebido há quantas horas; por padrão, agora. */
+      receivedHoursAgo?: number;
     }[];
     invoice?: string;
   }): Promise<number> {
@@ -62,7 +66,7 @@ describe('Chamados (visão da equipe)', () => {
         stage: item.stage,
         receivedAt: ['aguardando_envio', 'em_transporte'].includes(item.stage)
           ? null
-          : new Date(),
+          : new Date(Date.now() - (item.receivedHoursAgo ?? 0) * HOUR_MS),
         slaHours: ['aguardando_envio', 'em_transporte'].includes(item.stage)
           ? null
           : 720,
@@ -141,6 +145,62 @@ describe('Chamados (visão da equipe)', () => {
         { stage: 'em_manutencao', count: 1 },
       ],
     });
+  });
+
+  it('resume modelos e o prazo do item que vence primeiro', async () => {
+    const { first, second } = await seedTwoRmas();
+    const page = await listOf();
+    const summary = (number: number) =>
+      page.items.find((rma) => rma.number === number)!;
+
+    expect(summary(first).models).toEqual(['SpeedFace V5L', 'Inbio 260']);
+    expect(summary(first).sla).toMatchObject({ status: 'no_prazo' });
+    expect(summary(second).sla).toBeNull();
+  });
+
+  it('requer atenção: prazo vencido, perto do fim ou sem responsável', async () => {
+    const { customerId } = await createCustomer(ctx.db, {
+      name: 'Gama Fictícia',
+      document: cnpj('404040400001'),
+      contactEmail: 'contato@gama.local',
+    });
+    const received = (
+      hoursAgo: number,
+      stage: RmaItemStage = 'em_manutencao',
+    ) => ({
+      customerId,
+      assigned: true,
+      items: [
+        {
+          model: 'VR10',
+          serial: `SIM-${hoursAgo}`,
+          stage,
+          receivedHoursAgo: hoursAgo,
+        },
+      ],
+    });
+    const onTime = await createRma(received(10));
+    const dispatched = await createRma(received(740, 'em_devolucao'));
+    const unassigned = await createRma({
+      customerId,
+      items: [{ model: 'VR10', serial: 'SIM-X', stage: 'aguardando_envio' }],
+    });
+    const dueSoon = await createRma(received(700));
+    const overdue = await createRma(received(730));
+
+    const page = await listOf('?attention=true');
+    expect(page.items.map((rma) => rma.number)).toEqual([
+      overdue,
+      dueSoon,
+      unassigned,
+    ]);
+    expect(page.items.map((rma) => rma.sla?.status ?? null)).toEqual([
+      'atrasado',
+      'vence_em_breve',
+      null,
+    ]);
+    const all = (await listOf()).items.map((rma) => rma.number);
+    expect(all).toEqual(expect.arrayContaining([onTime, dispatched]));
   });
 
   it('busca por nº de série, nº do chamado, CNPJ e nº da NF', async () => {

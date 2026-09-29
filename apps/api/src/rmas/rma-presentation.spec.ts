@@ -1,4 +1,4 @@
-import { rmaSubject, stageCounts } from './rma-presentation.js';
+import { distinctModels, rmaSubject, stageCounts } from './rma-presentation.js';
 
 describe('rmaSubject', () => {
   it('um equipamento mostra modelo e nº de série', () => {
@@ -26,5 +26,17 @@ describe('stageCounts', () => {
         { stage: 'em_manutencao', count: 2 },
       ],
     );
+  });
+});
+
+describe('distinctModels', () => {
+  it('lista cada modelo uma vez, na ordem dos itens', () => {
+    expect(
+      distinctModels([
+        { model: 'SpeedFace V5L' },
+        { model: 'Inbio 260' },
+        { model: 'SpeedFace V5L' },
+      ]),
+    ).toEqual(['SpeedFace V5L', 'Inbio 260']);
   });
 });
