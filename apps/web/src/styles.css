@@ -173,13 +173,12 @@ svg {
   width: auto;
 }
 
-.topbar-divider {
-  width: 1px;
-  height: 28px;
-  background: var(--header-border);
-}
-
+/* Centrado na barra inteira, não no espaço entre o logo e as ações. */
 .topbar-title {
+  position: absolute;
+  left: 50%;
+  max-width: calc(100% - 480px);
+  transform: translateX(-50%);
   font-size: 18px;
   font-weight: 500;
   white-space: nowrap;
@@ -208,9 +207,23 @@ svg {
   display: none;
 }
 
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
 .user-menu {
   position: relative;
-  margin-left: auto;
+}
+
+.logout-button {
+  color: var(--header-muted);
+}
+
+.logout-button:hover {
+  color: var(--header-text);
 }
 
 .user-menu-button {
@@ -356,7 +369,6 @@ svg {
     gap: 8px;
     padding: 0 8px;
   }
-  .topbar-divider,
   .topbar-title {
     display: none;
   }
@@ -1436,6 +1448,7 @@ th.col-wide {
 }
 
 .rma-card {
+  position: relative;
   display: grid;
   gap: 10px;
   min-width: 0;
@@ -1443,6 +1456,50 @@ th.col-wide {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  cursor: pointer;
+}
+
+/* Faixa lateral: sem layout próprio, para não deslocar o conteúdo no hover. */
+.rma-card::before {
+  content: '';
+  position: absolute;
+  inset: -1px auto -1px -1px;
+  width: 4px;
+  background: var(--brand);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.rma-card:hover,
+.rma-card:focus-within {
+  border-color: var(--border-strong);
+}
+
+.rma-card:hover::before,
+.rma-card:focus-within::before,
+.rma-card-warning::before,
+.rma-card-danger::before {
+  opacity: 1;
+}
+
+.rma-card-warning::before {
+  background: var(--warning-accent);
+}
+
+.rma-card-danger::before {
+  background: var(--danger);
+}
+
+/* O link principal cobre o card inteiro; os demais links ficam por cima. */
+.card-link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.rma-card .more-link {
+  position: relative;
+  z-index: 1;
 }
 
 .rma-card-header {
@@ -1460,10 +1517,6 @@ th.col-wide {
 
 .rma-card-title a {
   text-decoration: none;
-}
-
-.rma-card-title a:hover {
-  text-decoration: underline;
 }
 
 .rma-card-equipment {

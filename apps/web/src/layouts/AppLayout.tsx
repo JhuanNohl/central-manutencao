@@ -4,7 +4,7 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { hasPermission, useSession } from '../auth/session';
 import { BrandLogo } from '../components/BrandLogo';
 import { NAV_ITEMS } from './navigation';
-import { UserMenu } from './UserMenu';
+import { LogoutButton, UserMenu } from './UserMenu';
 
 export function AppLayout() {
   const { data: account } = useSession();
@@ -36,12 +36,18 @@ export function AppLayout() {
             <Menu size={22} aria-hidden />
           )}
         </button>
-        <Link to="/" className="topbar-brand">
+        <Link
+          to="/"
+          className="topbar-brand"
+          aria-label="Central de Manutenção — início"
+        >
           <BrandLogo surface="onDark" />
-          <span className="topbar-divider" aria-hidden />
-          <span className="topbar-title">Central de Manutenção</span>
         </Link>
-        <UserMenu account={account} />
+        <span className="topbar-title">Central de Manutenção</span>
+        <div className="topbar-actions">
+          <UserMenu account={account} />
+          <LogoutButton />
+        </div>
       </header>
 
       <div className="shell">

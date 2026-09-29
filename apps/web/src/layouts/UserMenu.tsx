@@ -12,21 +12,42 @@ function initials(name: string): string {
   return letters.map((part) => part[0]?.toUpperCase() ?? '').join('');
 }
 
-/** Avatar com o menu da conta: dados, "Minha conta" e sair. */
-export function UserMenu({ account }: { account: SessionAccount }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const panelId = useId();
+/** Encerra a sessão e volta à tela de acesso, mesmo se a API falhar. */
+function useLogout() {
   const setSession = useSetSession();
   const navigate = useNavigate();
-
-  const logout = useMutation({
+  return useMutation({
     mutationFn: () => post('/auth/logout'),
     onSettled: () => {
       setSession(null);
       void navigate('/entrar', { replace: true });
     },
   });
+}
+
+/** Atalho discreto para sair, ao lado do avatar. */
+export function LogoutButton() {
+  const logout = useLogout();
+  return (
+    <button
+      type="button"
+      className="topbar-icon-button logout-button"
+      aria-label="Sair"
+      title="Sair"
+      disabled={logout.isPending}
+      onClick={() => logout.mutate()}
+    >
+      <LogOut size={20} aria-hidden />
+    </button>
+  );
+}
+
+/** Avatar com o menu da conta: dados, "Minha conta" e sair. */
+export function UserMenu({ account }: { account: SessionAccount }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const panelId = useId();
+  const logout = useLogout();
 
   useEffect(() => {
     if (!open) return;

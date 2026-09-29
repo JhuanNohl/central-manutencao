@@ -12,17 +12,21 @@ function equipmentCount(count: number): string {
 }
 
 /**
- * Chamado na fila. A borda lateral repete o tom do prazo, que também aparece
- * por escrito no badge; sem prazo em risco, fica no verde da marca.
+ * Chamado na fila; o card inteiro abre o chamado. A faixa lateral repete o
+ * tom do prazo em risco, que também aparece por escrito no badge. Sem risco,
+ * a faixa verde só aparece no card sob o mouse ou com o foco.
  */
 export function RmaCard({ rma }: { rma: RmaSummary }) {
   const path = `/chamados/${rma.number}`;
   const sla = rma.sla ? RMA_SLA_STYLES[rma.sla.status] : null;
   return (
-    <article className={`rma-card accent-${sla?.tone ?? 'success'}`}>
+    <article className={`rma-card rma-card-${sla?.tone ?? 'success'}`}>
       <header className="rma-card-header">
         <h2 className="rma-card-title">
-          <Link to={path}>{rmaLabel(rma.number)}</Link> · {rma.customer.name}
+          <Link to={path} className="card-link">
+            {rmaLabel(rma.number)}
+          </Link>{' '}
+          · {rma.customer.name}
         </h2>
         <div className="badges">
           {sla && <Badge status={sla} />}
