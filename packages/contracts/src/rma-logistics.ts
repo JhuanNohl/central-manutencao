@@ -23,7 +23,8 @@ export const SHIPMENT_METHOD_RULES: Record<ShipmentMethod, ShipmentMethodRule> =
     entrega_propria: { label: 'Entrega própria', requiresCarrier: false },
   };
 
-const itemSelectionSchema = z
+/** Equipamentos escolhidos para uma operação, sem repetição. */
+export const itemSelectionSchema = z
   .array(uuidSchema)
   .min(1, 'Selecione pelo menos um equipamento')
   .max(MAX_ITEMS_PER_RMA)

@@ -21,5 +21,7 @@ export * from './invitations.js';
 export * from './invoice-validation.js';
 export * from './notifications.js';
 export * from './rma-logistics.js';
+export * from './rma-management.js';
+export * from './rma-messages.js';
 export * from './rma-opening.js';
 export * from './rmas.js';

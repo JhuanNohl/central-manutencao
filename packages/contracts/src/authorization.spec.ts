@@ -19,6 +19,13 @@ describe('matriz de permissões', () => {
     expect(hasPermission('agente_consulta', 'customers.write')).toBe(false);
   });
 
+  it('agente opera chamados e cliente conversa pelo próprio atendimento', () => {
+    expect(hasPermission('agente', 'rma.write')).toBe(true);
+    expect(hasPermission('agente', 'accounts.manage')).toBe(false);
+    expect(hasPermission('cliente', 'rma.own.message')).toBe(true);
+    expect(hasPermission('cliente', 'rma.write')).toBe(false);
+  });
+
   it('somente administrador gerencia contas', () => {
     const managers = ROLES.filter((role) =>
       hasPermission(role, 'accounts.manage'),

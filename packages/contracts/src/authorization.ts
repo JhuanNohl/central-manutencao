@@ -32,6 +32,7 @@ export const PERMISSIONS = [
   'rma.own.read',
   'rma.own.create',
   'rma.own.ship',
+  'rma.own.message',
   // Equipe
   'rma.read',
   'rma.write',
@@ -60,7 +61,12 @@ const AGENT: Permission[] = [
 ];
 
 export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
-  cliente: ['rma.own.read', 'rma.own.create', 'rma.own.ship'],
+  cliente: [
+    'rma.own.read',
+    'rma.own.create',
+    'rma.own.ship',
+    'rma.own.message',
+  ],
   agente_consulta: STAFF_READ,
   agente: AGENT,
   administrador: [

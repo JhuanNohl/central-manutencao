@@ -15,6 +15,10 @@ export const NOTIFICATION_TEMPLATES = [
   'confirmacao_email',
   'rma_aberto',
   'rma_itens_recebidos',
+  'rma_etapa_alterada',
+  'rma_cancelado',
+  'rma_mensagem_equipe',
+  'rma_mensagem_cliente',
 ] as const;
 export type NotificationTemplate = (typeof NOTIFICATION_TEMPLATES)[number];
 

@@ -113,6 +113,12 @@ export interface RmaInvoiceView {
   issuerDocument: string;
 }
 
+/** Cancelamento do chamado: encerra sem apagar nada (decisão de 30/09/2026). */
+export interface RmaCancellationView {
+  cancelledAt: string;
+  reason: string;
+}
+
 export interface RmaSummary {
   number: number;
   subject: string;
@@ -130,6 +136,7 @@ export interface RmaSummary {
   stages: RmaStageCount[];
   /** Prazo do item que vence primeiro; nulo antes do primeiro recebimento. */
   sla: RmaSlaView | null;
+  cancellation: RmaCancellationView | null;
 }
 
 /**
@@ -207,6 +214,8 @@ export interface RmaItemView {
 
 export interface RmaDetail extends Omit<RmaSummary, 'invoice' | 'requester'> {
   requester: { name: string; email: string; phone: string | null } | null;
+  /** Cancelado ou com todos os equipamentos de volta ao cliente; não muda mais. */
+  closedAt: string | null;
   openedBy: { id: string; name: string } | null;
   invoices: RmaInvoiceView[];
   documents: RmaDocumentView[];
@@ -229,6 +238,7 @@ export interface PortalRmaSummary {
   updatedAt: string;
   itemCount: number;
   stages: RmaStageCount[];
+  cancellation: RmaCancellationView | null;
 }
 
 export interface PortalRmaDetail extends PortalRmaSummary {

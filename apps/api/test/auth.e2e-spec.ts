@@ -58,6 +58,7 @@ describe('Autenticação e sessão', () => {
       'rma.own.read',
       'rma.own.create',
       'rma.own.ship',
+      'rma.own.message',
     ]);
 
     const cookie = String(res.headers['set-cookie']);
