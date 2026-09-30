@@ -118,6 +118,8 @@ export function SelectField(props: {
   name: string;
   options: { value: string; label: string }[];
   defaultValue?: string;
+  value?: string;
+  onChange?: (value: string) => void;
   errors?: FieldErrors;
 }) {
   const id = useId();
@@ -129,6 +131,8 @@ export function SelectField(props: {
         id={id}
         name={props.name}
         defaultValue={props.defaultValue}
+        value={props.value}
+        onChange={props.onChange && ((e) => props.onChange?.(e.target.value))}
         aria-invalid={error ? true : undefined}
       >
         {props.options.map((option) => (

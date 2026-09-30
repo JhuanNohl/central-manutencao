@@ -6,7 +6,8 @@ import { PagedResults } from '../../components/PagedResults';
 import { PageHeader } from '../../components/ui';
 import { formatDateTime } from '../../lib/format';
 import { usePagedList } from '../../lib/paged-list';
-import { rmaLabel } from '../rmas/rma-styles';
+import { Badge } from '../../components/Badge';
+import { CANCELLED_STYLE, rmaLabel } from '../rmas/rma-styles';
 import { StageSummary } from '../rmas/StageSummary';
 
 export const PORTAL_RMAS_PATH = '/portal/rmas';
@@ -68,7 +69,11 @@ export function PortalRmasTable({ rmas }: { rmas: PortalRmaSummary[] }) {
               <Link to={`/atendimentos/${rma.number}`}>{rma.subject}</Link>
             </td>
             <td>
-              <StageSummary stages={rma.stages} itemCount={rma.itemCount} />
+              {rma.cancellation ? (
+                <Badge status={CANCELLED_STYLE} />
+              ) : (
+                <StageSummary stages={rma.stages} itemCount={rma.itemCount} />
+              )}
             </td>
             <td className="nowrap">{formatDateTime(rma.createdAt)}</td>
             <td className="nowrap">{formatDateTime(rma.updatedAt)}</td>

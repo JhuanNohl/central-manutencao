@@ -19,7 +19,7 @@ const itemLabel = (item: SelectableItem) =>
   `${item.position}. ${item.model} (S/N ${item.serialNumber})`;
 
 /**
- * Seleção de equipamentos para uma movimentação (envio ou recebimento).
+ * Seleção de equipamentos para uma movimentação (envio, recebimento, etapa).
  * Mostra a relação exata que será gravada antes da confirmação (5.5).
  */
 export function ItemsSelectionDialog(props: {
@@ -30,6 +30,8 @@ export function ItemsSelectionDialog(props: {
   confirmLabel: string;
   pending: boolean;
   error: string | null;
+  /** Campos antes da lista, quando definem os itens elegíveis (ex.: etapa). */
+  leading?: ReactNode;
   /** Campos adicionais (ex.: modalidade de envio). */
   children?: ReactNode;
   onConfirm: (itemIds: string[], data: FormData) => void;
@@ -86,6 +88,7 @@ export function ItemsSelectionDialog(props: {
         <form onSubmit={onSubmit} noValidate>
           <h2 id={`${id}-title`}>{props.title}</h2>
           <p className="muted">{props.description}</p>
+          {props.leading}
           <fieldset>
             <legend>Equipamentos</legend>
             <div className="check-list">

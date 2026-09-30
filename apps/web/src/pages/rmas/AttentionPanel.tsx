@@ -5,6 +5,7 @@ import { Link } from 'react-router';
 import { get, toQuery } from '../../api/client';
 import type { StatusStyle } from '../../components/Badge';
 import { QueryError } from '../../components/feedback';
+import { AssumeRmaButton } from './RmaAssignment';
 import { rmaLabel } from './rma-styles';
 import { ATTENTION_QUEUE_PATH, RMAS_PATH } from './RmasPage';
 import { slaRemainingLabel } from './sla-remaining';
@@ -52,14 +53,19 @@ function AttentionRow({ rma }: { rma: RmaSummary }) {
           {rma.sla && ` · ${slaRemainingLabel(rma.sla.dueAt)}`}
         </span>
       </div>
-      <Link
-        to={`/chamados/${rma.number}`}
-        className="more-link"
-        aria-label={`Abrir chamado ${rmaLabel(rma.number)}`}
-      >
-        Abrir chamado
-        <ArrowRight size={16} aria-hidden />
-      </Link>
+      <div className="actions">
+        {!rma.assignee && (
+          <AssumeRmaButton number={rma.number} assignee={null} />
+        )}
+        <Link
+          to={`/chamados/${rma.number}`}
+          className="more-link"
+          aria-label={`Abrir chamado ${rmaLabel(rma.number)}`}
+        >
+          Abrir chamado
+          <ArrowRight size={16} aria-hidden />
+        </Link>
+      </div>
     </li>
   );
 }

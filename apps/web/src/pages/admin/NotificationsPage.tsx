@@ -24,6 +24,10 @@ const TEMPLATE_LABELS: Record<NotificationTemplate, string> = {
   confirmacao_email: 'Confirmação de e-mail',
   rma_aberto: 'Atendimento aberto',
   rma_itens_recebidos: 'Equipamentos recebidos',
+  rma_etapa_alterada: 'Etapa alterada',
+  rma_cancelado: 'Atendimento cancelado',
+  rma_mensagem_equipe: 'Mensagem da equipe',
+  rma_mensagem_cliente: 'Mensagem do cliente',
 };
 
 const STATUS: Record<NotificationStatus, StatusStyle> = {
@@ -54,9 +58,7 @@ export function NotificationsPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Avisos por e-mail"
-      />
+      <PageHeader title="Avisos por e-mail" />
       <section className="panel">
         <div className="panel-header">
           <FilterTabs

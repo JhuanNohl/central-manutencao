@@ -15,6 +15,7 @@ import {
 import {
   AlarmClock,
   ArrowUp,
+  Ban,
   CircleCheck,
   ClipboardCheck,
   Clock,
@@ -138,6 +139,9 @@ export const INVOICE_VALIDATION_STYLES: Record<
     FileX,
   ),
 };
+
+/** Chamado encerrado sem reparo; as etapas dos itens ficam como estavam. */
+export const CANCELLED_STYLE: StatusStyle = style('Cancelado', 'neutral', Ban);
 
 /** Número público no formato exibido ao usuário. */
 export function rmaLabel(number: number): string {

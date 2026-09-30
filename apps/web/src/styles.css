@@ -1654,3 +1654,79 @@ a.shortcut:hover > svg {
 .accent-neutral {
   border-left-color: var(--border-strong);
 }
+
+/* ---------- Ações da equipe no chamado ---------- */
+
+/* Texto do aviso à esquerda e ações (assumir, deixar) à direita. */
+.alert-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.inline-error {
+  color: var(--danger);
+  font-size: 14px;
+}
+
+.details .toolbar-select {
+  max-width: 100%;
+}
+
+/* ---------- Conversa do chamado ---------- */
+
+.conversation h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.message-list {
+  display: grid;
+  gap: 12px;
+  max-height: 420px;
+  margin: 0 0 16px;
+  padding: 0 4px 0 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+/* Mensagem própria à direita, em verde suave; o autor também vem escrito. */
+.message {
+  justify-self: start;
+  max-width: min(560px, 90%);
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-muted);
+}
+
+.message-mine {
+  justify-self: end;
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+
+.message-meta {
+  display: block;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.message-meta strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.message-body {
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.message-form {
+  display: grid;
+  gap: 12px;
+}

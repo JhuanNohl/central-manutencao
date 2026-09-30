@@ -8,8 +8,10 @@ import { Badge } from '../../components/Badge';
 import { Loading, QueryError } from '../../components/feedback';
 import { PageHeader } from '../../components/ui';
 import { formatDateTime } from '../../lib/format';
+import { CancellationNotice } from '../rmas/CancellationNotice';
 import { ItemPhotos } from '../rmas/ItemPhotos';
 import { ItemSla } from '../rmas/ItemSla';
+import { RmaConversation } from '../rmas/RmaConversation';
 import { RmaDocuments } from '../rmas/RmaDocuments';
 import { RmaMovements } from '../rmas/RmaMovements';
 import { STAGE_STYLES, WARRANTY_STYLES, rmaLabel } from '../rmas/rma-styles';
@@ -39,7 +41,7 @@ export function PortalRmaDetailPage() {
         description={rma.subject}
         actions={
           <>
-            {hasPermission(account, 'rma.own.ship') && (
+            {!rma.cancellation && hasPermission(account, 'rma.own.ship') && (
               <ConfirmShipmentAction rma={rma} />
             )}
             <Link to="/atendimentos" className="btn btn-secondary">
@@ -49,6 +51,9 @@ export function PortalRmaDetailPage() {
           </>
         }
       />
+      {rma.cancellation && (
+        <CancellationNotice cancellation={rma.cancellation} />
+      )}
       <div className="grid-3">
         <section className="card">
           <h2>Atendimento</h2>
@@ -136,6 +141,14 @@ export function PortalRmaDetailPage() {
           </table>
         </div>
       </section>
+
+      <RmaConversation
+        path={`${PORTAL_RMAS_PATH}/${rma.number}/messages`}
+        title="Conversa com a equipe"
+        canSend={hasPermission(account, 'rma.own.message')}
+        hint="Use para combinar detalhes do atendimento. A equipe responsável recebe um aviso por e-mail."
+        emptyMessage="Nenhuma mensagem ainda. Escreva se precisar combinar algum detalhe com a equipe."
+      />
     </div>
   );
 }

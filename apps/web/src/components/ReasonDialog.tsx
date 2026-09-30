@@ -17,6 +17,8 @@ export function ReasonDialog(props: {
   title: string;
   description?: ReactNode;
   confirmLabel: string;
+  /** Rótulo do botão que fecha sem agir; muda quando a ação já é "cancelar". */
+  closeLabel?: string;
   danger?: boolean;
   pending?: boolean;
   error?: string | null;
@@ -85,7 +87,7 @@ export function ReasonDialog(props: {
               className="btn btn-secondary"
               onClick={props.onClose}
             >
-              Cancelar
+              {props.closeLabel ?? 'Cancelar'}
             </button>
           </div>
         </form>

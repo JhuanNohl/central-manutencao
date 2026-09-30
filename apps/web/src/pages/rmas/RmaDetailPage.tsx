@@ -6,13 +6,22 @@ import { Link, useParams } from 'react-router';
 import { get } from '../../api/client';
 import { hasPermission, useSession } from '../../auth/session';
 import { Badge } from '../../components/Badge';
-import { Alert, Loading, QueryError } from '../../components/feedback';
+import { Loading, QueryError } from '../../components/feedback';
 import { SearchInput } from '../../components/filters';
 import { PageHeader } from '../../components/ui';
 import { formatDateTime, formatDocument } from '../../lib/format';
+import { CancelRmaAction } from './CancelRmaAction';
+import { ChangeStageAction } from './ChangeStageAction';
 import { ItemPhotos } from './ItemPhotos';
 import { ItemSla } from './ItemSla';
 import { ReceiveItemsAction } from './ReceiveItemsAction';
+import {
+  AssigneeSelect,
+  AssignmentNotice,
+  PrioritySelect,
+} from './RmaAssignment';
+import { CancellationNotice } from './CancellationNotice';
+import { RmaConversation } from './RmaConversation';
 import { RmaDocuments } from './RmaDocuments';
 import { RmaMovements } from './RmaMovements';
 import {
@@ -44,6 +53,8 @@ export function RmaDetailPage() {
   if (query.isError) return <QueryError error={query.error} />;
   const rma = query.data;
   const fileUrl = (fileId: string) => `/api/rmas/${rma.number}/files/${fileId}`;
+  const open = rma.closedAt === null;
+  const canOperate = open && hasPermission(account, 'rma.write');
 
   return (
     <div className="stack">
@@ -52,9 +63,11 @@ export function RmaDetailPage() {
         description={rma.subject}
         actions={
           <>
-            {hasPermission(account, 'rma.receive') && (
+            {open && hasPermission(account, 'rma.receive') && (
               <ReceiveItemsAction rma={rma} />
             )}
+            {canOperate && <ChangeStageAction rma={rma} />}
+            {canOperate && <CancelRmaAction rma={rma} />}
             <Link to="/chamados" className="btn btn-secondary">
               <ArrowLeft size={18} aria-hidden />
               Voltar
@@ -62,16 +75,14 @@ export function RmaDetailPage() {
           </>
         }
       />
-      {rma.assignee ? (
-        <Alert tone="success">
-          Chamado atribuído a <strong>{rma.assignee.name}</strong>.
-        </Alert>
+      {rma.cancellation ? (
+        <CancellationNotice cancellation={rma.cancellation} />
       ) : (
-        <Alert tone="warning">Chamado sem responsável.</Alert>
+        <AssignmentNotice rma={rma} />
       )}
 
       <div className="grid-3">
-        <ServiceCard rma={rma} />
+        <ServiceCard rma={rma} editable={canOperate} />
         <CustomerCard rma={rma} />
         <RmaDocuments
           documents={rma.documents}
@@ -81,16 +92,25 @@ export function RmaDetailPage() {
       </div>
 
       <ItemsPanel rma={rma} fileUrl={fileUrl} />
-      <RmaMovements
-        shipments={rma.shipments}
-        receipts={rma.receipts}
-        items={rma.items}
-      />
+      <div className="grid-2">
+        <RmaConversation
+          path={`/rmas/${rma.number}/messages`}
+          title="Conversa com o cliente"
+          canSend={hasPermission(account, 'rma.write')}
+          hint="O solicitante recebe um aviso por e-mail e lê a mensagem no portal. Não use para notas internas."
+          emptyMessage="Nenhuma mensagem trocada com o cliente."
+        />
+        <RmaMovements
+          shipments={rma.shipments}
+          receipts={rma.receipts}
+          items={rma.items}
+        />
+      </div>
     </div>
   );
 }
 
-function ServiceCard({ rma }: { rma: RmaDetail }) {
+function ServiceCard({ rma, editable }: { rma: RmaDetail; editable: boolean }) {
   return (
     <section className="card">
       <h2>Atendimento</h2>
@@ -100,7 +120,11 @@ function ServiceCard({ rma }: { rma: RmaDetail }) {
       <dl className="details">
         <dt>Prioridade</dt>
         <dd>
-          <Badge status={PRIORITY_STYLES[rma.priority]} />
+          {editable ? (
+            <PrioritySelect rma={rma} />
+          ) : (
+            <Badge status={PRIORITY_STYLES[rma.priority]} />
+          )}
         </dd>
         <dt>Aberto em</dt>
         <dd>{formatDateTime(rma.createdAt)}</dd>
@@ -109,7 +133,13 @@ function ServiceCard({ rma }: { rma: RmaDetail }) {
         <dt>Última atualização</dt>
         <dd>{formatDateTime(rma.updatedAt)}</dd>
         <dt>Responsável</dt>
-        <dd>{rma.assignee?.name ?? '—'}</dd>
+        <dd>
+          {editable ? (
+            <AssigneeSelect rma={rma} />
+          ) : (
+            (rma.assignee?.name ?? '—')
+          )}
+        </dd>
       </dl>
     </section>
   );
@@ -223,8 +253,8 @@ function ItemsPanel(props: {
         )}
       </div>
       <p className="panel-footnote">
-        Mudanças de etapa, garantia e laudo, com histórico e aviso ao cliente,
-        entram na condução técnica (E2).
+        Garantia, laudo e nota interna, com histórico e aviso ao cliente, entram
+        na condução técnica (E2).
       </p>
     </section>
   );

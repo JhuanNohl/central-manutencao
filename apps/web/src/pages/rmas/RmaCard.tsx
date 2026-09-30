@@ -3,7 +3,12 @@ import { ArrowRight, UserRound } from 'lucide-react';
 import { Link } from 'react-router';
 import { Badge } from '../../components/Badge';
 import { formatDateTime } from '../../lib/format';
-import { PRIORITY_STYLES, RMA_SLA_STYLES, rmaLabel } from './rma-styles';
+import {
+  CANCELLED_STYLE,
+  PRIORITY_STYLES,
+  RMA_SLA_STYLES,
+  rmaLabel,
+} from './rma-styles';
 import { slaRemainingLabel } from './sla-remaining';
 import { StageSummary } from './StageSummary';
 
@@ -29,6 +34,7 @@ export function RmaCard({ rma }: { rma: RmaSummary }) {
           · {rma.customer.name}
         </h2>
         <div className="badges">
+          {rma.cancellation && <Badge status={CANCELLED_STYLE} />}
           {sla && <Badge status={sla} />}
           <Badge status={PRIORITY_STYLES[rma.priority]} />
         </div>
