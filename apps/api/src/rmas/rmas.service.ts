@@ -48,7 +48,12 @@ import {
   toInvoice,
   type ItemRow,
 } from './rma-details.js';
-import { distinctModels, rmaSubject, stageCounts } from './rma-presentation.js';
+import {
+  cancellationOf,
+  distinctModels,
+  rmaSubject,
+  stageCounts,
+} from './rma-presentation.js';
 import { itemSla, rmaSla } from './sla.js';
 
 const assignee = alias(accounts, 'assignee');
@@ -84,6 +89,9 @@ const headerColumns = {
   assigneeName: assignee.name,
   openedById: openedBy.id,
   openedByName: openedBy.name,
+  closedAt: rmas.closedAt,
+  cancelledAt: rmas.cancelledAt,
+  cancellationReason: rmas.cancellationReason,
 };
 
 /** Itens da lista com o prazo calculado, como no detalhe (`toItemView`). */
@@ -166,6 +174,7 @@ export class RmasService {
           }
         : null,
       openedBy: reference(row.openedById, row.openedByName),
+      closedAt: row.closedAt?.toISOString() ?? null,
       ...parts,
     };
   }
@@ -224,6 +233,7 @@ export class RmasService {
       models: distinctModels(items),
       stages: stageCounts(items.map((item) => item.stage)),
       sla: rmaSla(items, now),
+      cancellation: cancellationOf(row),
     };
   }
 

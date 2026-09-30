@@ -11,7 +11,6 @@ import type { Env } from '../config/env.js';
 import { DATABASE } from '../database/database.module.js';
 import type { Database, Transaction } from '../database/database.types.js';
 import {
-  customerContacts,
   rmaItems,
   rmaReceiptItems,
   rmaReceipts,
@@ -19,8 +18,9 @@ import {
 import type { AuthContext } from '../identity/auth-context.js';
 import { EmailLinks } from '../notifications/email-links.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { findRequesterContact } from './rma-customer.js';
 import { ensureAllMoved, touchRma } from './rma-movements.js';
-import { findRma, type RmaRow } from './rma-scope.js';
+import { findRma, lockOpenRma, type RmaRow } from './rma-scope.js';
 import { itemSla } from './sla.js';
 
 type ReceivedItem = Pick<
@@ -50,6 +50,7 @@ export class RmaReceiptsService {
   ): Promise<StaffReceiptView> {
     const rma = await findRma(this.db, number);
     return this.db.transaction(async (tx) => {
+      await lockOpenRma(tx, rma.id);
       const [receipt] = await tx
         .insert(rmaReceipts)
         .values({ rmaId: rma.id, receivedByAccountId: auth.account.id })
@@ -114,11 +115,7 @@ export class RmaReceiptsService {
     receiptId: string,
     items: ReceivedItem[],
   ): Promise<void> {
-    if (!rma.requesterContactId) return;
-    const [requester] = await tx
-      .select({ name: customerContacts.name, email: customerContacts.email })
-      .from(customerContacts)
-      .where(eq(customerContacts.id, rma.requesterContactId));
+    const requester = await findRequesterContact(tx, rma);
     if (!requester) return;
 
     const lines = [...items]

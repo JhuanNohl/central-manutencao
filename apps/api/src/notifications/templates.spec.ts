@@ -24,6 +24,28 @@ describe('renderNotification', () => {
     expect(message.html).toContain('VR10 &lt;S/N 1&gt;');
   });
 
+  it('informa o motivo do cancelamento ao solicitante', () => {
+    const message = renderNotification('rma_cancelado', {
+      name: 'Ana',
+      number: '100006',
+      reason: 'Aberto em duplicidade',
+      link: 'http://localhost:5173/atendimentos/100006',
+    });
+    expect(message.subject).toContain('#100006');
+    expect(message.text).toContain('Motivo: Aberto em duplicidade');
+  });
+
+  it('avisa a mensagem do cliente ao responsável, com o link do painel', () => {
+    const message = renderNotification('rma_mensagem_cliente', {
+      name: 'Bruno',
+      number: '100006',
+      customerName: 'Alfa Fictícia',
+      link: 'http://localhost:5173/chamados/100006',
+    });
+    expect(message.text).toContain('Alfa Fictícia enviou uma mensagem');
+    expect(message.text).toContain('/chamados/100006');
+  });
+
   it('recusa payload sem a lista de equipamentos', () => {
     expect(() =>
       renderNotification('rma_itens_recebidos', {

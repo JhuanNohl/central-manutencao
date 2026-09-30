@@ -32,6 +32,30 @@ export async function findOwnRma(
   return row;
 }
 
+/**
+ * Bloqueia o RMA até o fim da transação. Toda operação que muda o chamado ou
+ * os itens passa por aqui, então cancelamento, recebimento e mudança de
+ * etapa não se cruzam. Chamado encerrado (cancelado ou entregue) não muda mais.
+ */
+export async function lockOpenRma(
+  db: Executor,
+  rmaId: string,
+): Promise<RmaRow> {
+  const [row] = await db
+    .select()
+    .from(rmas)
+    .where(eq(rmas.id, rmaId))
+    .for('update');
+  if (!row) throw ApiException.notFound('Chamado não encontrado.');
+  if (row.cancelledAt) {
+    throw ApiException.conflict('Este chamado foi cancelado.');
+  }
+  if (row.closedAt) {
+    throw ApiException.conflict('Este chamado já foi encerrado.');
+  }
+  return row;
+}
+
 /** RMA pelo número público, para a equipe. */
 export async function findRma(db: Executor, number: number): Promise<RmaRow> {
   const [row] = await db.select().from(rmas).where(eq(rmas.number, number));

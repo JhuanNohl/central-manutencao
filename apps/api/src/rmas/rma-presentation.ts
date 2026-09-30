@@ -1,5 +1,6 @@
 import {
   RMA_ITEM_STAGES,
+  type RmaCancellationView,
   type RmaItemStage,
   type RmaStageCount,
 } from '@central/contracts';
@@ -38,4 +39,16 @@ export function stageCounts(stages: RmaItemStage[]): RmaStageCount[] {
     stage,
     count: stages.filter((current) => current === stage).length,
   })).filter(({ count }) => count > 0);
+}
+
+/** Cancelamento do chamado, igual na visão da equipe e na do portal. */
+export function cancellationOf(row: {
+  cancelledAt: Date | null;
+  cancellationReason: string | null;
+}): RmaCancellationView | null {
+  if (!row.cancelledAt || row.cancellationReason === null) return null;
+  return {
+    cancelledAt: row.cancelledAt.toISOString(),
+    reason: row.cancellationReason,
+  };
 }

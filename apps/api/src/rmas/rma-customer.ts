@@ -59,6 +59,19 @@ function requesterFilter(
   return eq(customerContacts.id, contactId);
 }
 
+/** Contato que recebe os avisos de um RMA já aberto, se houver. */
+export async function findRequesterContact(
+  db: Executor,
+  rma: { requesterContactId: string | null },
+): Promise<{ name: string; email: string } | null> {
+  if (!rma.requesterContactId) return null;
+  const [contact] = await db
+    .select({ name: customerContacts.name, email: customerContacts.email })
+    .from(customerContacts)
+    .where(eq(customerContacts.id, rma.requesterContactId));
+  return contact ?? null;
+}
+
 /** Solicitante do RMA, contato do cliente que recebe os avisos do atendimento. */
 export async function resolveRequester(
   db: Executor,

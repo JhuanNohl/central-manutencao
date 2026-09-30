@@ -15,7 +15,7 @@ import {
 } from '../database/schema/index.js';
 import type { AuthContext } from '../identity/auth-context.js';
 import { ensureAllMoved, touchRma } from './rma-movements.js';
-import { findOwnRma } from './rma-scope.js';
+import { findOwnRma, lockOpenRma } from './rma-scope.js';
 
 /**
  * Envio à fábrica declarado pelo cliente (RF06). Os itens passam a "em
@@ -35,6 +35,7 @@ export class RmaShipmentsService {
   ): Promise<ShipmentView> {
     const rma = await findOwnRma(this.db, auth, number);
     return this.db.transaction(async (tx) => {
+      await lockOpenRma(tx, rma.id);
       const moved = await tx
         .update(rmaItems)
         .set({ stage: 'em_transporte' })

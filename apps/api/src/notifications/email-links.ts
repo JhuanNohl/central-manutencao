@@ -24,6 +24,11 @@ export class EmailLinks {
     return `${this.env.APP_ORIGIN}/atendimentos/${number}`;
   }
 
+  /** Detalhe do chamado no painel da equipe (exige sessão; sem token). */
+  staffRma(number: number): string {
+    return `${this.env.APP_ORIGIN}/chamados/${number}`;
+  }
+
   /** Validade legível no fuso operacional. */
   expiry(date: Date): string {
     return formatInstant(date, this.env.OPERATIONAL_TIMEZONE);

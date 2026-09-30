@@ -26,7 +26,7 @@ import {
   itemsOf,
   loadDetailParts,
 } from './rma-details.js';
-import { rmaSubject, stageCounts } from './rma-presentation.js';
+import { cancellationOf, rmaSubject, stageCounts } from './rma-presentation.js';
 import { findOwnRma, ownCustomerId, type RmaRow } from './rma-scope.js';
 
 /*
@@ -86,6 +86,7 @@ function summaryOf(
     updatedAt: row.updatedAt.toISOString(),
     itemCount: items.length,
     stages: stageCounts(items.map((item) => item.stage)),
+    cancellation: cancellationOf(row),
   };
 }
 

@@ -13,9 +13,11 @@ import {
   confirmShipmentSchema,
   listOwnRmasQuerySchema,
   openOwnRmaSchema,
+  sendRmaMessageSchema,
   type ConfirmShipmentRequest,
   type ListOwnRmasQuery,
   type OpenOwnRmaRequest,
+  type SendRmaMessageRequest,
 } from '@central/contracts';
 import { validate } from '../common/http/zod-validation.pipe.js';
 import { fileResponse } from '../files/file-response.js';
@@ -23,6 +25,7 @@ import { FilesService } from '../files/files.service.js';
 import type { AuthContext } from '../identity/auth-context.js';
 import { CurrentAuth, RequirePermissions } from '../identity/decorators.js';
 import { PortalRmasService } from './portal-rmas.service.js';
+import { RmaMessagesService } from './rma-messages.service.js';
 import { RmaOpeningService } from './rma-opening.service.js';
 import { RmaShipmentsService } from './rma-shipments.service.js';
 
@@ -34,6 +37,7 @@ export class PortalRmasController {
     private readonly rmas: PortalRmasService,
     private readonly opening: RmaOpeningService,
     private readonly shipments: RmaShipmentsService,
+    private readonly messages: RmaMessagesService,
     private readonly files: FilesService,
   ) {}
 
@@ -71,6 +75,24 @@ export class PortalRmasController {
     @Body(validate(confirmShipmentSchema)) body: ConfirmShipmentRequest,
   ) {
     return this.shipments.confirm(auth, number, body);
+  }
+
+  @Get(':number/messages')
+  listMessages(
+    @CurrentAuth() auth: AuthContext,
+    @Param('number', ParseIntPipe) number: number,
+  ) {
+    return this.messages.listForCustomer(auth, number);
+  }
+
+  @Post(':number/messages')
+  @RequirePermissions('rma.own.message')
+  sendMessage(
+    @CurrentAuth() auth: AuthContext,
+    @Param('number', ParseIntPipe) number: number,
+    @Body(validate(sendRmaMessageSchema)) body: SendRmaMessageRequest,
+  ) {
+    return this.messages.sendAsCustomer(auth, number, body);
   }
 
   @Get(':number/files/:fileId')

@@ -53,7 +53,13 @@ ${paragraphs.map((p) => `<p>${escapeHtml(p)}</p>`).join('\n')}
   return { subject, text, html };
 }
 
-/** Modelos de e-mail. O conteúdo nunca inclui notas internas. */
+const REQUESTER_FOOTER =
+  'Você recebe esta mensagem porque é o solicitante do atendimento.';
+
+/**
+ * Modelos de e-mail. O conteúdo nunca inclui notas internas, e os avisos de
+ * mensagem não repetem o texto da conversa: ele é lido no sistema, com sessão.
+ */
 export function renderNotification(
   template: NotificationTemplate,
   payload: Record<string, unknown>,
@@ -102,7 +108,7 @@ export function renderNotification(
           'Quando enviar os equipamentos, informe o envio no portal. O prazo de cada equipamento começa quando ele chega à fábrica.',
         ],
         { label: 'Ver atendimento', link: str(payload, 'link') },
-        'Você recebe esta mensagem porque é o solicitante do atendimento.',
+        REQUESTER_FOOTER,
       );
     case 'rma_itens_recebidos':
       return layout(
@@ -113,7 +119,51 @@ export function renderNotification(
           ...lines(payload, 'items'),
         ],
         { label: 'Acompanhar atendimento', link: str(payload, 'link') },
-        'Você recebe esta mensagem porque é o solicitante do atendimento.',
+        REQUESTER_FOOTER,
+      );
+    case 'rma_etapa_alterada':
+      return layout(
+        `Atualização do atendimento #${str(payload, 'number')}`,
+        [
+          `Olá, ${str(payload, 'name')}.`,
+          `A etapa dos equipamentos abaixo do atendimento #${str(payload, 'number')} mudou:`,
+          ...lines(payload, 'items'),
+        ],
+        { label: 'Acompanhar atendimento', link: str(payload, 'link') },
+        REQUESTER_FOOTER,
+      );
+    case 'rma_cancelado':
+      return layout(
+        `Atendimento #${str(payload, 'number')} cancelado`,
+        [
+          `Olá, ${str(payload, 'name')}.`,
+          `O atendimento #${str(payload, 'number')} foi cancelado pela equipe de manutenção.`,
+          `Motivo: ${str(payload, 'reason')}`,
+          'Se ainda precisar do reparo, abra um novo atendimento pelo portal.',
+        ],
+        { label: 'Ver atendimento', link: str(payload, 'link') },
+        REQUESTER_FOOTER,
+      );
+    case 'rma_mensagem_equipe':
+      return layout(
+        `Nova mensagem no atendimento #${str(payload, 'number')}`,
+        [
+          `Olá, ${str(payload, 'name')}.`,
+          `A equipe de manutenção enviou uma mensagem sobre o atendimento #${str(payload, 'number')}.`,
+          'Leia e responda pela conversa do atendimento, no portal.',
+        ],
+        { label: 'Ver mensagem', link: str(payload, 'link') },
+        REQUESTER_FOOTER,
+      );
+    case 'rma_mensagem_cliente':
+      return layout(
+        `Mensagem do cliente no chamado #${str(payload, 'number')}`,
+        [
+          `Olá, ${str(payload, 'name')}.`,
+          `${str(payload, 'customerName')} enviou uma mensagem no chamado #${str(payload, 'number')}.`,
+        ],
+        { label: 'Abrir chamado', link: str(payload, 'link') },
+        'Você recebe esta mensagem porque é o responsável pelo chamado.',
       );
   }
 }
