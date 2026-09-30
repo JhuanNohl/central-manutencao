@@ -15,6 +15,13 @@ export const passwordSchema = z
   .min(10, 'A senha deve ter pelo menos 10 caracteres')
   .max(128, 'A senha deve ter no máximo 128 caracteres');
 
+/** Justificativa de uma ação auditada; fica registrada no histórico. */
+export const reasonSchema = z
+  .string()
+  .trim()
+  .min(3, 'Informe o motivo')
+  .max(500);
+
 export const personNameSchema = z
   .string()
   .trim()

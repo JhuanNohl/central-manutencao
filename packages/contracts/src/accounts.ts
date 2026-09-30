@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { ROLES, STAFF_ROLES, type Role } from './authorization.js';
-import { paginationQuerySchema } from './common.js';
+import { paginationQuerySchema, reasonSchema } from './common.js';
 
 export const ACCOUNT_STATUSES = ['ativa', 'desativada'] as const;
 export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
@@ -14,12 +14,12 @@ export type ListAccountsQuery = z.infer<typeof listAccountsQuerySchema>;
 
 export const changeRoleSchema = z.object({
   role: z.enum(STAFF_ROLES),
-  reason: z.string().trim().min(3, 'Informe o motivo').max(500),
+  reason: reasonSchema,
 });
 export type ChangeRoleRequest = z.infer<typeof changeRoleSchema>;
 
 export const accountStatusChangeSchema = z.object({
-  reason: z.string().trim().min(3, 'Informe o motivo').max(500),
+  reason: reasonSchema,
 });
 export type AccountStatusChangeRequest = z.infer<
   typeof accountStatusChangeSchema
