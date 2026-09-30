@@ -5,7 +5,8 @@ Aplicação própria para o cliente solicitar manutenção e acompanhar cada equ
 **Situação:** entrega **E0 — Fundação** concluída ([docs/E0-fundacao.md](docs/E0-fundacao.md)). **E1** em andamento:
 
 - visão de chamados do agente ([docs/E1-visao-do-agente.md](docs/E1-visao-do-agente.md));
-- abertura com fotos e XML, envio pelo cliente e recebimento parcial com início do prazo ([docs/E1-abertura-envio-recebimento.md](docs/E1-abertura-envio-recebimento.md)).
+- abertura com fotos e XML, envio pelo cliente e recebimento parcial com início do prazo ([docs/E1-abertura-envio-recebimento.md](docs/E1-abertura-envio-recebimento.md));
+- perfis, operação do chamado pelo agente e conversa entre cliente e equipe ([docs/E1-perfis-e-conversa.md](docs/E1-perfis-e-conversa.md)).
 
 A condução técnica (etapas, garantia, laudo e pausas) e as devoluções ainda não foram implementadas, então o ciclo completo de manutenção não está pronto para produção.
 
