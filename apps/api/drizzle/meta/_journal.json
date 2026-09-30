@@ -43,6 +43,13 @@
       "when": 1790614919456,
       "tag": "0005_prazo_exige_recebimento",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790771942462,
+      "tag": "0006_gestao_chamados_mensagens",
+      "breakpoints": true
     }
   ]
 }
