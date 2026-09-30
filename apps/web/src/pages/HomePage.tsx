@@ -74,7 +74,7 @@ function RecentRmas() {
           <ClipboardList size={28} />
         </span>
         <div>
-          <h2>Meus atendimentos</h2>
+          <h2>Meus equipamentos</h2>
           <p>
             Abra uma solicitação de manutenção com um ou vários equipamentos,
             fotos e a nota fiscal, e acompanhe cada item até recebê-lo de volta.
@@ -88,7 +88,7 @@ function RecentRmas() {
       <div className="panel-header">
         <h2>
           <ClipboardList size={20} aria-hidden className="inline-icon" />
-          Meus atendimentos
+          Meus equipamentos
         </h2>
         <div className="panel-tools">
           {query.data.total > RECENT_RMAS && (

@@ -22,7 +22,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Início', icon: House },
   {
     to: '/atendimentos',
-    label: 'Meus atendimentos',
+    label: 'Meus equipamentos',
     icon: ClipboardList,
     permission: 'rma.own.read',
   },

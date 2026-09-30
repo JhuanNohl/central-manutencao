@@ -31,7 +31,7 @@ export function MyRmasPage() {
   );
   return (
     <div>
-      <PageHeader title="Meus atendimentos" actions={<NewRmaLink />} />
+      <PageHeader title="Meus equipamentos" actions={<NewRmaLink />} />
       <section className="panel">
         <PagedResults
           list={list}
