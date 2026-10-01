@@ -19,6 +19,7 @@
     "build": "npm run build:contracts && npm run build -w @central/api && npm run build -w @central/web",
     "dev": "npm run build:contracts && npm run dev:all",
     "dev:all": "concurrently -k -n contratos,api,web -c gray,green,cyan \"npm:dev -w @central/contracts\" \"npm:start:dev -w @central/api\" \"npm:dev -w @central/web\"",
+    "dev:lan": "npm run build:contracts && concurrently -k -n contratos,api,web -c gray,green,cyan \"npm:dev -w @central/contracts\" \"npm:start:dev -w @central/api\" \"npm:dev:lan -w @central/web\"",
     "db:generate": "npm run db:generate -w @central/api",
     "db:migrate": "npm run db:migrate -w @central/api",
     "db:seed": "npm run db:seed -w @central/api",

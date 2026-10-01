@@ -53,6 +53,16 @@ npm run dev
 - Contas sintéticas: `admin@central.local`, `agente@central.local`, `consulta@central.local`, `cliente@exemplo.local`, `fabio@pessoa.local`. A senha de todas é `central-dev-2026` (apenas para desenvolvimento).
 - Arquivos enviados (fotos, XML e declarações) ficam em `apps/api/storage/files`, pasta ignorada pelo git. Em produção, essa pasta entra no backup junto do banco.
 
+### Envio pelo celular em desenvolvimento
+
+O QR Code de "Enviar pelo celular" leva ao `APP_ORIGIN`, e `localhost` não abre no celular. Para testar com um aparelho na mesma rede:
+
+1. Em `apps/api/.env`, use o IP do computador na rede local: `APP_ORIGIN=http://192.168.0.10:5173`.
+2. Rode `npm run dev:lan`, que deixa o frontend visível na rede.
+3. Abra o sistema no computador por esse mesmo endereço (não por `localhost`), porque a verificação de origem só aceita o `APP_ORIGIN`.
+
+Se o celular não abrir a página, libere o Node no firewall do Windows (rede privada) e confira se a rede não isola os aparelhos entre si, o que é comum em redes corporativas e de visitantes. Ao terminar, volte o `APP_ORIGIN` para `http://localhost:5173`.
+
 ### Marca (opcional, só local)
 
 O repositório traz um símbolo neutro. Para exibir a marca real, coloque os três arquivos abaixo em `apps/web/public/brand/` e reinicie o `npm run dev`. A pasta é ignorada pelo git e nunca vai para o repositório.
@@ -68,6 +78,7 @@ O repositório traz um símbolo neutro. Para exibir a marca real, coloque os tr�
 | Comando | O que faz |
 |---|---|
 | `npm run dev` | Contratos (watch), API (watch) e web juntos |
+| `npm run dev:lan` | O mesmo, com o frontend visível na rede local (envio pelo celular) |
 | `npm test` | Testes unitários (contratos e API) |
 | `npm run test:e2e` | Testes de integração da API contra o banco `central_test` |
 | `npm run typecheck` | Verificação de tipos em todos os pacotes |
