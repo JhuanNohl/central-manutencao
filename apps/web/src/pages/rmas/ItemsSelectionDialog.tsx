@@ -13,6 +13,10 @@ export interface SelectableItem {
   position: number;
   model: string;
   serialNumber: string;
+  /** Situação mostrada ao lado do item (ex.: a etapa atual). */
+  detail?: string;
+  /** Item visível, mas sem seleção, com o motivo por escrito. */
+  disabledReason?: string;
 }
 
 const itemLabel = (item: SelectableItem) =>
@@ -30,10 +34,10 @@ export function ItemsSelectionDialog(props: {
   confirmLabel: string;
   pending: boolean;
   error: string | null;
-  /** Campos antes da lista, quando definem os itens elegíveis (ex.: etapa). */
-  leading?: ReactNode;
-  /** Campos adicionais (ex.: modalidade de envio). */
+  /** Campos depois da lista (ex.: modalidade de envio, nova etapa). */
   children?: ReactNode;
+  /** Avisa a cada mudança, quando os campos dependem da seleção. */
+  onSelectionChange?: (itemIds: string[]) => void;
   onConfirm: (itemIds: string[], data: FormData) => void;
   onClose: () => void;
 }) {
@@ -48,18 +52,18 @@ export function ItemsSelectionDialog(props: {
     if (props.open && !dialog.open) {
       setSelected(new Set());
       setLocalError(null);
+      props.onSelectionChange?.([]);
       dialog.showModal();
     }
     if (!props.open && dialog.open) dialog.close();
   }, [props.open]);
 
   function toggle(itemId: string, checked: boolean) {
-    setSelected((current) => {
-      const next = new Set(current);
-      if (checked) next.add(itemId);
-      else next.delete(itemId);
-      return next;
-    });
+    const next = new Set(selected);
+    if (checked) next.add(itemId);
+    else next.delete(itemId);
+    setSelected(next);
+    props.onSelectionChange?.([...next]);
   }
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -88,18 +92,29 @@ export function ItemsSelectionDialog(props: {
         <form onSubmit={onSubmit} noValidate>
           <h2 id={`${id}-title`}>{props.title}</h2>
           <p className="muted">{props.description}</p>
-          {props.leading}
           <fieldset>
             <legend>Equipamentos</legend>
             <div className="check-list">
               {props.items.map((item) => (
-                <label key={item.id}>
+                <label
+                  key={item.id}
+                  aria-disabled={item.disabledReason ? true : undefined}
+                >
                   <input
                     type="checkbox"
                     checked={selected.has(item.id)}
+                    disabled={Boolean(item.disabledReason)}
                     onChange={(e) => toggle(item.id, e.target.checked)}
                   />
-                  {itemLabel(item)}
+                  <span>
+                    {itemLabel(item)}
+                    {item.detail && (
+                      <span className="muted"> · {item.detail}</span>
+                    )}
+                    {item.disabledReason && (
+                      <span className="check-note">{item.disabledReason}</span>
+                    )}
+                  </span>
                 </label>
               ))}
             </div>

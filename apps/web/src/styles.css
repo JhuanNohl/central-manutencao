@@ -1245,6 +1245,17 @@ th.col-wide {
   gap: 8px;
 }
 
+/* Item sem seleção: fica visível, apagado, com o motivo por escrito. */
+.check-list label[aria-disabled='true'] {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.check-note {
+  display: block;
+  font-size: 13px;
+}
+
 .selection-summary {
   padding: 12px;
   border: 1px solid var(--border);
