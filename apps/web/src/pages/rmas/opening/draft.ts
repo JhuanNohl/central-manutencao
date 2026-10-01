@@ -1,5 +1,7 @@
 import {
   FILE_POLICIES,
+  PHOTOS_PER_ITEM,
+  type StoredFileView,
   type FilePurpose,
   type OpenOwnRmaRequest,
 } from '@central/contracts';
@@ -134,8 +136,43 @@ export function withSlot(draft: OpeningDraft, slot: UploadSlot): OpeningDraft {
   };
 }
 
+/** Só as miniaturas locais são liberadas; as vindas do celular são da API. */
 export function revokePreview(slot: UploadSlot | null | undefined) {
-  if (slot?.previewUrl) URL.revokeObjectURL(slot.previewUrl);
+  if (slot?.previewUrl?.startsWith('blob:')) {
+    URL.revokeObjectURL(slot.previewUrl);
+  }
+}
+
+/** Arquivo que chegou do celular: já enviado, com a miniatura da API. */
+function receivedSlot(file: StoredFileView): UploadSlot {
+  return {
+    key: crypto.randomUUID(),
+    name: file.name,
+    status: 'enviado',
+    fileId: file.id,
+    previewUrl:
+      file.purpose === 'foto_item' ? `/api/files/${file.id}` : undefined,
+  };
+}
+
+/**
+ * Junta ao equipamento o que chegou do celular. O limite vale também aqui:
+ * fotos além do máximo e um segundo vídeo ficam de fora.
+ */
+export function withReceivedFiles(
+  item: DraftItem,
+  files: StoredFileView[],
+): DraftItem {
+  const photos = files.filter((file) => file.purpose === 'foto_item');
+  const video = files.find((file) => file.purpose === 'video_item');
+  return {
+    ...item,
+    photos: [...item.photos, ...photos.map(receivedSlot)].slice(
+      0,
+      PHOTOS_PER_ITEM.max,
+    ),
+    video: video && !item.video ? receivedSlot(video) : item.video,
+  };
 }
 
 export function allSlots(draft: OpeningDraft): UploadSlot[] {

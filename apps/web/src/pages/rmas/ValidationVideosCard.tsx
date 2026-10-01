@@ -6,11 +6,13 @@ import {
   type ValidationVideoView,
 } from '@central/contracts';
 import { LoaderCircle, Upload, Video, VideoOff } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { errorMessage, put, uploadFile } from '../../api/client';
 import { Badge, type StatusStyle } from '../../components/Badge';
 import { InlineError } from '../../components/feedback';
 import { formatDateTime } from '../../lib/format';
+import { MobileUploadButton } from './MobileUploadButton';
 import { precheckFile } from './opening/draft';
 import { useRmaOperation } from './rma-operations';
 import { RMAS_PATH } from './RmasPage';
@@ -42,6 +44,7 @@ function recordedLine(video: NonNullable<ValidationItem['validationVideo']>) {
 
 /** Envia o vídeo e o vincula ao item; um novo substitui o anterior. */
 function AttachVideoButton(props: { number: number; item: ValidationItem }) {
+  const client = useQueryClient();
   const [problem, setProblem] = useState<string | null>(null);
   const attach = useRmaOperation(async (file: File) => {
     const stored: StoredFileView = await uploadFile('video_validacao', file);
@@ -74,6 +77,18 @@ function AttachVideoButton(props: { number: number; item: ValidationItem }) {
           }}
         />
       </label>
+      <MobileUploadButton
+        label="Gravar pelo celular"
+        title={`Vídeo de validação do ${props.item.model}`}
+        description="Grave o equipamento funcionando com o celular: o vídeo é anexado a este item assim que terminar de enviar."
+        doneMessage="Vídeo anexado ao chamado."
+        request={{
+          kind: 'validacao',
+          rmaNumber: props.number,
+          itemId: props.item.id,
+        }}
+        onFiles={() => void client.invalidateQueries({ queryKey: [RMAS_PATH] })}
+      />
       {attach.isPending && (
         <span className="upload-status" role="status">
           <LoaderCircle size={16} aria-hidden />

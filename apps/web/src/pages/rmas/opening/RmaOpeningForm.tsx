@@ -1,6 +1,7 @@
 import {
   MAX_ITEMS_PER_RMA,
   openOwnRmaSchema,
+  type StoredFileView,
   type OpenOwnRmaRequest,
   type OpenRmaResponse,
 } from '@central/contracts';
@@ -30,6 +31,7 @@ import {
   revokePreview,
   startUpload,
   toOpeningInput,
+  withReceivedFiles,
   withSlot,
   type DraftItem,
   type UploadSlot,
@@ -134,6 +136,16 @@ export function RmaOpeningForm(props: {
     updateItem(key, { video: startUpload('video_item', file, replaceSlot) });
   }
 
+  /** O limite vale também aqui: fotos além de cinco ficam de fora. */
+  function receiveFiles(key: string, files: StoredFileView[]) {
+    setDraft((current) => ({
+      ...current,
+      items: current.items.map((item) =>
+        item.key === key ? withReceivedFiles(item, files) : item,
+      ),
+    }));
+  }
+
   function removeItem(key: string) {
     draft.items.find((item) => item.key === key)?.photos.forEach(revokePreview);
     // Os erros são indexados pela posição: deixam de valer ao mudar a lista.
@@ -214,6 +226,7 @@ export function RmaOpeningForm(props: {
                 onRemovePhoto={(slotKey) => removePhoto(item.key, slotKey)}
                 onSelectVideo={(file) => selectVideo(item.key, file)}
                 onRemoveVideo={() => updateItem(item.key, { video: null })}
+                onReceiveFiles={(files) => receiveFiles(item.key, files)}
                 onMove={(offset) => move(index, offset)}
                 onRemove={() => removeItem(item.key)}
               />

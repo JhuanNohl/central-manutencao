@@ -45,6 +45,9 @@
   --radius: 2px;
   --radius-badge: 6px;
   --header-height: 56px;
+  /* QR Code: escuro sobre claro também no tema escuro, para qualquer câmera. */
+  --qr-dark: #161616;
+  --qr-light: #ffffff;
   --sidebar-width: 240px;
 
   color-scheme: light;
@@ -1845,3 +1848,29 @@ a.shortcut:hover > svg {
   background: var(--surface-muted);
 }
 
+/* ---------- Envio pelo celular (QR Code) ---------- */
+
+.mobile-upload {
+  width: min(440px, calc(100vw - 32px));
+}
+
+.mobile-upload h2 {
+  margin-bottom: 8px;
+}
+
+.mobile-upload .actions {
+  margin-top: 16px;
+}
+
+.mobile-upload-code {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.qr-code {
+  display: block;
+  width: min(260px, 100%);
+  height: auto;
+}

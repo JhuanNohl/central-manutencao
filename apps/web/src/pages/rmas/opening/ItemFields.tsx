@@ -1,6 +1,8 @@
+import { PHOTOS_PER_ITEM, type StoredFileView } from '@central/contracts';
 import { ArrowDown, ArrowUp, Trash2 } from 'lucide-react';
 import { Field, TextAreaField } from '../../../components/ui';
 import type { FieldErrors } from '../../../lib/forms';
+import { MobileUploadButton } from '../MobileUploadButton';
 import type { DraftItem } from './draft';
 import { PhotoField } from './PhotoField';
 import { VideoField } from './VideoField';
@@ -16,12 +18,15 @@ export function ItemFields(props: {
   onRemovePhoto: (slotKey: string) => void;
   onSelectVideo: (file: File) => void;
   onRemoveVideo: () => void;
+  onReceiveFiles: (files: StoredFileView[]) => void;
   onMove: (offset: -1 | 1) => void;
   onRemove: () => void;
 }) {
   const { item, index } = props;
   const path = (field: string) => `items.${index}.${field}`;
   const label = `equipamento ${index + 1}`;
+  const photoLimit = PHOTOS_PER_ITEM.max - item.photos.length;
+  const videoLimit = item.video ? 0 : 1;
   return (
     <fieldset>
       <legend>Equipamento {index + 1}</legend>
@@ -115,6 +120,26 @@ export function ItemFields(props: {
         onSelect={props.onSelectVideo}
         onRemove={props.onRemoveVideo}
       />
+      {photoLimit + videoLimit > 0 && (
+        <div className="field">
+          <MobileUploadButton
+            label="Enviar pelo celular"
+            title={`Fotos e vídeo do equipamento ${index + 1}`}
+            description="Tire as fotos e grave o vídeo da falha com o celular: os arquivos entram neste equipamento, sem passar por outro aplicativo."
+            doneMessage="Envio concluído."
+            request={{
+              kind: 'abertura',
+              label: `Equipamento ${index + 1}${item.model ? ` · ${item.model}` : ''}`,
+              photoLimit,
+              videoLimit,
+            }}
+            onFiles={props.onReceiveFiles}
+          />
+          <span className="hint">
+            Use a câmera do celular pelo QR Code, sem login.
+          </span>
+        </div>
+      )}
     </fieldset>
   );
 }

@@ -21,6 +21,7 @@ import { RegisterPage } from './pages/auth/RegisterPage';
 import { CustomerDetailPage } from './pages/customers/CustomerDetailPage';
 import { CustomersPage } from './pages/customers/CustomersPage';
 import { HomePage } from './pages/HomePage';
+import { MobileUploadPage } from './pages/mobile/MobileUploadPage';
 import { MyRmasPage } from './pages/portal/MyRmasPage';
 import { NewRmaPage } from './pages/portal/NewRmaPage';
 import { PortalRmaDetailPage } from './pages/portal/PortalRmaDetailPage';
@@ -70,6 +71,8 @@ const router = createBrowserRouter([
   { path: '/redefinir-senha', element: <ResetPasswordPage /> },
   { path: '/confirmar-email', element: <ConfirmEmailPage /> },
   { path: '/convite', element: <AcceptInvitationPage /> },
+  // Aberta pelo QR Code no celular, sem login: o token do link basta.
+  { path: '/enviar', element: <MobileUploadPage /> },
   {
     element: (
       <RequireAuth>
