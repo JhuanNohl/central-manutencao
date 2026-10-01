@@ -27,10 +27,11 @@ import {
   emptyItem,
   moveItem,
   newDraft,
+  revokePreview,
   startUpload,
   toOpeningInput,
+  withSlot,
   type DraftItem,
-  type OpeningDraft,
   type UploadSlot,
 } from './draft';
 import { useInvoiceValidation } from './invoice-validation';
@@ -43,27 +44,6 @@ const DOCUMENT_PURPOSE = {
   invoiceXml: 'nota_xml',
   declaration: 'declaracao',
 } as const;
-
-function revokePreview(slot: UploadSlot | null | undefined) {
-  if (slot?.previewUrl) URL.revokeObjectURL(slot.previewUrl);
-}
-
-/** Troca um arquivo pelo estado final do envio, onde quer que ele esteja. */
-function withSlot(draft: OpeningDraft, slot: UploadSlot): OpeningDraft {
-  const pick = (current: UploadSlot | null) =>
-    current?.key === slot.key ? slot : current;
-  return {
-    ...draft,
-    items: draft.items.map((item) => ({
-      ...item,
-      photos: item.photos.map((photo) =>
-        photo.key === slot.key ? slot : photo,
-      ),
-    })),
-    invoiceXml: pick(draft.invoiceXml),
-    declaration: pick(draft.declaration),
-  };
-}
 
 /**
  * Abertura de RMA com vários equipamentos, fotos e documentação (RF03–RF05).
@@ -150,6 +130,10 @@ export function RmaOpeningForm(props: {
     });
   }
 
+  function selectVideo(key: string, file: File) {
+    updateItem(key, { video: startUpload('video_item', file, replaceSlot) });
+  }
+
   function removeItem(key: string) {
     draft.items.find((item) => item.key === key)?.photos.forEach(revokePreview);
     // Os erros são indexados pela posição: deixam de valer ao mudar a lista.
@@ -228,6 +212,8 @@ export function RmaOpeningForm(props: {
                 onChange={(change) => updateItem(item.key, change)}
                 onAddPhotos={(files) => addPhotos(item.key, files)}
                 onRemovePhoto={(slotKey) => removePhoto(item.key, slotKey)}
+                onSelectVideo={(file) => selectVideo(item.key, file)}
+                onRemoveVideo={() => updateItem(item.key, { video: null })}
                 onMove={(offset) => move(index, offset)}
                 onRemove={() => removeItem(item.key)}
               />

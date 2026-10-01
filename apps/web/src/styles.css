@@ -1730,3 +1730,118 @@ a.shortcut:hover > svg {
   display: grid;
   gap: 12px;
 }
+
+/* ---------- Fotos e vídeos do chamado ---------- */
+
+.thumb-button {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+}
+
+.thumb-button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Miniatura do vídeo: ícone de reproduzir e o nome escrito. */
+.thumb-video {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  width: 56px;
+  height: 56px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-muted);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.media-viewer {
+  width: min(960px, calc(100vw - 32px));
+}
+
+.media-viewer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.media-viewer-header h2 {
+  margin: 0;
+}
+
+/* Setas nas laterais do arquivo, sempre visíveis. */
+.media-stage {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+/* Altura fixa: as setas não mudam de lugar entre fotos de tamanhos diferentes. */
+.media-content {
+  grid-column: 2;
+  width: 100%;
+  height: min(70vh, 640px);
+  object-fit: contain;
+  background: var(--surface-muted);
+}
+
+.media-nav {
+  width: 48px;
+  height: 48px;
+}
+
+.media-nav:first-child {
+  grid-column: 1;
+}
+
+.media-nav:last-child {
+  grid-column: 3;
+}
+
+.card-title-icon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.validation-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  gap: 16px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.validation-row {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.validation-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.validation-video {
+  width: 100%;
+  max-height: 320px;
+  background: var(--surface-muted);
+}
+

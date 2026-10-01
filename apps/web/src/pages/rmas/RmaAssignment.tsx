@@ -10,22 +10,12 @@ import { useQuery } from '@tanstack/react-query';
 import { UserRoundCheck, UserRoundMinus } from 'lucide-react';
 import { errorMessage, get, patch } from '../../api/client';
 import { hasPermission, useSession } from '../../auth/session';
-import { Alert } from '../../components/feedback';
+import { Alert, InlineError } from '../../components/feedback';
 import { useAssignRma, useRmaOperation } from './rma-operations';
 import { rmaLabel } from './rma-styles';
 import { RMAS_PATH } from './RmasPage';
 
 const ASSIGNEES_STALE_MS = 5 * 60_000;
-
-function InlineError({ error }: { error: unknown }) {
-  const message = errorMessage(error);
-  if (!message) return null;
-  return (
-    <span className="inline-error" role="alert">
-      {message}
-    </span>
-  );
-}
 
 /** Um clique para quem opera chamados assumir o que está vendo. */
 export function AssumeRmaButton(props: {
@@ -53,7 +43,7 @@ export function AssumeRmaButton(props: {
         <UserRoundCheck size={16} aria-hidden />
         Assumir
       </button>
-      <InlineError error={assign.error} />
+      <InlineError message={errorMessage(assign.error)} />
     </>
   );
 }
@@ -98,7 +88,7 @@ export function AssignmentNotice({ rma }: { rma: RmaDetail }) {
                 Deixar o chamado
               </button>
             )}
-            <InlineError error={release.error} />
+            <InlineError message={errorMessage(release.error)} />
           </div>
         )}
       </div>
@@ -143,7 +133,7 @@ export function AssigneeSelect({ rma }: { rma: RmaDetail }) {
           </option>
         ))}
       </select>
-      <InlineError error={assign.error} />
+      <InlineError message={errorMessage(assign.error)} />
     </>
   );
 }
@@ -169,7 +159,7 @@ export function PrioritySelect({ rma }: { rma: RmaDetail }) {
           </option>
         ))}
       </select>
-      <InlineError error={change.error} />
+      <InlineError message={errorMessage(change.error)} />
     </>
   );
 }

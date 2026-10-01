@@ -1,6 +1,7 @@
 import {
   RMA_ITEM_STAGES,
   canChangeStage,
+  requiresValidationVideo,
   stageChangePermission,
   type ItemStageChangeView,
   type RmaDetail,
@@ -15,6 +16,16 @@ import { ItemsSelectionDialog } from './ItemsSelectionDialog';
 import { useRmaOperation } from './rma-operations';
 import { STAGE_STYLES } from './rma-styles';
 import { RMAS_PATH } from './RmasPage';
+
+type StageItem = RmaDetail['items'][number];
+
+/** O despacho só lista itens com o vídeo de validação; a API confere de novo. */
+function canMoveTo(item: StageItem, stage: RmaItemStage): boolean {
+  return (
+    canChangeStage(item.stage, stage) &&
+    (!requiresValidationVideo(stage) || item.validationVideo !== null)
+  );
+}
 
 /**
  * Mudança de etapa de um ou mais equipamentos. A etapa escolhida define quais
@@ -36,7 +47,7 @@ export function ChangeStageAction({ rma }: { rma: RmaDetail }) {
   const targets = RMA_ITEM_STAGES.filter(
     (stage) =>
       hasPermission(account, stageChangePermission(stage)) &&
-      rma.items.some((item) => canChangeStage(item.stage, stage)),
+      rma.items.some((item) => canMoveTo(item, stage)),
   );
   const stage = chosen && targets.includes(chosen) ? chosen : targets[0];
   if (!stage) return null;
@@ -58,7 +69,11 @@ export function ChangeStageAction({ rma }: { rma: RmaDetail }) {
       <ItemsSelectionDialog
         open={open}
         title="Alterar etapa"
-        description="Escolha a nova etapa e os equipamentos que vão para ela. O solicitante recebe um aviso por e-mail."
+        description={
+          requiresValidationVideo(stage)
+            ? 'O despacho só lista os equipamentos com o vídeo de validação gravado. O solicitante recebe um aviso por e-mail.'
+            : 'Escolha a nova etapa e os equipamentos que vão para ela. O solicitante recebe um aviso por e-mail.'
+        }
         leading={
           <SelectField
             label="Nova etapa"
@@ -71,7 +86,7 @@ export function ChangeStageAction({ rma }: { rma: RmaDetail }) {
             }))}
           />
         }
-        items={rma.items.filter((item) => canChangeStage(item.stage, stage))}
+        items={rma.items.filter((item) => canMoveTo(item, stage))}
         confirmLabel="Salvar etapa"
         pending={change.isPending}
         error={errorMessage(change.error)}

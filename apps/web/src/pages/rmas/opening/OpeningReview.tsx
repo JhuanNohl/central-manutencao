@@ -35,6 +35,7 @@ export function OpeningReview(props: {
                   {item.photos.length === 1
                     ? '1 foto'
                     : `${item.photos.length} fotos`}
+                  {item.video && ' · 1 vídeo'}
                   {item.warrantyRequested &&
                     ' · análise de garantia solicitada'}
                 </span>

@@ -29,6 +29,16 @@ export function FormAlert({ message }: { message: string | null }) {
   return <Alert tone="error">{message}</Alert>;
 }
 
+/** Erro curto ao lado de uma ação (assumir, anexar vídeo). */
+export function InlineError({ message }: { message: string | null }) {
+  if (!message) return null;
+  return (
+    <span className="inline-error" role="alert">
+      {message}
+    </span>
+  );
+}
+
 /** Erro de consulta, com o código da requisição para o suporte. */
 export function QueryError({ error }: { error: unknown }) {
   const apiError = error instanceof ApiError ? error : null;

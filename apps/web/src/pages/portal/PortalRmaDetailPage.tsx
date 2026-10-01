@@ -9,13 +9,14 @@ import { Loading, QueryError } from '../../components/feedback';
 import { PageHeader } from '../../components/ui';
 import { formatDateTime } from '../../lib/format';
 import { CancellationNotice } from '../rmas/CancellationNotice';
-import { ItemPhotos } from '../rmas/ItemPhotos';
+import { ItemMedia } from '../rmas/ItemMedia';
 import { ItemSla } from '../rmas/ItemSla';
 import { RmaConversation } from '../rmas/RmaConversation';
 import { RmaDocuments } from '../rmas/RmaDocuments';
 import { RmaMovements } from '../rmas/RmaMovements';
 import { STAGE_STYLES, WARRANTY_STYLES, rmaLabel } from '../rmas/rma-styles';
 import { StageSummary } from '../rmas/StageSummary';
+import { ValidationVideosCard } from '../rmas/ValidationVideosCard';
 import { ConfirmShipmentAction } from './ConfirmShipmentAction';
 import { PORTAL_RMAS_PATH } from './MyRmasPage';
 
@@ -108,8 +109,9 @@ export function PortalRmaDetailPage() {
                   <td>
                     <span className="strong">{item.model}</span>
                     <span className="sub">S/N {item.serialNumber}</span>
-                    <ItemPhotos
+                    <ItemMedia
                       photos={item.photos}
+                      video={item.video}
                       model={item.model}
                       fileUrl={fileUrl}
                     />
@@ -141,6 +143,15 @@ export function PortalRmaDetailPage() {
           </table>
         </div>
       </section>
+
+      <ValidationVideosCard
+        number={rma.number}
+        items={rma.items}
+        fileUrl={fileUrl}
+        canAttach={false}
+        description="Antes da devolução, a equipe grava cada equipamento funcionando depois do reparo."
+        emptyMessage="O vídeo aparece aqui quando o equipamento estiver pronto para voltar."
+      />
 
       <RmaConversation
         path={`${PORTAL_RMAS_PATH}/${rma.number}/messages`}

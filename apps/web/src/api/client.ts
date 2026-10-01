@@ -26,7 +26,7 @@ export function errorMessage(error: unknown): string | null {
     : 'Erro inesperado. Tente novamente.';
 }
 
-type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE';
+type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 /** JSON, ou multipart quando o corpo é um FormData (o navegador define o tipo). */
 function requestBody(body: unknown): Pick<RequestInit, 'headers' | 'body'> {
@@ -84,6 +84,8 @@ export async function api<T>(
 export const get = <T>(path: string) => api<T>('GET', path);
 export const post = <T>(path: string, body?: unknown) =>
   api<T>('POST', path, body ?? {});
+export const put = <T>(path: string, body?: unknown) =>
+  api<T>('PUT', path, body ?? {});
 export const patch = <T>(path: string, body?: unknown) =>
   api<T>('PATCH', path, body ?? {});
 

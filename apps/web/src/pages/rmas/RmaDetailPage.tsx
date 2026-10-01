@@ -12,7 +12,7 @@ import { PageHeader } from '../../components/ui';
 import { formatDateTime, formatDocument } from '../../lib/format';
 import { CancelRmaAction } from './CancelRmaAction';
 import { ChangeStageAction } from './ChangeStageAction';
-import { ItemPhotos } from './ItemPhotos';
+import { ItemMedia } from './ItemMedia';
 import { ItemSla } from './ItemSla';
 import { ReceiveItemsAction } from './ReceiveItemsAction';
 import {
@@ -24,6 +24,7 @@ import { CancellationNotice } from './CancellationNotice';
 import { RmaConversation } from './RmaConversation';
 import { RmaDocuments } from './RmaDocuments';
 import { RmaMovements } from './RmaMovements';
+import { ValidationVideosCard } from './ValidationVideosCard';
 import {
   PRIORITY_STYLES,
   STAGE_STYLES,
@@ -92,6 +93,14 @@ export function RmaDetailPage() {
       </div>
 
       <ItemsPanel rma={rma} fileUrl={fileUrl} />
+      <ValidationVideosCard
+        number={rma.number}
+        items={rma.items}
+        fileUrl={fileUrl}
+        canAttach={canOperate}
+        description="Grave o equipamento funcionando com ele em testes ou pronto para devolução (MP4, MOV ou WebM de até 100 MB). O vídeo é exigido para o despacho e fica visível ao cliente."
+        emptyMessage="Nenhum equipamento em testes ou pronto para devolução."
+      />
       <div className="grid-2">
         <RmaConversation
           path={`/rmas/${rma.number}/messages`}
@@ -216,8 +225,9 @@ function ItemsPanel(props: {
                 <td>
                   <span className="strong">{item.model}</span>
                   <span className="sub">S/N {item.serialNumber}</span>
-                  <ItemPhotos
+                  <ItemMedia
                     photos={item.photos}
+                    video={item.video}
                     model={item.model}
                     fileUrl={props.fileUrl}
                   />

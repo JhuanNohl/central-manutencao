@@ -28,6 +28,7 @@ export interface DraftItem {
   notes: string;
   warrantyRequested: boolean;
   photos: UploadSlot[];
+  video: UploadSlot | null;
 }
 
 export interface OpeningDraft {
@@ -46,6 +47,7 @@ export const emptyItem = (): DraftItem => ({
   notes: '',
   warrantyRequested: false,
   photos: [],
+  video: null,
 });
 
 export const newDraft = (): OpeningDraft => ({
@@ -114,9 +116,34 @@ export function startUpload(
   return slot;
 }
 
+/** Troca um arquivo pelo estado final do envio, onde quer que ele esteja. */
+export function withSlot(draft: OpeningDraft, slot: UploadSlot): OpeningDraft {
+  const pick = (current: UploadSlot | null) =>
+    current?.key === slot.key ? slot : current;
+  return {
+    ...draft,
+    items: draft.items.map((item) => ({
+      ...item,
+      photos: item.photos.map((photo) =>
+        photo.key === slot.key ? slot : photo,
+      ),
+      video: pick(item.video),
+    })),
+    invoiceXml: pick(draft.invoiceXml),
+    declaration: pick(draft.declaration),
+  };
+}
+
+export function revokePreview(slot: UploadSlot | null | undefined) {
+  if (slot?.previewUrl) URL.revokeObjectURL(slot.previewUrl);
+}
+
 export function allSlots(draft: OpeningDraft): UploadSlot[] {
   return [
-    ...draft.items.flatMap((item) => item.photos),
+    ...draft.items.flatMap((item) => [
+      ...item.photos,
+      ...(item.video ? [item.video] : []),
+    ]),
     ...(draft.invoiceXml ? [draft.invoiceXml] : []),
     ...(draft.declaration ? [draft.declaration] : []),
   ];
@@ -138,6 +165,7 @@ export function toOpeningInput(draft: OpeningDraft): OpenOwnRmaRequest {
       photoIds: item.photos.flatMap((photo) =>
         photo.status === 'enviado' && photo.fileId ? [photo.fileId] : [],
       ),
+      videoId: sentId(item.video),
     })),
     invoiceXmlFileId: sentId(draft.invoiceXml),
     declarationFileId: sentId(draft.declaration),

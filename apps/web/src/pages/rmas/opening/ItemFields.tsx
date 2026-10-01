@@ -3,6 +3,7 @@ import { Field, TextAreaField } from '../../../components/ui';
 import type { FieldErrors } from '../../../lib/forms';
 import type { DraftItem } from './draft';
 import { PhotoField } from './PhotoField';
+import { VideoField } from './VideoField';
 
 /** Um equipamento do formulário de abertura, com as ações de ordem e remoção. */
 export function ItemFields(props: {
@@ -13,6 +14,8 @@ export function ItemFields(props: {
   onChange: (change: Partial<DraftItem>) => void;
   onAddPhotos: (files: File[]) => void;
   onRemovePhoto: (slotKey: string) => void;
+  onSelectVideo: (file: File) => void;
+  onRemoveVideo: () => void;
   onMove: (offset: -1 | 1) => void;
   onRemove: () => void;
 }) {
@@ -104,6 +107,13 @@ export function ItemFields(props: {
         error={props.errors[path('photoIds')]}
         onAdd={props.onAddPhotos}
         onRemove={props.onRemovePhoto}
+      />
+      <VideoField
+        itemLabel={label}
+        video={item.video}
+        error={props.errors[path('videoId')]}
+        onSelect={props.onSelectVideo}
+        onRemove={props.onRemoveVideo}
       />
     </fieldset>
   );
