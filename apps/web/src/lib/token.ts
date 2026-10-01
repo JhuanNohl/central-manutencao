@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 
 /**
- * Token dos links enviados por e-mail. Ele vem no fragmento (`#token=`), que
+ * Token dos links enviados por e-mail ou abertos pelo QR Code de envio pelo
+ * celular. Ele vem no fragmento (`#token=`), que
  * não é enviado ao servidor nem a terceiros via Referer; depois de lido, sai
  * da barra de endereço e do histórico.
  */
-export function useEmailLinkToken(): string | null {
+export function useLinkToken(): string | null {
   const [token] = useState(() =>
     new URLSearchParams(window.location.hash.slice(1)).get('token'),
   );

@@ -5,10 +5,10 @@ import { ApiError, post } from '../../api/client';
 import { SESSION_KEY } from '../../auth/session';
 import { Alert } from '../../components/feedback';
 import { AuthLayout } from '../../layouts/AuthLayout';
-import { useEmailLinkToken } from '../../lib/token';
+import { useLinkToken } from '../../lib/token';
 
 export function ConfirmEmailPage() {
-  const token = useEmailLinkToken();
+  const token = useLinkToken();
   const client = useQueryClient();
   const confirm = useMutation({
     mutationFn: (value: string) =>

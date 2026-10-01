@@ -8,7 +8,7 @@ import { Alert, FormAlert } from '../../components/feedback';
 import { Field, SubmitButton } from '../../components/ui';
 import { AuthLayout } from '../../layouts/AuthLayout';
 import { raw, text, useSchemaForm } from '../../lib/forms';
-import { useEmailLinkToken } from '../../lib/token';
+import { useLinkToken } from '../../lib/token';
 
 export function ForgotPasswordPage() {
   const form = useSchemaForm({
@@ -51,7 +51,7 @@ export function ForgotPasswordPage() {
 }
 
 export function ResetPasswordPage() {
-  const token = useEmailLinkToken();
+  const token = useLinkToken();
   const form = useSchemaForm({
     schema: passwordResetConfirmSchema,
     read: (data) => ({ token: token ?? '', password: raw(data, 'password') }),

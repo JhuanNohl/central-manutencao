@@ -18,10 +18,10 @@ import { Field, SubmitButton } from '../../components/ui';
 import { AuthLayout } from '../../layouts/AuthLayout';
 import { formatDateTime } from '../../lib/format';
 import { raw, text, useSchemaForm } from '../../lib/forms';
-import { useEmailLinkToken } from '../../lib/token';
+import { useLinkToken } from '../../lib/token';
 
 export function AcceptInvitationPage() {
-  const token = useEmailLinkToken();
+  const token = useLinkToken();
   const setSession = useSetSession();
   const navigate = useNavigate();
 
