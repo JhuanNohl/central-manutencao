@@ -29,6 +29,8 @@ export const rmaItemInputSchema = z.object({
     .array(uuidSchema)
     .min(PHOTOS_PER_ITEM.min, 'Envie pelo menos 1 foto do equipamento')
     .max(PHOTOS_PER_ITEM.max, `Envie no máximo ${PHOTOS_PER_ITEM.max} fotos`),
+  /** Vídeo opcional mostrando a falha, junto das fotos. */
+  videoId: uuidSchema.optional(),
 });
 export type RmaItemInput = z.infer<typeof rmaItemInputSchema>;
 

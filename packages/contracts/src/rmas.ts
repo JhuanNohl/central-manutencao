@@ -193,6 +193,13 @@ export interface RmaDocumentView {
   validation: Omit<InvoiceValidation, 'invoice'> | null;
 }
 
+/** Vídeo do equipamento funcionando, gravado pela equipe antes do despacho. */
+export interface ValidationVideoView {
+  file: StoredFileView;
+  recordedAt: string;
+  recordedBy: { id: string; name: string } | null;
+}
+
 export interface RmaItemView {
   id: string;
   position: number;
@@ -206,6 +213,9 @@ export interface RmaItemView {
   receivedAt: string | null;
   sla: ItemSlaView;
   photos: StoredFileView[];
+  /** Vídeo da falha enviado na abertura, junto das fotos. */
+  video: StoredFileView | null;
+  validationVideo: ValidationVideoView | null;
   /** Laudo técnico, visível ao cliente. */
   technicalReport: string | null;
   /** Somente equipe: nunca é enviado ao portal nem aos avisos do cliente. */
@@ -229,7 +239,13 @@ export interface RmaDetail extends Omit<RmaSummary, 'invoice' | 'requester'> {
 export const listOwnRmasQuerySchema = paginationQuerySchema;
 export type ListOwnRmasQuery = z.infer<typeof listOwnRmasQuerySchema>;
 
-export type PortalRmaItemView = Omit<RmaItemView, 'internalNote'>;
+/** O cliente vê o vídeo de validação, mas não quem o gravou (RN11). */
+export type PortalRmaItemView = Omit<
+  RmaItemView,
+  'internalNote' | 'validationVideo'
+> & {
+  validationVideo: Omit<ValidationVideoView, 'recordedBy'> | null;
+};
 
 export interface PortalRmaSummary {
   number: number;

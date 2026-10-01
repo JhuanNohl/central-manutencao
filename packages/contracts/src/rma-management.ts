@@ -58,6 +58,20 @@ export function stagesLeadingTo(to: RmaItemStage): RmaItemStage[] {
   return RMA_ITEM_STAGES.filter((from) => canChangeStage(from, to));
 }
 
+/** Etapas finais em que a equipe grava o vídeo do equipamento funcionando. */
+export const VALIDATION_VIDEO_STAGES: readonly RmaItemStage[] = [
+  'em_testes',
+  'pronto_para_devolucao',
+];
+
+/**
+ * O despacho exige o vídeo de validação de cada item: é a evidência do
+ * equipamento operando antes de voltar ao cliente (decisão de 30/09/2026).
+ */
+export function requiresValidationVideo(to: RmaItemStage): boolean {
+  return to === 'em_devolucao';
+}
+
 export function stageChangePermission(to: RmaItemStage): Permission {
   return DISPATCH_STAGES.includes(to) ? 'rma.dispatch' : 'rma.write';
 }
@@ -82,6 +96,11 @@ export const assignRmaSchema = z.object({
   expectedAssigneeId: uuidSchema.nullable(),
 });
 export type AssignRmaRequest = z.infer<typeof assignRmaSchema>;
+
+export const attachValidationVideoSchema = z.object({ fileId: uuidSchema });
+export type AttachValidationVideoRequest = z.infer<
+  typeof attachValidationVideoSchema
+>;
 
 export const changePrioritySchema = z.object({
   priority: z.enum(RMA_PRIORITIES),

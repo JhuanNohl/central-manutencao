@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ASSIGNABLE_ROLES,
   canChangeStage,
+  requiresValidationVideo,
   stageChangePermission,
   stagesLeadingTo,
   STAGE_TRANSITIONS,
@@ -35,6 +36,12 @@ describe('mudança de etapa pela equipe', () => {
     expect(stageChangePermission('em_manutencao')).toBe('rma.write');
     expect(stageChangePermission('em_devolucao')).toBe('rma.dispatch');
     expect(stageChangePermission('entregue')).toBe('rma.dispatch');
+  });
+
+  it('só o despacho exige o vídeo de validação', () => {
+    expect(requiresValidationVideo('em_devolucao')).toBe(true);
+    expect(requiresValidationVideo('pronto_para_devolucao')).toBe(false);
+    expect(requiresValidationVideo('entregue')).toBe(false);
   });
 
   it('só quem opera chamados pode ser responsável', () => {
