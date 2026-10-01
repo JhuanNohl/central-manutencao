@@ -25,3 +25,4 @@ export * from './rma-management.js';
 export * from './rma-messages.js';
 export * from './rma-opening.js';
 export * from './rmas.js';
+export * from './upload-sessions.js';
