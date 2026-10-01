@@ -111,6 +111,28 @@ export class FilesService {
     return { file, content: await this.storage.read(file.storageKey) };
   }
 
+  /**
+   * Temporário do próprio autor, para a miniatura no computador do que
+   * chegou pelo celular antes da abertura. Outra conta recebe 404.
+   */
+  async findOwnTemporary(
+    ownerAccountId: string,
+    fileId: string,
+  ): Promise<FileRow> {
+    const [file] = await this.db
+      .select()
+      .from(files)
+      .where(
+        and(
+          eq(files.id, fileId),
+          eq(files.ownerAccountId, ownerAccountId),
+          isNull(files.linkedAt),
+        ),
+      );
+    if (!file) throw ApiException.notFound('Arquivo não encontrado.');
+    return file;
+  }
+
   /** Conteúdo para download, sem carregar o arquivo inteiro na memória. */
   open(file: Pick<FileRow, 'storageKey'>, range: ByteRange | null): Readable {
     return this.storage.openRead(file.storageKey, range);

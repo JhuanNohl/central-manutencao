@@ -57,6 +57,13 @@
       "when": 1790799789581,
       "tag": "0007_videos_falha_validacao",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790857628972,
+      "tag": "0008_envio_pelo_celular",
+      "breakpoints": true
     }
   ]
 }

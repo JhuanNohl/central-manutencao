@@ -3,8 +3,9 @@ import { formatInstant } from '../common/time/format.js';
 import { ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
 
-/** Páginas do frontend que recebem um token enviado por e-mail. */
-export type EmailLinkPage = 'convite' | 'redefinir-senha' | 'confirmar-email';
+/** Páginas do frontend que recebem um token por e-mail ou por QR Code. */
+export type EmailLinkPage =
+  'convite' | 'redefinir-senha' | 'confirmar-email' | 'enviar';
 
 /** Monta os links e textos de validade usados nos e-mails. */
 @Injectable()

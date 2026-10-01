@@ -13,6 +13,7 @@ import { HealthController } from './health/health.controller.js';
 import { AuthGuard } from './identity/auth.guard.js';
 import { SENSITIVE_RATE_LIMIT } from './identity/decorators.js';
 import { IdentityModule } from './identity/identity.module.js';
+import { MobileUploadsModule } from './mobile-uploads/mobile-uploads.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { RmasModule } from './rmas/rmas.module.js';
 
@@ -26,6 +27,7 @@ import { RmasModule } from './rmas/rmas.module.js';
     CustomersModule,
     FilesModule,
     RmasModule,
+    MobileUploadsModule,
     ThrottlerModule.forRootAsync({
       inject: [ENV],
       useFactory: (env: Env) => ({
