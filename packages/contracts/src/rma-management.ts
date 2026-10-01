@@ -3,77 +3,66 @@ import { hasPermission, ROLES, type Permission } from './authorization.js';
 import { reasonSchema, uuidSchema } from './common.js';
 import { itemSelectionSchema } from './rma-logistics.js';
 import {
+  NEXT_STAGES,
   RMA_ITEM_STAGES,
   RMA_PRIORITIES,
+  SLA_FINISHED_STAGES,
   type RmaItemStage,
   type RmaPriority,
 } from './rmas.js';
 
-/** Condução técnica: do diagnóstico até a liberação para devolução. */
-const TECHNICAL_STAGES = [
-  'em_diagnostico',
-  'aguardando_peca',
-  'aguardando_cliente',
-  'em_manutencao',
-  'em_testes',
-  'pronto_para_devolucao',
-] as const satisfies readonly RmaItemStage[];
+/**
+ * Avanços com operação própria: o envio é declarado pelo cliente e o
+ * recebimento é registrado pela equipe. A mudança de etapa não os faz.
+ */
+const OWN_OPERATION_STAGES: readonly RmaItemStage[] = ['enviado', 'recebido'];
 
 /** Etapas do despacho: exigem `rma.dispatch` e encerram o prazo (RN08). */
-const DISPATCH_STAGES: readonly RmaItemStage[] = ['em_devolucao', 'entregue'];
+const DISPATCH_STAGES: readonly RmaItemStage[] = ['devolucao', 'finalizado'];
 
-const otherTechnicalStages = (stage: RmaItemStage) =>
-  TECHNICAL_STAGES.filter((target) => target !== stage);
-
-/**
- * Mudanças de etapa feitas pela equipe (proposta de 30/09/2026, até a tabela
- * A5.1). Na condução técnica a ordem é livre; a devolução só parte de "pronto
- * para devolução" e "recebido pelo cliente" é final. Envio e recebimento na
- * fábrica têm operações próprias e não aparecem aqui.
- */
-export const STAGE_TRANSITIONS: Record<RmaItemStage, readonly RmaItemStage[]> =
-  {
-    aguardando_envio: [],
-    em_transporte: [],
-    recebido: TECHNICAL_STAGES,
-    em_diagnostico: otherTechnicalStages('em_diagnostico'),
-    aguardando_peca: otherTechnicalStages('aguardando_peca'),
-    aguardando_cliente: otherTechnicalStages('aguardando_cliente'),
-    em_manutencao: otherTechnicalStages('em_manutencao'),
-    em_testes: otherTechnicalStages('em_testes'),
-    pronto_para_devolucao: [
-      ...otherTechnicalStages('pronto_para_devolucao'),
-      'em_devolucao',
-    ],
-    em_devolucao: ['entregue'],
-    entregue: [],
-  };
-
+/** Mudança de etapa pela equipe: só o próximo passo do processo. */
 export function canChangeStage(from: RmaItemStage, to: RmaItemStage): boolean {
-  return STAGE_TRANSITIONS[from].includes(to);
+  return NEXT_STAGES[from].includes(to) && !OWN_OPERATION_STAGES.includes(to);
 }
 
-/** Etapas de onde se chega a `to`; é o filtro da atualização no banco. */
-export function stagesLeadingTo(to: RmaItemStage): RmaItemStage[] {
+/**
+ * Próximos passos que a equipe dá a partir de `from`: a mudança de etapa e o
+ * recebimento na fábrica. O envio é sempre declarado pelo cliente.
+ */
+export function teamNextStages(from: RmaItemStage): RmaItemStage[] {
+  return NEXT_STAGES[from].filter(
+    (to) => to === 'recebido' || canChangeStage(from, to),
+  );
+}
+
+/** Etapas de onde a equipe leva o item a `to`; é o filtro no banco. */
+export function stagesChangeableTo(to: RmaItemStage): RmaItemStage[] {
   return RMA_ITEM_STAGES.filter((from) => canChangeStage(from, to));
 }
 
-/** Etapas finais em que a equipe grava o vídeo do equipamento funcionando. */
-export const VALIDATION_VIDEO_STAGES: readonly RmaItemStage[] = [
-  'em_testes',
-  'pronto_para_devolucao',
-];
+/** Etapa em que a equipe anexa o vídeo do equipamento funcionando. */
+export const VALIDATION_VIDEO_STAGES: readonly RmaItemStage[] = ['comprovacao'];
 
 /**
- * O despacho exige o vídeo de validação de cada item: é a evidência do
+ * A devolução exige o vídeo de comprovação de cada item: é a prova do
  * equipamento operando antes de voltar ao cliente (decisão de 30/09/2026).
  */
 export function requiresValidationVideo(to: RmaItemStage): boolean {
-  return to === 'em_devolucao';
+  return to === 'devolucao';
 }
 
+/**
+ * O chamado pode ser cancelado (ex.: o cliente desistiu da manutenção) até o
+ * despacho do primeiro equipamento; depois disso, ele segue até o fim.
+ */
+export function isCancellable(items: { stage: RmaItemStage }[]): boolean {
+  return !items.some((item) => SLA_FINISHED_STAGES.includes(item.stage));
+}
+
+/** Permissão para levar o item a `to`: despacho e recebimento têm a sua. */
 export function stageChangePermission(to: RmaItemStage): Permission {
-  return DISPATCH_STAGES.includes(to) ? 'rma.dispatch' : 'rma.write';
+  if (DISPATCH_STAGES.includes(to)) return 'rma.dispatch';
+  return to === 'recebido' ? 'rma.receive' : 'rma.write';
 }
 
 /** Papéis que podem ser responsáveis por um chamado. */

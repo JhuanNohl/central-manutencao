@@ -2,46 +2,98 @@ import { describe, expect, it } from 'vitest';
 import {
   ASSIGNABLE_ROLES,
   canChangeStage,
+  isCancellable,
   requiresValidationVideo,
   stageChangePermission,
-  stagesLeadingTo,
-  STAGE_TRANSITIONS,
+  stagesChangeableTo,
+  teamNextStages,
 } from './rma-management.js';
-import { RMA_ITEM_STAGES } from './rmas.js';
+import {
+  NEXT_STAGES,
+  previousStages,
+  RECEIVABLE_STAGES,
+  RMA_ITEM_STAGES,
+  SHIPPABLE_STAGES,
+} from './rmas.js';
+
+describe('fluxo das etapas', () => {
+  it('cada etapa leva só à seguinte, sem voltar nem pular', () => {
+    const order = RMA_ITEM_STAGES.indexOf.bind(RMA_ITEM_STAGES);
+    for (const from of RMA_ITEM_STAGES) {
+      for (const to of NEXT_STAGES[from]) {
+        // A única volta é de "aguardando peça" para a manutenção.
+        if (from === 'aguardando_peca') continue;
+        expect(order(to)).toBeGreaterThan(order(from));
+      }
+    }
+    expect(NEXT_STAGES.aguardando_envio).toEqual(['enviado']);
+    expect(NEXT_STAGES.recebido).toEqual(['em_diagnostico']);
+    expect(NEXT_STAGES.finalizado).toEqual([]);
+  });
+
+  it('só a manutenção tem dois caminhos: aguardar peça ou seguir para testes', () => {
+    const branching = RMA_ITEM_STAGES.filter(
+      (stage) => NEXT_STAGES[stage].length > 1,
+    );
+    expect(branching).toEqual(['em_manutencao']);
+    expect(NEXT_STAGES.em_manutencao).toEqual(['aguardando_peca', 'testes']);
+    expect(NEXT_STAGES.aguardando_peca).toEqual(['em_manutencao']);
+  });
+
+  it('o recebimento só parte do envio, e o envio só de "aguardando envio"', () => {
+    expect(SHIPPABLE_STAGES).toEqual(['aguardando_envio']);
+    expect(RECEIVABLE_STAGES).toEqual(['enviado']);
+    expect(previousStages('em_diagnostico')).toEqual(['recebido']);
+  });
+});
 
 describe('mudança de etapa pela equipe', () => {
-  it('não substitui o envio nem o recebimento, que têm operação própria', () => {
-    expect(STAGE_TRANSITIONS.aguardando_envio).toEqual([]);
-    expect(STAGE_TRANSITIONS.em_transporte).toEqual([]);
+  it('não faz o envio nem o recebimento, que têm operação própria', () => {
     for (const from of RMA_ITEM_STAGES) {
+      expect(canChangeStage(from, 'enviado')).toBe(false);
       expect(canChangeStage(from, 'recebido')).toBe(false);
-      expect(canChangeStage(from, 'em_transporte')).toBe(false);
     }
   });
 
-  it('a condução técnica é livre entre as etapas, sem repetir a atual', () => {
+  it('avança um passo por vez e não volta', () => {
     expect(canChangeStage('recebido', 'em_diagnostico')).toBe(true);
-    expect(canChangeStage('em_testes', 'aguardando_peca')).toBe(true);
-    expect(canChangeStage('em_testes', 'em_testes')).toBe(false);
+    expect(canChangeStage('em_diagnostico', 'em_manutencao')).toBe(false);
+    expect(canChangeStage('testes', 'em_manutencao')).toBe(false);
+    expect(stagesChangeableTo('em_manutencao')).toEqual([
+      'aguardando_aprovacao',
+      'aguardando_peca',
+    ]);
+    expect(stagesChangeableTo('devolucao')).toEqual(['comprovacao']);
   });
 
-  it('a devolução só parte de "pronto para devolução" e "recebido pelo cliente" é final', () => {
-    expect(stagesLeadingTo('em_devolucao')).toEqual(['pronto_para_devolucao']);
-    expect(stagesLeadingTo('entregue')).toEqual(['em_devolucao']);
-    expect(STAGE_TRANSITIONS.entregue).toEqual([]);
-    expect(canChangeStage('em_devolucao', 'em_manutencao')).toBe(false);
+  it('a equipe recebe o item enviado, mas não declara o envio', () => {
+    expect(teamNextStages('enviado')).toEqual(['recebido']);
+    expect(teamNextStages('aguardando_envio')).toEqual([]);
+    expect(teamNextStages('em_manutencao')).toEqual([
+      'aguardando_peca',
+      'testes',
+    ]);
+    expect(teamNextStages('finalizado')).toEqual([]);
   });
 
-  it('o despacho exige permissão própria', () => {
+  it('o despacho e o recebimento exigem permissão própria', () => {
+    expect(stageChangePermission('recebido')).toBe('rma.receive');
     expect(stageChangePermission('em_manutencao')).toBe('rma.write');
-    expect(stageChangePermission('em_devolucao')).toBe('rma.dispatch');
-    expect(stageChangePermission('entregue')).toBe('rma.dispatch');
+    expect(stageChangePermission('devolucao')).toBe('rma.dispatch');
+    expect(stageChangePermission('finalizado')).toBe('rma.dispatch');
   });
 
-  it('só o despacho exige o vídeo de validação', () => {
-    expect(requiresValidationVideo('em_devolucao')).toBe(true);
-    expect(requiresValidationVideo('pronto_para_devolucao')).toBe(false);
-    expect(requiresValidationVideo('entregue')).toBe(false);
+  it('só a devolução exige o vídeo de comprovação', () => {
+    expect(requiresValidationVideo('devolucao')).toBe(true);
+    expect(requiresValidationVideo('comprovacao')).toBe(false);
+    expect(requiresValidationVideo('finalizado')).toBe(false);
+  });
+
+  it('cancela até o despacho do primeiro equipamento', () => {
+    expect(isCancellable([{ stage: 'aguardando_aprovacao' }])).toBe(true);
+    expect(
+      isCancellable([{ stage: 'em_manutencao' }, { stage: 'devolucao' }]),
+    ).toBe(false);
   });
 
   it('só quem opera chamados pode ser responsável', () => {

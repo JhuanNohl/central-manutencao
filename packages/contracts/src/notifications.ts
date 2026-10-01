@@ -14,6 +14,7 @@ export const NOTIFICATION_TEMPLATES = [
   'redefinicao_senha',
   'confirmacao_email',
   'rma_aberto',
+  'rma_aberto_na_fabrica',
   'rma_itens_recebidos',
   'rma_etapa_alterada',
   'rma_cancelado',
