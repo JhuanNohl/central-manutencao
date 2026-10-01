@@ -40,7 +40,6 @@ import {
 import type { FileRow } from '../files/files.service.js';
 import type { AuthContext } from '../identity/auth-context.js';
 import {
-  findRmaFile,
   groupBy,
   invoicesOf,
   itemsOf,
@@ -48,6 +47,7 @@ import {
   toInvoice,
   type ItemRow,
 } from './rma-details.js';
+import { findRmaFile } from './rma-media.js';
 import {
   cancellationOf,
   distinctModels,

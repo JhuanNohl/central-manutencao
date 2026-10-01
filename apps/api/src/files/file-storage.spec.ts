@@ -1,6 +1,7 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { buffer } from 'node:stream/consumers';
 import type { Env } from '../config/env.js';
 import { LocalDiskFileStorage } from './file-storage.js';
 
@@ -21,6 +22,14 @@ describe('LocalDiskFileStorage', () => {
     expect((await storage.read(KEY)).toString()).toBe('conteúdo');
     await storage.remove(KEY);
     await expect(storage.read(KEY)).rejects.toThrow();
+  });
+
+  it('lê o arquivo aos poucos, inteiro ou só o trecho pedido', async () => {
+    await storage.put(KEY, Buffer.from('0123456789'));
+    const text = async (range: { start: number; end: number } | null) =>
+      (await buffer(storage.openRead(KEY, range))).toString();
+    expect(await text(null)).toBe('0123456789');
+    expect(await text({ start: 2, end: 5 })).toBe('2345');
   });
 
   it('não sobrescreve uma chave existente e remove sem erro o que não existe', async () => {

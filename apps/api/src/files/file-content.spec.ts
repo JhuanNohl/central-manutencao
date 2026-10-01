@@ -4,6 +4,9 @@ const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0]);
 const PDF = Buffer.from('%PDF-1.7\n...');
 const XML = Buffer.from('<?xml version="1.0"?><nfeProc><NFe/></nfeProc>');
+const MP4 = Buffer.from('\0\0\0\x18ftypisom\0\0\x02\0', 'latin1');
+const MOV = Buffer.from('\0\0\0\x14ftypqt  \0\0\x02\0', 'latin1');
+const WEBM = Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 0x9f, 0x42, 0x86]);
 
 describe('checkFileContent', () => {
   it('reconhece o tipo pelo conteúdo', () => {
@@ -19,6 +22,23 @@ describe('checkFileContent', () => {
       ok: true,
       contentType: 'application/xml',
     });
+  });
+
+  it('reconhece vídeo de Android, iPhone e WebM pelo conteúdo', () => {
+    expect(checkFileContent('video_item', 'falha.mp4', MP4)).toEqual({
+      ok: true,
+      contentType: 'video/mp4',
+    });
+    expect(checkFileContent('video_validacao', 'IMG_0001.MOV', MOV)).toEqual({
+      ok: true,
+      contentType: 'video/quicktime',
+    });
+    expect(checkFileContent('video_item', 'teste.webm', WEBM)).toEqual({
+      ok: true,
+      contentType: 'video/webm',
+    });
+    expect(checkFileContent('video_item', 'falha.mp4', JPEG).ok).toBe(false);
+    expect(checkFileContent('foto_item', 'foto.jpg', MP4).ok).toBe(false);
   });
 
   it('recusa foto falsa: extensão de imagem com outro conteúdo (CA02)', () => {

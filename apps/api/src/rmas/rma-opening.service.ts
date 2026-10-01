@@ -22,7 +22,7 @@ import {
   rmaItems,
   rmas,
 } from '../database/schema/index.js';
-import { claimTemporaryFiles } from '../files/file-links.js';
+import { claimTemporaryFiles, UNAVAILABLE_FILE } from '../files/file-links.js';
 import { FilesService } from '../files/files.service.js';
 import type { AuthContext } from '../identity/auth-context.js';
 import { EmailLinks } from '../notifications/email-links.js';
@@ -53,9 +53,6 @@ interface FileClaim {
   purpose: FilePurpose;
   ids: string[];
 }
-
-const UNAVAILABLE_FILE =
-  'Arquivo não encontrado ou já usado. Envie o arquivo novamente.';
 
 /** Garantia solicitada entra em análise; a decisão é da equipe (P09). */
 const initialWarranty = (requested: boolean): WarrantyStatus =>
@@ -197,6 +194,7 @@ export class RmaOpeningService {
           notes: item.notes ?? null,
           warrantyRequested: item.warrantyRequested,
           warranty: initialWarranty(item.warrantyRequested),
+          videoFileId: item.videoId ?? null,
         })),
       )
       .returning({ id: rmaItems.id, position: rmaItems.position });
@@ -211,6 +209,17 @@ export class RmaOpeningService {
         purpose: 'foto_item' as const,
         ids: item.photoIds,
       })),
+      ...request.items.flatMap((item, index) =>
+        item.videoId
+          ? [
+              {
+                path: `items.${index}.videoId`,
+                purpose: 'video_item' as const,
+                ids: [item.videoId],
+              },
+            ]
+          : [],
+      ),
       ...this.documentClaims(request),
     ]);
 

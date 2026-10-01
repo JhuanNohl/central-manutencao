@@ -2,16 +2,19 @@ import {
   Body,
   Controller,
   Get,
-  Header,
+  Headers,
   Param,
   ParseIntPipe,
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
+  Res,
 } from '@nestjs/common';
 import {
   assignRmaSchema,
+  attachValidationVideoSchema,
   cancelRmaSchema,
   changeItemStageSchema,
   changePrioritySchema,
@@ -20,6 +23,7 @@ import {
   registerReceiptSchema,
   sendRmaMessageSchema,
   type AssignRmaRequest,
+  type AttachValidationVideoRequest,
   type CancelRmaRequest,
   type ChangeItemStageRequest,
   type ChangePriorityRequest,
@@ -28,8 +32,9 @@ import {
   type RegisterReceiptRequest,
   type SendRmaMessageRequest,
 } from '@central/contracts';
+import type { Response } from 'express';
 import { validate } from '../common/http/zod-validation.pipe.js';
-import { fileResponse } from '../files/file-response.js';
+import { sendFile } from '../files/file-response.js';
 import { FilesService } from '../files/files.service.js';
 import type { AuthContext } from '../identity/auth-context.js';
 import { CurrentAuth, RequirePermissions } from '../identity/decorators.js';
@@ -38,6 +43,7 @@ import { RmaMessagesService } from './rma-messages.service.js';
 import { RmaOpeningService } from './rma-opening.service.js';
 import { RmaReceiptsService } from './rma-receipts.service.js';
 import { RmaStagesService } from './rma-stages.service.js';
+import { RmaValidationVideosService } from './rma-validation-videos.service.js';
 import { RmasService } from './rmas.service.js';
 
 /** Chamados na visão da equipe. */
@@ -51,6 +57,7 @@ export class RmasController {
     private readonly management: RmaManagementService,
     private readonly stages: RmaStagesService,
     private readonly messages: RmaMessagesService,
+    private readonly validationVideos: RmaValidationVideosService,
     private readonly files: FilesService,
   ) {}
 
@@ -139,6 +146,19 @@ export class RmasController {
     return this.stages.change(auth, number, body);
   }
 
+  /** Vídeo do equipamento funcionando; exigido para o despacho. */
+  @Put(':number/items/:itemId/validation-video')
+  @RequirePermissions('rma.write')
+  attachValidationVideo(
+    @CurrentAuth() auth: AuthContext,
+    @Param('number', ParseIntPipe) number: number,
+    @Param('itemId', ParseUUIDPipe) itemId: string,
+    @Body(validate(attachValidationVideoSchema))
+    body: AttachValidationVideoRequest,
+  ) {
+    return this.validationVideos.attach(auth.account, number, itemId, body);
+  }
+
   @Get(':number/messages')
   listMessages(
     @CurrentAuth() auth: AuthContext,
@@ -157,14 +177,15 @@ export class RmasController {
     return this.messages.sendAsStaff(auth, number, body);
   }
 
-  /** Foto ou documento do chamado. */
+  /** Foto, vídeo ou documento do chamado. */
   @Get(':number/files/:fileId')
-  @Header('Cache-Control', 'private, max-age=3600')
   async file(
     @Param('number', ParseIntPipe) number: number,
     @Param('fileId', ParseUUIDPipe) fileId: string,
+    @Headers('range') range: string | undefined,
+    @Res() response: Response,
   ) {
     const file = await this.rmas.file(number, fileId);
-    return fileResponse(file, await this.files.read(file));
+    await sendFile(response, this.files, file, range);
   }
 }

@@ -3,6 +3,7 @@ import type { INestApplication } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import { sql } from 'drizzle-orm';
+import { Readable } from 'node:stream';
 import request from 'supertest';
 
 import { AppModule } from '../src/app.module.js';
@@ -14,6 +15,8 @@ import {
   accounts,
   customerContacts,
   customers,
+  files,
+  rmaValidationVideos,
 } from '../src/database/schema/index.js';
 import { FILE_STORAGE, type FileStorage } from '../src/files/file-storage.js';
 import {
@@ -63,6 +66,14 @@ export class MemoryFileStorage implements FileStorage {
     const content = this.contents.get(key);
     if (!content) throw new Error(`Chave inexistente: ${key}`);
     return content;
+  }
+
+  openRead(key: string, range: { start: number; end: number } | null) {
+    const content = this.contents.get(key);
+    if (!content) throw new Error(`Chave inexistente: ${key}`);
+    return Readable.from([
+      range ? content.subarray(range.start, range.end + 1) : content,
+    ]);
   }
 
   async remove(key: string): Promise<void> {
@@ -197,4 +208,28 @@ export function cnpj(base12: string): string {
   };
   const first = `${base12}${digit(base12)}`;
   return `${first}${digit(first)}`;
+}
+
+/** Vídeo de validação gravado direto no banco, para testes do despacho. */
+export async function recordValidationVideo(
+  db: Database,
+  itemId: string,
+  accountId: string,
+): Promise<void> {
+  const [file] = await db
+    .insert(files)
+    .values({
+      ownerAccountId: accountId,
+      purpose: 'video_validacao',
+      originalName: 'validacao.mp4',
+      contentType: 'video/mp4',
+      sizeBytes: 1,
+      sha256: '0',
+      storageKey: `202609/${itemId}`,
+      linkedAt: new Date(),
+    })
+    .returning({ id: files.id });
+  await db
+    .insert(rmaValidationVideos)
+    .values({ itemId, fileId: file.id, recordedByAccountId: accountId });
 }

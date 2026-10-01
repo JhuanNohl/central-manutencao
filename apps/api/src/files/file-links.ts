@@ -3,6 +3,10 @@ import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Executor } from '../database/database.types.js';
 import { files } from '../database/schema/index.js';
 
+/** Arquivo que não pode ser vinculado: de outra conta, já usado ou expirado. */
+export const UNAVAILABLE_FILE =
+  'Arquivo não encontrado ou já usado. Envie o arquivo novamente.';
+
 /**
  * Vincula arquivos temporários do autor, na finalidade indicada, dentro da
  * transação da operação. A condição `linked_at is null` torna o vínculo de

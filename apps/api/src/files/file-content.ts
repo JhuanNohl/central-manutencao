@@ -14,8 +14,16 @@ const PNG_SIGNATURE = Buffer.from([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
 ]);
 
+/** Início de todo arquivo WebM (cabeçalho EBML). */
+const WEBM_SIGNATURE = Buffer.from([0x1a, 0x45, 0xdf, 0xa3]);
+
 const ascii = (content: Buffer, start: number, end: number) =>
   content.subarray(start, end).toString('latin1');
+
+/** MP4 e MOV são ISO BMFF: a caixa `ftyp` traz a marca; `qt  ` é QuickTime. */
+const isoBrand = (content: Buffer) =>
+  ascii(content, 4, 8) === 'ftyp' ? ascii(content, 8, 12) : null;
+const QUICKTIME_BRAND = 'qt  ';
 
 /** Assinaturas binárias: o tipo vem do conteúdo, nunca do nome ou do navegador. */
 const SIGNATURES: Record<
@@ -25,6 +33,12 @@ const SIGNATURES: Record<
   'image/jpeg': (c) => c[0] === 0xff && c[1] === 0xd8 && c[2] === 0xff,
   'image/png': (c) => c.subarray(0, 8).equals(PNG_SIGNATURE),
   'image/webp': (c) => ascii(c, 0, 4) === 'RIFF' && ascii(c, 8, 12) === 'WEBP',
+  'video/mp4': (c) => {
+    const brand = isoBrand(c);
+    return brand !== null && brand !== QUICKTIME_BRAND;
+  },
+  'video/quicktime': (c) => isoBrand(c) === QUICKTIME_BRAND,
+  'video/webm': (c) => c.subarray(0, 4).equals(WEBM_SIGNATURE),
   'application/pdf': (c) => ascii(c, 0, 5) === '%PDF-',
 };
 

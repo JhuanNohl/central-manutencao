@@ -1,6 +1,12 @@
 /** Conteúdos mínimos reconhecidos pela verificação de arquivos. */
 export const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a]);
 export const PDF = Buffer.from('%PDF-1.7\n% declaração de conteúdo\n');
+/** Início de um MP4 (caixa `ftyp`) seguido de conteúdo fictício. */
+export const MP4 = Buffer.concat([
+  Buffer.from([0, 0, 0, 0x18]),
+  Buffer.from('ftypisom'),
+  Buffer.from('conteúdo fictício do vídeo'),
+]);
 
 /** NF-e fictícia com emitente, destinatário e CFOP informados. */
 export function nfeXml(input: {

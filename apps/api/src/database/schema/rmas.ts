@@ -98,6 +98,8 @@ export const rmaItems = pgTable(
     receivedAt: instant('received_at'),
     /** Prazo aplicado no recebimento, em horas; mudanças de configuração não o alteram. */
     slaHours: integer('sla_hours'),
+    /** Vídeo da falha enviado na abertura, opcional. */
+    videoFileId: uuid('video_file_id').references(() => files.id),
     technicalReport: text('technical_report'),
     internalNote: text('internal_note'),
     createdAt: createdAt(),
@@ -105,6 +107,7 @@ export const rmaItems = pgTable(
   },
   (t) => [
     uniqueIndex('rma_items_position_key').on(t.rmaId, t.position),
+    uniqueIndex('rma_items_video_file_key').on(t.videoFileId),
     index('rma_items_serial_idx').on(t.serialNumber),
     index('rma_items_stage_idx').on(t.stage),
     check('rma_items_stage_valid', oneOf(t.stage, RMA_ITEM_STAGES)),
@@ -136,6 +139,28 @@ export const rmaItemPhotos = pgTable(
     uniqueIndex('rma_item_photos_file_key').on(t.fileId),
     uniqueIndex('rma_item_photos_position_key').on(t.itemId, t.position),
   ],
+);
+
+/**
+ * Vídeo do equipamento funcionando, gravado pela equipe nas etapas finais e
+ * exigido no despacho. Um por item: um novo substitui o anterior, que segue
+ * guardado e citado no histórico.
+ */
+export const rmaValidationVideos = pgTable(
+  'rma_validation_videos',
+  {
+    itemId: uuid('item_id')
+      .primaryKey()
+      .references(() => rmaItems.id, { onDelete: 'cascade' }),
+    fileId: uuid('file_id')
+      .notNull()
+      .references(() => files.id),
+    recordedByAccountId: uuid('recorded_by_account_id')
+      .notNull()
+      .references(() => accounts.id),
+    recordedAt: instant('recorded_at').defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex('rma_validation_videos_file_key').on(t.fileId)],
 );
 
 /**

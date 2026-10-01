@@ -50,6 +50,13 @@
       "when": 1790771942462,
       "tag": "0006_gestao_chamados_mensagens",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790799789581,
+      "tag": "0007_videos_falha_validacao",
+      "breakpoints": true
     }
   ]
 }

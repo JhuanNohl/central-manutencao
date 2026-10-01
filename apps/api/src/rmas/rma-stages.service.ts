@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
   RMA_ITEM_STAGE_LABELS,
+  requiresValidationVideo,
   stageChangePermission,
   stagesLeadingTo,
   type ChangeItemStageRequest,
@@ -11,7 +12,11 @@ import { AuditService } from '../audit/audit.service.js';
 import { ApiException } from '../common/http/api-exception.js';
 import { DATABASE } from '../database/database.module.js';
 import type { Database, Transaction } from '../database/database.types.js';
-import { rmaItems, rmas } from '../database/schema/index.js';
+import {
+  rmaItems,
+  rmas,
+  rmaValidationVideos,
+} from '../database/schema/index.js';
 import { can, type AuthContext } from '../identity/auth-context.js';
 import { EmailLinks } from '../notifications/email-links.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
@@ -54,6 +59,9 @@ export class RmaStagesService {
     const rma = await findRma(this.db, number);
     return this.db.transaction(async (tx) => {
       await lockOpenRma(tx, rma.id);
+      if (requiresValidationVideo(request.stage)) {
+        await this.ensureValidationVideos(tx, request.itemIds);
+      }
       const before = await tx
         .select({ id: rmaItems.id, stage: rmaItems.stage })
         .from(rmaItems)
@@ -102,6 +110,34 @@ export class RmaStagesService {
         changedAt: new Date().toISOString(),
       };
     });
+  }
+
+  /**
+   * Sob o bloqueio do RMA, nenhum vídeo muda entre esta conferência e o
+   * despacho. Aponta cada item sem vídeo, como nas movimentações.
+   */
+  private async ensureValidationVideos(tx: Transaction, itemIds: string[]) {
+    const recorded = await tx
+      .select({ itemId: rmaValidationVideos.itemId })
+      .from(rmaValidationVideos)
+      .where(inArray(rmaValidationVideos.itemId, itemIds));
+    const withVideo = new Set(recorded.map((row) => row.itemId));
+    const issues = itemIds.flatMap((id, index) =>
+      withVideo.has(id)
+        ? []
+        : [
+            {
+              path: `itemIds.${index}`,
+              message: 'Anexe o vídeo de validação deste equipamento',
+            },
+          ],
+    );
+    if (issues.length > 0) {
+      throw ApiException.conflict(
+        'Anexe o vídeo de validação de cada equipamento antes do despacho.',
+        issues,
+      );
+    }
   }
 
   private async closeIfAllDelivered(tx: Transaction, rma: RmaRow) {

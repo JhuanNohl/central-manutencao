@@ -20,12 +20,8 @@ import type { Database } from '../database/database.types.js';
 import { customerContacts, rmas } from '../database/schema/index.js';
 import type { FileRow } from '../files/files.service.js';
 import type { AuthContext } from '../identity/auth-context.js';
-import {
-  findRmaFile,
-  groupBy,
-  itemsOf,
-  loadDetailParts,
-} from './rma-details.js';
+import { groupBy, itemsOf, loadDetailParts } from './rma-details.js';
+import { findRmaFile } from './rma-media.js';
 import { cancellationOf, rmaSubject, stageCounts } from './rma-presentation.js';
 import { findOwnRma, ownCustomerId, type RmaRow } from './rma-scope.js';
 
@@ -48,6 +44,11 @@ function toPortalItem(item: RmaItemView): PortalRmaItemView {
     receivedAt: item.receivedAt,
     sla: item.sla,
     photos: item.photos,
+    video: item.video,
+    validationVideo: item.validationVideo && {
+      file: item.validationVideo.file,
+      recordedAt: item.validationVideo.recordedAt,
+    },
     technicalReport: item.technicalReport,
   };
 }

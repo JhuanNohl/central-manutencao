@@ -4,9 +4,8 @@ import type {
   RmaItemView,
   StaffReceiptView,
   StaffShipmentView,
-  StoredFileView,
 } from '@central/contracts';
-import { and, asc, eq, exists, inArray, or, sql } from 'drizzle-orm';
+import { asc, eq, inArray } from 'drizzle-orm';
 import { reference } from '../common/mapping.js';
 import type { Executor } from '../database/database.types.js';
 import {
@@ -14,15 +13,17 @@ import {
   files,
   rmaDocuments,
   rmaInvoices,
-  rmaItemPhotos,
   rmaItems,
   rmaReceiptItems,
   rmaReceipts,
   rmaShipmentItems,
   rmaShipments,
 } from '../database/schema/index.js';
-import { toFileView, type FileRow } from '../files/files.service.js';
+import { toFileView } from '../files/files.service.js';
+import { mediaOf, type ItemMedia } from './rma-media.js';
 import { itemSla } from './sla.js';
+
+const NO_MEDIA: ItemMedia = { photos: [], video: null, validationVideo: null };
 
 /**
  * Leitura das partes de um RMA comuns à visão da equipe e à do portal.
@@ -66,27 +67,6 @@ export function invoicesOf(
     .from(rmaInvoices)
     .where(inArray(rmaInvoices.rmaId, rmaIds))
     .orderBy(asc(rmaInvoices.createdAt));
-}
-
-async function photosOf(
-  db: Executor,
-  itemIds: string[],
-): Promise<Map<string, StoredFileView[]>> {
-  if (itemIds.length === 0) return new Map();
-  const rows = await db
-    .select({ itemId: rmaItemPhotos.itemId, file: files })
-    .from(rmaItemPhotos)
-    .innerJoin(files, eq(files.id, rmaItemPhotos.fileId))
-    .where(inArray(rmaItemPhotos.itemId, itemIds))
-    .orderBy(asc(rmaItemPhotos.position));
-  const photos = new Map<string, StoredFileView[]>();
-  for (const [itemId, group] of groupBy(rows, (row) => row.itemId)) {
-    photos.set(
-      itemId,
-      group.map((row) => toFileView(row.file)),
-    );
-  }
-  return photos;
 }
 
 async function documentsOf(
@@ -174,11 +154,7 @@ async function receiptsOf(
   });
 }
 
-function toItemView(
-  item: ItemRow,
-  photos: StoredFileView[],
-  now: Date,
-): RmaItemView {
+function toItemView(item: ItemRow, media: ItemMedia, now: Date): RmaItemView {
   return {
     id: item.id,
     position: item.position,
@@ -191,7 +167,7 @@ function toItemView(
     warranty: item.warranty,
     receivedAt: item.receivedAt?.toISOString() ?? null,
     sla: itemSla(item.receivedAt, item.slaHours, now),
-    photos,
+    ...media,
     technicalReport: item.technicalReport,
     internalNote: item.internalNote,
   };
@@ -217,47 +193,14 @@ export async function loadDetailParts(
     shipmentsOf(db, rmaId),
     receiptsOf(db, rmaId),
   ]);
-  const photos = await photosOf(
-    db,
-    items.map((item) => item.id),
-  );
+  const media = await mediaOf(db, items);
   return {
     items: items.map((item) =>
-      toItemView(item, photos.get(item.id) ?? [], now),
+      toItemView(item, media.get(item.id) ?? NO_MEDIA, now),
     ),
     invoices: invoices.map(toInvoice),
     documents,
     shipments,
     receipts,
   };
-}
-
-/** Arquivo vinculado ao RMA, como foto de um item ou como documento. */
-export async function findRmaFile(
-  db: Executor,
-  rmaId: string,
-  fileId: string,
-): Promise<FileRow | undefined> {
-  const isItemPhoto = exists(
-    db
-      .select({ one: sql`1` })
-      .from(rmaItemPhotos)
-      .innerJoin(rmaItems, eq(rmaItems.id, rmaItemPhotos.itemId))
-      .where(
-        and(eq(rmaItemPhotos.fileId, files.id), eq(rmaItems.rmaId, rmaId)),
-      ),
-  );
-  const isDocument = exists(
-    db
-      .select({ one: sql`1` })
-      .from(rmaDocuments)
-      .where(
-        and(eq(rmaDocuments.fileId, files.id), eq(rmaDocuments.rmaId, rmaId)),
-      ),
-  );
-  const [file] = await db
-    .select()
-    .from(files)
-    .where(and(eq(files.id, fileId), or(isItemPhoto, isDocument)));
-  return file;
 }

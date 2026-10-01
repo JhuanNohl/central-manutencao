@@ -2,12 +2,13 @@ import {
   Body,
   Controller,
   Get,
-  Header,
+  Headers,
   Param,
   ParseIntPipe,
   ParseUUIDPipe,
   Post,
   Query,
+  Res,
 } from '@nestjs/common';
 import {
   confirmShipmentSchema,
@@ -19,8 +20,9 @@ import {
   type OpenOwnRmaRequest,
   type SendRmaMessageRequest,
 } from '@central/contracts';
+import type { Response } from 'express';
 import { validate } from '../common/http/zod-validation.pipe.js';
-import { fileResponse } from '../files/file-response.js';
+import { sendFile } from '../files/file-response.js';
 import { FilesService } from '../files/files.service.js';
 import type { AuthContext } from '../identity/auth-context.js';
 import { CurrentAuth, RequirePermissions } from '../identity/decorators.js';
@@ -96,13 +98,14 @@ export class PortalRmasController {
   }
 
   @Get(':number/files/:fileId')
-  @Header('Cache-Control', 'private, max-age=3600')
   async file(
     @CurrentAuth() auth: AuthContext,
     @Param('number', ParseIntPipe) number: number,
     @Param('fileId', ParseUUIDPipe) fileId: string,
+    @Headers('range') range: string | undefined,
+    @Res() response: Response,
   ) {
     const file = await this.rmas.file(auth, number, fileId);
-    return fileResponse(file, await this.files.read(file));
+    await sendFile(response, this.files, file, range);
   }
 }

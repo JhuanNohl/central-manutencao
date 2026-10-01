@@ -15,6 +15,7 @@ import {
   createAccount,
   createCustomer,
   createTestApp,
+  recordValidationVideo,
   resetDatabase,
   signIn,
   type TestAgent,
@@ -236,6 +237,7 @@ describe('Gestão do chamado pela equipe', () => {
       await changeStage(agent, [itemIds[1]], 'pronto_para_devolucao').expect(
         201,
       );
+      await recordValidationVideo(ctx.db, itemIds[1], agentId);
       await changeStage(agent, [itemIds[1]], 'em_devolucao').expect(201);
       const item = (await detail()).items[1];
       expect(item.stage).toBe('em_devolucao');

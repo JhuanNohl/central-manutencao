@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { FilePurpose, StoredFileView } from '@central/contracts';
 import { and, eq, isNull, lt } from 'drizzle-orm';
+import type { Readable } from 'node:stream';
 import { ApiException } from '../common/http/api-exception.js';
 import { ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
@@ -9,6 +10,7 @@ import { DATABASE } from '../database/database.module.js';
 import type { Database } from '../database/database.types.js';
 import { files } from '../database/schema/index.js';
 import { checkFileContent, safeFileName } from './file-content.js';
+import type { ByteRange } from './file-range.js';
 import { FILE_STORAGE, type FileStorage } from './file-storage.js';
 
 export type FileRow = typeof files.$inferSelect;
@@ -109,8 +111,9 @@ export class FilesService {
     return { file, content: await this.storage.read(file.storageKey) };
   }
 
-  read(file: Pick<FileRow, 'storageKey'>): Promise<Buffer> {
-    return this.storage.read(file.storageKey);
+  /** Conteúdo para download, sem carregar o arquivo inteiro na memória. */
+  open(file: Pick<FileRow, 'storageKey'>, range: ByteRange | null): Readable {
+    return this.storage.openRead(file.storageKey, range);
   }
 
   /**

@@ -1,4 +1,4 @@
-import type { StoredFileView } from '@central/contracts';
+import { MAX_UPLOAD_BYTES, type StoredFileView } from '@central/contracts';
 import { eq } from 'drizzle-orm';
 import { files } from '../src/database/schema/index.js';
 import { FilesService } from '../src/files/files.service.js';
@@ -86,7 +86,7 @@ describe('Envio de arquivos', () => {
   });
 
   it('recusa arquivo acima do maior limite antes de gravar', async () => {
-    const big = Buffer.concat([JPEG, Buffer.alloc(10 * 1024 * 1024)]);
+    const big = Buffer.concat([JPEG, Buffer.alloc(MAX_UPLOAD_BYTES)]);
     const res = await upload(client, 'foto_item', 'grande.jpg', big).expect(
       413,
     );

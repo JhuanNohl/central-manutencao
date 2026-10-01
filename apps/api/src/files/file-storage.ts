@@ -1,8 +1,11 @@
+import { createReadStream } from 'node:fs';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
+import type { Readable } from 'node:stream';
 import { Inject, Injectable } from '@nestjs/common';
 import { ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
+import type { ByteRange } from './file-range.js';
 
 /**
  * Armazenamento do conteúdo dos arquivos (P03). O banco guarda só a chave;
@@ -12,6 +15,8 @@ export interface FileStorage {
   /** Grava o conteúdo; falha se a chave já existir. */
   put(key: string, content: Buffer): Promise<void>;
   read(key: string): Promise<Buffer>;
+  /** Leitura aos poucos, inteira ou do trecho pedido (downloads e vídeos). */
+  openRead(key: string, range: ByteRange | null): Readable;
   /** Remoção idempotente: chave inexistente não é erro. */
   remove(key: string): Promise<void>;
 }
@@ -38,6 +43,10 @@ export class LocalDiskFileStorage implements FileStorage {
 
   async read(key: string): Promise<Buffer> {
     return readFile(this.pathOf(key));
+  }
+
+  openRead(key: string, range: ByteRange | null): Readable {
+    return createReadStream(this.pathOf(key), range ?? {});
   }
 
   async remove(key: string): Promise<void> {

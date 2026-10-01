@@ -10,6 +10,7 @@ import { RmaOpeningService } from './rma-opening.service.js';
 import { RmaReceiptsService } from './rma-receipts.service.js';
 import { RmaShipmentsService } from './rma-shipments.service.js';
 import { RmaStagesService } from './rma-stages.service.js';
+import { RmaValidationVideosService } from './rma-validation-videos.service.js';
 import { RmasController } from './rmas.controller.js';
 import { RmasService } from './rmas.service.js';
 
@@ -30,7 +31,9 @@ import { RmasService } from './rmas.service.js';
     RmaManagementService,
     RmaStagesService,
     RmaMessagesService,
+    RmaValidationVideosService,
     InvoiceValidationService,
   ],
+  exports: [RmaValidationVideosService],
 })
 export class RmasModule {}
