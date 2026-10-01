@@ -1,17 +1,27 @@
-import type { RmaCancellationView } from '@central/contracts';
+import type { PortalRmaCancellationView } from '@central/contracts';
 import { Alert } from '../../components/feedback';
 import { formatDateTime } from '../../lib/format';
 
-/** Mesmo aviso na equipe e no portal: o motivo foi enviado ao solicitante. */
+/**
+ * Mesmo aviso na equipe e no portal: o motivo foi enviado ao solicitante.
+ * Só a equipe vê quem cancelou (RN11).
+ */
 export function CancellationNotice(props: {
-  cancellation: RmaCancellationView;
+  cancellation: PortalRmaCancellationView & {
+    cancelledBy?: { name: string } | null;
+  };
 }) {
+  const { cancellation } = props;
+  const by = cancellation.cancelledBy
+    ? ` por ${cancellation.cancelledBy.name}`
+    : '';
   return (
     <Alert tone="warning">
       <strong>
-        Cancelado em {formatDateTime(props.cancellation.cancelledAt)}.
+        Cancelado em {formatDateTime(cancellation.cancelledAt)}
+        {by}.
       </strong>{' '}
-      Motivo: {props.cancellation.reason}
+      Motivo: {cancellation.reason}
     </Alert>
   );
 }

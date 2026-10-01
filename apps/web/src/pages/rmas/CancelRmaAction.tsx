@@ -1,4 +1,8 @@
-import type { RmaCancellationView, RmaDetail } from '@central/contracts';
+import {
+  isCancellable,
+  type RmaCancellationView,
+  type RmaDetail,
+} from '@central/contracts';
 import { Ban } from 'lucide-react';
 import { useState } from 'react';
 import { errorMessage, post } from '../../api/client';
@@ -21,7 +25,7 @@ export function CancelRmaAction({ rma }: { rma: RmaDetail }) {
     () => setOpen(false),
   );
 
-  if (rma.items.some((item) => item.receivedAt)) return null;
+  if (!isCancellable(rma.items)) return null;
   return (
     <>
       <button
@@ -38,7 +42,7 @@ export function CancelRmaAction({ rma }: { rma: RmaDetail }) {
       <ReasonDialog
         open={open}
         title={`Cancelar o chamado ${rmaLabel(rma.number)}?`}
-        description="O chamado sai da fila ativa e não aceita envio nem recebimento. Nada é apagado, e o solicitante recebe o motivo por e-mail."
+        description="Use quando o cliente não quiser seguir com a manutenção. O chamado sai da fila e não muda mais; nada é apagado, e ficam registrados quem cancelou, quando e o motivo, que o solicitante recebe por e-mail."
         confirmLabel="Cancelar chamado"
         closeLabel="Voltar"
         danger

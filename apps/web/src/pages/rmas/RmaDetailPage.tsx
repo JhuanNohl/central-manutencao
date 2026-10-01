@@ -98,8 +98,8 @@ export function RmaDetailPage() {
         items={rma.items}
         fileUrl={fileUrl}
         canAttach={canOperate}
-        description="Grave o equipamento funcionando com ele em testes ou pronto para devolução (MP4, MOV ou WebM de até 100 MB). O vídeo é exigido para o despacho e fica visível ao cliente."
-        emptyMessage="Nenhum equipamento em testes ou pronto para devolução."
+        description="Na etapa Comprovação, anexe o vídeo do equipamento funcionando (MP4, MOV ou WebM de até 100 MB). Ele é exigido para a devolução e fica visível ao cliente."
+        emptyMessage="Nenhum equipamento na etapa Comprovação."
       />
       <div className="grid-2">
         <RmaConversation

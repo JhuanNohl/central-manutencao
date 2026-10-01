@@ -52,8 +52,10 @@ export function OpeningReview(props: {
           </ul>
         </div>
         <p className="hint">
-          Depois de abrir, informe o envio dos equipamentos no detalhe do
-          atendimento. O prazo de cada um começa quando ele chega à fábrica.
+          {props.customer
+            ? // Pela equipe, o equipamento já está na fábrica (fluxo de 01/10/2026).
+              'Os equipamentos já entram em diagnóstico, com o recebimento registrado agora e o prazo de cada um começando junto.'
+            : 'Depois de abrir, informe o envio dos equipamentos no detalhe do atendimento. O prazo de cada um começa quando ele entra em diagnóstico.'}
         </p>
       </div>
     </section>

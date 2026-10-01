@@ -66,7 +66,7 @@ function AttachVideoButton(props: { number: number; item: ValidationItem }) {
           accept={POLICY.extensions.join(',')}
           className="visually-hidden"
           disabled={attach.isPending}
-          aria-label={`Anexar vídeo de validação do ${props.item.model}`}
+          aria-label={`Anexar vídeo de comprovação do ${props.item.model}`}
           onChange={(e) => {
             const file = e.target.files?.[0];
             e.target.value = '';
@@ -79,7 +79,7 @@ function AttachVideoButton(props: { number: number; item: ValidationItem }) {
       </label>
       <MobileUploadButton
         label="Gravar pelo celular"
-        title={`Vídeo de validação do ${props.item.model}`}
+        title={`Vídeo de comprovação do ${props.item.model}`}
         description="Grave o equipamento funcionando com o celular: o vídeo é anexado a este item assim que terminar de enviar."
         doneMessage="Vídeo anexado ao chamado."
         request={{
@@ -102,7 +102,7 @@ function AttachVideoButton(props: { number: number; item: ValidationItem }) {
 
 /**
  * Vídeo do equipamento funcionando, gravado pela equipe nas etapas finais e
- * exigido para o despacho. Fica separado das fotos e do vídeo da falha, que
+ * exigido para a devolução. Fica separado das fotos e do vídeo da falha, que
  * vêm da abertura.
  */
 export function ValidationVideosCard(props: {
@@ -124,7 +124,7 @@ export function ValidationVideosCard(props: {
     <section className="card">
       <h2 className="card-title-icon">
         <Video size={20} aria-hidden className="inline-icon" />
-        Vídeo de validação
+        Vídeo de comprovação
       </h2>
       <p className="muted">{props.description}</p>
       {items.length === 0 ? (
@@ -153,7 +153,7 @@ export function ValidationVideosCard(props: {
                     src={props.fileUrl(item.validationVideo.file.id)}
                     controls
                     preload="metadata"
-                    aria-label={`Vídeo de validação do ${item.model}`}
+                    aria-label={`Vídeo de comprovação do ${item.model}`}
                   />
                   <span className="sub">
                     {recordedLine(item.validationVideo)}

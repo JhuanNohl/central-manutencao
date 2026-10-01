@@ -22,9 +22,10 @@ const STAGE_TABS: { value: RmaItemStage | ''; label: string }[] = [
   ...(
     [
       'recebido',
+      'em_diagnostico',
+      'aguardando_aprovacao',
       'em_manutencao',
-      'aguardando_peca',
-      'pronto_para_devolucao',
+      'comprovacao',
     ] as const
   ).map((stage) => ({ value: stage, label: STAGE_STYLES[stage].label })),
 ];

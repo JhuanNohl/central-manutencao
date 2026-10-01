@@ -27,7 +27,6 @@ import {
   Hourglass,
   Minus,
   Package,
-  PackageCheck,
   PackageOpen,
   ScanSearch,
   ShieldCheck,
@@ -35,7 +34,8 @@ import {
   ShieldX,
   Timer,
   Truck,
-  UserRoundSearch,
+  UserRoundCheck,
+  Video,
   Wrench,
   type LucideIcon,
 } from 'lucide-react';
@@ -55,32 +55,28 @@ export const STAGE_STYLES: Record<RmaItemStage, StatusStyle> = {
     'neutral',
     Clock,
   ),
-  em_transporte: style(RMA_ITEM_STAGE_LABELS.em_transporte, 'neutral', Truck),
+  enviado: style(RMA_ITEM_STAGE_LABELS.enviado, 'neutral', Truck),
   recebido: style(RMA_ITEM_STAGE_LABELS.recebido, 'neutral', PackageOpen),
   em_diagnostico: style(
     RMA_ITEM_STAGE_LABELS.em_diagnostico,
     'success',
     ScanSearch,
   ),
+  aguardando_aprovacao: style(
+    RMA_ITEM_STAGE_LABELS.aguardando_aprovacao,
+    'warning',
+    UserRoundCheck,
+  ),
+  em_manutencao: style(RMA_ITEM_STAGE_LABELS.em_manutencao, 'success', Wrench),
   aguardando_peca: style(
     RMA_ITEM_STAGE_LABELS.aguardando_peca,
     'warning',
     Package,
   ),
-  aguardando_cliente: style(
-    RMA_ITEM_STAGE_LABELS.aguardando_cliente,
-    'warning',
-    UserRoundSearch,
-  ),
-  em_manutencao: style(RMA_ITEM_STAGE_LABELS.em_manutencao, 'success', Wrench),
-  em_testes: style(RMA_ITEM_STAGE_LABELS.em_testes, 'success', ClipboardCheck),
-  pronto_para_devolucao: style(
-    RMA_ITEM_STAGE_LABELS.pronto_para_devolucao,
-    'success',
-    PackageCheck,
-  ),
-  em_devolucao: style(RMA_ITEM_STAGE_LABELS.em_devolucao, 'neutral', Truck),
-  entregue: style(RMA_ITEM_STAGE_LABELS.entregue, 'success', CircleCheck),
+  testes: style(RMA_ITEM_STAGE_LABELS.testes, 'success', ClipboardCheck),
+  comprovacao: style(RMA_ITEM_STAGE_LABELS.comprovacao, 'success', Video),
+  devolucao: style(RMA_ITEM_STAGE_LABELS.devolucao, 'neutral', Truck),
+  finalizado: style(RMA_ITEM_STAGE_LABELS.finalizado, 'success', CircleCheck),
 };
 
 export const PRIORITY_STYLES: Record<RmaPriority, StatusStyle> = {

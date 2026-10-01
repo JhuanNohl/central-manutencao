@@ -23,6 +23,7 @@ const TEMPLATE_LABELS: Record<NotificationTemplate, string> = {
   redefinicao_senha: 'Redefinição de senha',
   confirmacao_email: 'Confirmação de e-mail',
   rma_aberto: 'Atendimento aberto',
+  rma_aberto_na_fabrica: 'Atendimento aberto na fábrica',
   rma_itens_recebidos: 'Equipamentos recebidos',
   rma_etapa_alterada: 'Etapa alterada',
   rma_cancelado: 'Atendimento cancelado',

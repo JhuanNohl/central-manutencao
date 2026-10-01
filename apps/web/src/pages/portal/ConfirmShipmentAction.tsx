@@ -71,7 +71,7 @@ export function ConfirmShipmentAction({ rma }: { rma: PortalRmaDetail }) {
       <ItemsSelectionDialog
         open={open}
         title="Informar envio à fábrica"
-        description="Selecione os equipamentos que você despachou. O prazo de cada um começa quando ele chegar à fábrica."
+        description="Selecione os equipamentos que você despachou. O prazo de cada um começa quando ele entra em diagnóstico."
         items={shippable}
         confirmLabel="Confirmar envio"
         pending={ship.isPending}

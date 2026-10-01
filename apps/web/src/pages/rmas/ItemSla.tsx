@@ -9,13 +9,17 @@ export function ItemSla({ sla }: { sla: ItemSlaView }) {
   return (
     <>
       <Badge status={SLA_STYLES[sla.status]} />
-      {sla.dueAt ? (
+      {sla.finishedAt ? (
+        <span className="sub">
+          Encerrado no envio, em {formatDateTime(sla.finishedAt)}
+        </span>
+      ) : sla.dueAt ? (
         <span className="sub">
           Vence em {formatDateTime(sla.dueAt)} · {slaRemainingLabel(sla.dueAt)}
         </span>
       ) : (
         <span className="sub">
-          Começa quando o equipamento chegar à fábrica
+          Começa quando o equipamento entra em diagnóstico
         </span>
       )}
     </>
