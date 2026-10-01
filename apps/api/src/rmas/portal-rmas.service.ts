@@ -72,6 +72,17 @@ function toPortalReceipt(receipt: StaffReceiptView): ReceiptView {
   };
 }
 
+/** O portal mostra quando e por quê, sem a conta de quem cancelou (RN11). */
+function portalCancellation(row: RmaRow) {
+  const cancellation = cancellationOf(row);
+  return (
+    cancellation && {
+      cancelledAt: cancellation.cancelledAt,
+      reason: cancellation.reason,
+    }
+  );
+}
+
 function summaryOf(
   row: RmaRow,
   items: {
@@ -87,7 +98,7 @@ function summaryOf(
     updatedAt: row.updatedAt.toISOString(),
     itemCount: items.length,
     stages: stageCounts(items.map((item) => item.stage)),
-    cancellation: cancellationOf(row),
+    cancellation: portalCancellation(row),
   };
 }
 

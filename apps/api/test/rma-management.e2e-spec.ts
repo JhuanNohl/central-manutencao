@@ -4,6 +4,8 @@ import type {
   RmaDetail,
 } from '@central/contracts';
 import { eq } from 'drizzle-orm';
+import { ENV } from '../src/config/config.module.js';
+import type { Env } from '../src/config/env.js';
 import {
   auditEvents,
   notifications,
@@ -15,6 +17,7 @@ import {
   createAccount,
   createCustomer,
   createTestApp,
+  itemAt,
   recordValidationVideo,
   resetDatabase,
   signIn,
@@ -79,8 +82,6 @@ describe('Gestão do chamado pela equipe', () => {
       .insert(rmas)
       .values({ customerId, requesterContactId: contactId })
       .returning();
-    const received = (stage: string | undefined) =>
-      !['aguardando_envio', 'em_transporte'].includes(stage ?? '');
     const items = await ctx.db
       .insert(rmaItems)
       .values(
@@ -90,9 +91,7 @@ describe('Gestão do chamado pela equipe', () => {
           model: `Modelo ${index + 1}`,
           serialNumber: `SIM-${index + 1}`,
           reportedFailure: 'Não liga',
-          stage,
-          receivedAt: received(stage) ? new Date() : null,
-          slaHours: received(stage) ? 720 : null,
+          ...itemAt(stage ?? 'aguardando_envio'),
         })),
       )
       .returning({ id: rmaItems.id, position: rmaItems.position });
@@ -187,20 +186,22 @@ describe('Gestão do chamado pela equipe', () => {
     beforeEach(async () => {
       ({ number, itemIds } = await createRma([
         'recebido',
-        'em_manutencao',
+        'aguardando_aprovacao',
         'aguardando_envio',
       ]));
     });
 
-    it('move cada item escolhido e avisa o solicitante sem a nota interna', async () => {
-      await changeStage(agent, [itemIds[0], itemIds[1]], 'em_testes').expect(
-        201,
-      );
-      expect((await detail()).items.map((i) => i.stage)).toEqual([
-        'em_testes',
-        'em_testes',
-        'aguardando_envio',
-      ]);
+    it('o diagnóstico inicia o prazo, com a duração configurada naquele momento (CA07, CA15)', async () => {
+      const env = ctx.app.get<Env>(ENV);
+      env.RMA_SLA_HOURS = 240;
+      try {
+        await changeStage(agent, [itemIds[0]], 'em_diagnostico').expect(201);
+      } finally {
+        env.RMA_SLA_HOURS = 720;
+      }
+      const item = (await detail()).items[0];
+      expect(item.sla).toMatchObject({ status: 'no_prazo', hours: 240 });
+      expect(item.sla.startedAt).not.toBeNull();
 
       const [notice] = await ctx.db
         .select()
@@ -208,9 +209,36 @@ describe('Gestão do chamado pela equipe', () => {
         .where(eq(notifications.template, 'rma_etapa_alterada'));
       expect(notice.recipient).toBe('cliente@um.local');
       expect(notice.payload.items).toEqual([
-        'Modelo 1 (S/N SIM-1): Em testes',
-        'Modelo 2 (S/N SIM-2): Em testes',
+        expect.stringMatching(
+          /^Modelo 1 \(S\/N SIM-1\): Em diagnóstico · prazo até \d{2}\/\d{2}\/\d{4}/,
+        ),
       ]);
+    });
+
+    it('avança um passo por vez, sem pular nem voltar', async () => {
+      await changeStage(agent, [itemIds[0]], 'aguardando_aprovacao').expect(
+        409,
+      );
+      await changeStage(agent, [itemIds[1]], 'em_manutencao').expect(201);
+      await changeStage(agent, [itemIds[1]], 'aguardando_aprovacao').expect(
+        409,
+      );
+      expect((await detail()).items.map((i) => i.stage)).toEqual([
+        'recebido',
+        'em_manutencao',
+        'aguardando_envio',
+      ]);
+    });
+
+    it('só a manutenção desvia: aguarda peça e volta, depois segue para testes', async () => {
+      await changeStage(agent, [itemIds[1]], 'em_manutencao').expect(201);
+      await changeStage(agent, [itemIds[1]], 'aguardando_peca').expect(201);
+      await changeStage(agent, [itemIds[1]], 'testes').expect(409);
+      await changeStage(agent, [itemIds[1]], 'em_manutencao').expect(201);
+      await changeStage(agent, [itemIds[1]], 'testes').expect(201);
+      await changeStage(agent, [itemIds[1]], 'aguardando_peca').expect(409);
+      await changeStage(agent, [itemIds[1]], 'comprovacao').expect(201);
+      expect((await detail()).items[1].stage).toBe('comprovacao');
     });
 
     it('é tudo ou nada: item fora do fluxo recusa a mudança inteira', async () => {
@@ -225,39 +253,38 @@ describe('Gestão do chamado pela equipe', () => {
       expect((await detail()).items[0].stage).toBe('recebido');
     });
 
-    it('recebimento e envio não são etapas manuais', async () => {
-      const res = await changeStage(agent, [itemIds[2]], 'recebido').expect(
-        400,
-      );
-      expect(res.body.error.issues[0].path).toBe('stage');
+    it('envio e recebimento não são mudanças de etapa da equipe', async () => {
+      for (const stage of ['enviado', 'recebido']) {
+        const res = await changeStage(agent, [itemIds[2]], stage).expect(400);
+        expect(res.body.error.issues[0].path).toBe('stage');
+      }
     });
 
-    it('a devolução só parte de "pronto para devolução"', async () => {
-      await changeStage(agent, [itemIds[1]], 'em_devolucao').expect(409);
-      await changeStage(agent, [itemIds[1]], 'pronto_para_devolucao').expect(
-        201,
-      );
-      await recordValidationVideo(ctx.db, itemIds[1], agentId);
-      await changeStage(agent, [itemIds[1]], 'em_devolucao').expect(201);
-      const item = (await detail()).items[1];
-      expect(item.stage).toBe('em_devolucao');
+    it('a devolução exige o vídeo de comprovação e encerra o prazo', async () => {
+      ({ number, itemIds } = await createRma(['comprovacao']));
+      await changeStage(agent, [itemIds[0]], 'devolucao').expect(409);
+      await recordValidationVideo(ctx.db, itemIds[0], agentId);
+      await changeStage(agent, [itemIds[0]], 'devolucao').expect(201);
+      const item = (await detail()).items[0];
+      expect(item.stage).toBe('devolucao');
+      expect(item.sla.finishedAt).not.toBeNull();
     });
 
     it('agente somente consulta não muda etapa', async () => {
-      await changeStage(reader, [itemIds[0]], 'em_testes').expect(403);
+      await changeStage(reader, [itemIds[0]], 'em_diagnostico').expect(403);
     });
   });
 
   it('encerra o chamado quando todos os equipamentos voltam ao cliente', async () => {
-    ({ number, itemIds } = await createRma(['em_devolucao', 'em_devolucao']));
-    await changeStage(agent, [itemIds[0]], 'entregue').expect(201);
+    ({ number, itemIds } = await createRma(['devolucao', 'devolucao']));
+    await changeStage(agent, [itemIds[0]], 'finalizado').expect(201);
     const [open] = await ctx.db
       .select()
       .from(rmas)
       .where(eq(rmas.number, number));
     expect(open.closedAt).toBeNull();
 
-    await changeStage(agent, [itemIds[1]], 'entregue').expect(201);
+    await changeStage(agent, [itemIds[1]], 'finalizado').expect(201);
     const [closed] = await ctx.db
       .select()
       .from(rmas)
@@ -307,13 +334,30 @@ describe('Gestão do chamado pela equipe', () => {
       await cancel(agent).expect(409);
     });
 
-    it('recusa depois que algum equipamento chegou à fábrica', async () => {
-      await agent
-        .post(`/api/rmas/${number}/receipts`)
-        .send({ itemIds: [itemIds[0]] })
-        .expect(201);
+    it('o cliente desistiu na aprovação: cancela e documenta quem cancelou', async () => {
+      ({ number, itemIds } = await createRma(['aguardando_aprovacao']));
+      await cancel(agent, 'Cliente não aprovou o orçamento').expect(201);
+
+      const staff = await detail();
+      expect(staff.cancellation).toMatchObject({
+        reason: 'Cliente não aprovou o orçamento',
+        cancelledBy: { id: agentId, name: 'Bruno Agente' },
+      });
+      const portal = (
+        await client.get(`/api/portal/rmas/${number}`).expect(200)
+      ).body as PortalRmaDetail;
+      expect(portal.cancellation).not.toHaveProperty('cancelledBy');
+      const [row] = await ctx.db
+        .select()
+        .from(rmas)
+        .where(eq(rmas.number, number));
+      expect(row.cancelledByAccountId).toBe(agentId);
+    });
+
+    it('recusa depois do despacho de algum equipamento', async () => {
+      ({ number, itemIds } = await createRma(['devolucao', 'em_manutencao']));
       const res = await cancel(agent).expect(409);
-      expect(res.body.error.message).toContain('antes de algum equipamento');
+      expect(res.body.error.message).toContain('antes do despacho');
       const [row] = await ctx.db
         .select()
         .from(rmas)

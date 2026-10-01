@@ -1,39 +1,60 @@
 import { SLA_DUE_SOON_HOURS, type RmaItemStage } from '@central/contracts';
 import { itemSla, rmaSla } from './sla.js';
 
-describe('itemSla', () => {
-  const received = new Date('2026-10-01T17:00:00Z');
+const started = (
+  slaStartedAt: Date | null,
+  slaHours: number | null,
+  slaFinishedAt: Date | null = null,
+) => ({ slaStartedAt, slaHours, slaFinishedAt });
 
-  it('não inicia sem recebimento físico (RN04)', () => {
-    expect(itemSla(null, null, new Date())).toEqual({
+describe('itemSla', () => {
+  const diagnosis = new Date('2026-10-01T17:00:00Z');
+
+  it('não inicia antes do diagnóstico', () => {
+    expect(itemSla(started(null, null), new Date())).toEqual({
       status: 'nao_iniciado',
       startedAt: null,
       dueAt: null,
       hours: null,
+      finishedAt: null,
     });
   });
 
   it('vence 720 horas depois, no mesmo horário (P01)', () => {
-    const sla = itemSla(received, 720, new Date('2026-10-10T00:00:00Z'));
+    const sla = itemSla(
+      started(diagnosis, 720),
+      new Date('2026-10-10T00:00:00Z'),
+    );
     expect(sla).toEqual({
       status: 'no_prazo',
       startedAt: '2026-10-01T17:00:00.000Z',
       dueAt: '2026-10-31T17:00:00.000Z',
       hours: 720,
+      finishedAt: null,
     });
   });
 
   it('fica atrasado só depois do instante de vencimento', () => {
     expect(
-      itemSla(received, 720, new Date('2026-10-31T17:00:00Z')).status,
+      itemSla(started(diagnosis, 720), new Date('2026-10-31T17:00:00Z')).status,
     ).toBe('no_prazo');
     expect(
-      itemSla(received, 720, new Date('2026-10-31T17:00:01Z')).status,
+      itemSla(started(diagnosis, 720), new Date('2026-10-31T17:00:01Z')).status,
     ).toBe('atrasado');
   });
 
+  it('termina no envio ao cliente: a situação fica a daquele dia', () => {
+    const shipped = new Date('2026-10-20T12:00:00Z');
+    const sla = itemSla(
+      started(diagnosis, 720, shipped),
+      new Date('2026-12-01T00:00:00Z'),
+    );
+    expect(sla.status).toBe('no_prazo');
+    expect(sla.finishedAt).toBe('2026-10-20T12:00:00.000Z');
+  });
+
   it('usa o prazo aplicado no item, não a configuração atual (CA15)', () => {
-    expect(itemSla(received, 240, received).dueAt).toBe(
+    expect(itemSla(started(diagnosis, 240), diagnosis).dueAt).toBe(
       '2026-10-11T17:00:00.000Z',
     );
   });
@@ -41,25 +62,28 @@ describe('itemSla', () => {
 
 describe('rmaSla', () => {
   const now = new Date('2026-10-10T12:00:00Z');
-  const receivedHoursAgo = (
+  const startedHoursAgo = (
     hours: number,
     stage: RmaItemStage = 'em_manutencao',
   ) => ({
     stage,
-    sla: itemSla(new Date(now.getTime() - hours * 3_600_000), 720, now),
+    sla: itemSla(
+      started(new Date(now.getTime() - hours * 3_600_000), 720),
+      now,
+    ),
   });
-  const notReceived = {
-    stage: 'aguardando_envio' as const,
-    sla: itemSla(null, null, now),
+  const notStarted = {
+    stage: 'recebido' as const,
+    sla: itemSla(started(null, null), now),
   };
 
-  it('é nulo enquanto nenhum item foi recebido (RN04)', () => {
-    expect(rmaSla([notReceived], now)).toBeNull();
+  it('é nulo enquanto nenhum item entrou em diagnóstico', () => {
+    expect(rmaSla([notStarted], now)).toBeNull();
   });
 
-  it('segue o item que vence primeiro, ignorando os não recebidos', () => {
+  it('segue o item que vence primeiro, ignorando os sem prazo', () => {
     const sla = rmaSla(
-      [notReceived, receivedHoursAgo(10), receivedHoursAgo(700)],
+      [notStarted, startedHoursAgo(10), startedHoursAgo(700)],
       now,
     );
     expect(sla).toEqual({
@@ -70,10 +94,7 @@ describe('rmaSla', () => {
 
   it('ignora itens já despachados, cujo prazo terminou (RN08)', () => {
     const sla = rmaSla(
-      [
-        receivedHoursAgo(730, 'em_devolucao'),
-        receivedHoursAgo(740, 'entregue'),
-      ],
+      [startedHoursAgo(730, 'devolucao'), startedHoursAgo(740, 'finalizado')],
       now,
     );
     expect(sla).toBeNull();
@@ -81,7 +102,7 @@ describe('rmaSla', () => {
 
   it(`vence em breve a partir de ${SLA_DUE_SOON_HOURS} horas do vencimento`, () => {
     const status = (elapsed: number) =>
-      rmaSla([receivedHoursAgo(elapsed)], now)?.status;
+      rmaSla([startedHoursAgo(elapsed)], now)?.status;
     expect(status(720 - SLA_DUE_SOON_HOURS - 1)).toBe('no_prazo');
     expect(status(720 - SLA_DUE_SOON_HOURS)).toBe('vence_em_breve');
     expect(status(720)).toBe('vence_em_breve');

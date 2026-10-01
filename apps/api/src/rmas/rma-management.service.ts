@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
   ASSIGNABLE_ROLES,
+  isCancellable,
   type AssigneeOption,
   type AssignRmaRequest,
   type CancelRmaRequest,
@@ -9,7 +10,7 @@ import {
   type RmaCancellationView,
   type RmaPriorityView,
 } from '@central/contracts';
-import { and, asc, eq, inArray, isNotNull } from 'drizzle-orm';
+import { and, asc, eq, inArray } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service.js';
 import { ApiException } from '../common/http/api-exception.js';
 import { DATABASE } from '../database/database.module.js';
@@ -112,8 +113,9 @@ export class RmaManagementService {
   }
 
   /**
-   * Cancela o chamado enquanto nenhum equipamento chegou à fábrica. Nada é
-   * apagado: documentos fiscais e histórico continuam consultáveis.
+   * Cancela o chamado (ex.: o cliente desistiu da manutenção) até o despacho
+   * do primeiro equipamento. Nada é apagado: quem cancelou, quando e por quê
+   * ficam no chamado e no histórico, com os documentos fiscais.
    */
   async cancel(
     auth: AuthContext,
@@ -123,9 +125,13 @@ export class RmaManagementService {
     const rma = await findRma(this.db, number);
     return this.db.transaction(async (tx) => {
       const current = await lockOpenRma(tx, rma.id);
-      if (await this.hasReceivedItems(tx, rma.id)) {
+      const items = await tx
+        .select({ stage: rmaItems.stage })
+        .from(rmaItems)
+        .where(eq(rmaItems.rmaId, rma.id));
+      if (!isCancellable(items)) {
         throw ApiException.conflict(
-          'Só é possível cancelar antes de algum equipamento chegar à fábrica.',
+          'Só é possível cancelar antes do despacho de algum equipamento.',
         );
       }
       const cancelledAt = new Date();
@@ -135,6 +141,7 @@ export class RmaManagementService {
           cancelledAt,
           closedAt: cancelledAt,
           cancellationReason: request.reason,
+          cancelledByAccountId: auth.account.id,
         })
         .where(eq(rmas.id, rma.id));
       await this.audit.record(tx, {
@@ -163,6 +170,7 @@ export class RmaManagementService {
       return {
         cancelledAt: cancelledAt.toISOString(),
         reason: request.reason,
+        cancelledBy: { id: auth.account.id, name: auth.account.name },
       };
     });
   }
@@ -184,14 +192,5 @@ export class RmaManagementService {
       ]);
     }
     return account;
-  }
-
-  private async hasReceivedItems(db: Executor, rmaId: string) {
-    const [row] = await db
-      .select({ id: rmaItems.id })
-      .from(rmaItems)
-      .where(and(eq(rmaItems.rmaId, rmaId), isNotNull(rmaItems.receivedAt)))
-      .limit(1);
-    return row !== undefined;
   }
 }

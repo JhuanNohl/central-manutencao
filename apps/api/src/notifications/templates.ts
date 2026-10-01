@@ -110,6 +110,17 @@ export function renderNotification(
         { label: 'Ver atendimento', link: str(payload, 'link') },
         REQUESTER_FOOTER,
       );
+    case 'rma_aberto_na_fabrica':
+      return layout(
+        `Atendimento #${str(payload, 'number')} aberto — Central de Manutenção`,
+        [
+          `Olá, ${str(payload, 'name')}.`,
+          `Registramos o atendimento #${str(payload, 'number')} com ${str(payload, 'itemsLabel')}, que já estão na fábrica e seguem para diagnóstico.`,
+          `O prazo de cada equipamento começou agora e vai até ${str(payload, 'dueAtLabel')}.`,
+        ],
+        { label: 'Acompanhar atendimento', link: str(payload, 'link') },
+        REQUESTER_FOOTER,
+      );
     case 'rma_itens_recebidos':
       return layout(
         `Equipamentos recebidos — atendimento #${str(payload, 'number')}`,
@@ -117,6 +128,7 @@ export function renderNotification(
           `Olá, ${str(payload, 'name')}.`,
           `Recebemos na fábrica os equipamentos abaixo do atendimento #${str(payload, 'number')}:`,
           ...lines(payload, 'items'),
+          'O prazo de cada um começa quando ele entra em diagnóstico; avisaremos a data.',
         ],
         { label: 'Acompanhar atendimento', link: str(payload, 'link') },
         REQUESTER_FOOTER,

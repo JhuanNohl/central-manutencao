@@ -38,7 +38,7 @@ export class RmaShipmentsService {
       await lockOpenRma(tx, rma.id);
       const moved = await tx
         .update(rmaItems)
-        .set({ stage: 'em_transporte' })
+        .set({ stage: 'enviado' })
         .where(
           and(
             eq(rmaItems.rmaId, rma.id),

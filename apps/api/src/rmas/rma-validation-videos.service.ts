@@ -20,7 +20,7 @@ import { touchRma } from './rma-movements.js';
 import { findRma, lockOpenRma } from './rma-scope.js';
 
 export const VALIDATION_VIDEO_STAGE_MESSAGE =
-  'O vídeo de validação é gravado com o equipamento em testes ou pronto para devolução.';
+  'O vídeo de comprovação é anexado com o equipamento na etapa Comprovação.';
 
 /** Quem anexa: a conta da sessão no computador ou a que gerou o QR Code. */
 export interface ValidationVideoActor {

@@ -25,7 +25,6 @@ import {
   type TestContext,
 } from './support.js';
 
-const HOUR_MS = 3_600_000;
 
 describe('Envio à fábrica e recebimento parcial', () => {
   let ctx: TestContext;
@@ -108,8 +107,8 @@ describe('Envio à fábrica e recebimento parcial', () => {
 
       const detail = await portalDetail();
       expect(stagesOf(detail)).toEqual([
-        'em_transporte',
-        'em_transporte',
+        'enviado',
+        'enviado',
         'aguardando_envio',
       ]);
       expect(detail.items.every((i) => i.sla.status === 'nao_iniciado')).toBe(
@@ -143,7 +142,7 @@ describe('Envio à fábrica e recebimento parcial', () => {
         res.body.error.issues.map((i: { path: string }) => i.path),
       ).toEqual(['itemIds.1', 'itemIds.2']);
       expect(stagesOf(await portalDetail())).toEqual([
-        'em_transporte',
+        'enviado',
         'aguardando_envio',
         'aguardando_envio',
       ]);
@@ -163,29 +162,22 @@ describe('Envio à fábrica e recebimento parcial', () => {
   });
 
   describe('recebimento pela equipe', () => {
-    it('recebe dois de três; cada um inicia o próprio prazo (CA07)', async () => {
-      await ship(client, [itemIds[0]]).expect(201);
+    /** Só o item enviado pode ser recebido: o envio não é pulado. */
+    beforeEach(async () => {
+      await ship(client, itemIds).expect(201);
+    });
+
+    it('recebe dois de três; o prazo só começa no diagnóstico', async () => {
       const res = await receive(agent, [itemIds[0], itemIds[1]]).expect(201);
       const receipt = res.body as StaffReceiptView;
       expect(receipt.receivedBy?.name).toBe('Bruno Agente');
 
       const detail = await portalDetail();
-      expect(stagesOf(detail)).toEqual([
-        'recebido',
-        'recebido',
-        'aguardando_envio',
-      ]);
-      const [first, second, third] = detail.items;
-      expect(first.sla).toMatchObject({ status: 'no_prazo', hours: 720 });
-      expect(first.sla.startedAt).toBe(receipt.receivedAt);
-      expect(new Date(first.sla.dueAt ?? '').getTime()).toBe(
-        new Date(receipt.receivedAt).getTime() + 720 * HOUR_MS,
+      expect(stagesOf(detail)).toEqual(['recebido', 'recebido', 'enviado']);
+      expect(detail.items[0].receivedAt).toBe(receipt.receivedAt);
+      expect(detail.items.every((i) => i.sla.status === 'nao_iniciado')).toBe(
+        true,
       );
-      expect(second.sla.startedAt).toBe(receipt.receivedAt);
-      expect(third.sla).toMatchObject({
-        status: 'nao_iniciado',
-        startedAt: null,
-      });
       expect(detail.receipts).toEqual([
         {
           id: receipt.id,
@@ -195,30 +187,30 @@ describe('Envio à fábrica e recebimento parcial', () => {
       ]);
     });
 
-    it('o terceiro chega depois e ganha início próprio, sem mexer nos outros', async () => {
-      await receive(agent, [itemIds[0], itemIds[1]]).expect(201);
-      const twoDaysAgo = new Date(Date.now() - 48 * HOUR_MS);
-      await ctx.db
-        .update(rmaItems)
-        .set({ receivedAt: twoDaysAgo })
-        .where(eq(rmaItems.id, itemIds[0]));
-
-      await receive(agent, [itemIds[2]]).expect(201);
-      const [first, , third] = (await portalDetail()).items;
-      expect(first.sla.startedAt).toBe(twoDaysAgo.toISOString());
-      expect(new Date(third.sla.startedAt ?? '').getTime()).toBeGreaterThan(
-        twoDaysAgo.getTime(),
-      );
-      expect((await portalDetail()).receipts).toHaveLength(2);
+    it('item ainda não enviado não pode ser recebido', async () => {
+      const unshipped = await createRma(['K40']);
+      const res = await agent
+        .post(`/api/rmas/${unshipped.number}/receipts`)
+        .send({ itemIds: unshipped.itemIds })
+        .expect(409);
+      expect(res.body.error.issues[0].path).toBe('itemIds.0');
     });
 
-    it('repetir não reinicia o prazo; em paralelo, só um recebimento vale (CA16)', async () => {
+    it('o terceiro chega depois, num recebimento próprio', async () => {
+      await receive(agent, [itemIds[0], itemIds[1]]).expect(201);
+      await receive(agent, [itemIds[2]]).expect(201);
+      const detail = await portalDetail();
+      expect(stagesOf(detail)).toEqual(['recebido', 'recebido', 'recebido']);
+      expect(detail.receipts).toHaveLength(2);
+    });
+
+    it('repetir não registra de novo; em paralelo, só um recebimento vale (CA16)', async () => {
       await receive(agent, [itemIds[0]]).expect(201);
       const [before] = (await portalDetail()).items;
       const repeated = await receive(agent, [itemIds[0]]).expect(409);
       expect(repeated.body.error.issues[0].path).toBe('itemIds.0');
-      expect((await portalDetail()).items[0].sla.startedAt).toBe(
-        before.sla.startedAt,
+      expect((await portalDetail()).items[0].receivedAt).toBe(
+        before.receivedAt,
       );
 
       const results = await Promise.all([
@@ -235,32 +227,22 @@ describe('Envio à fábrica e recebimento parcial', () => {
       expect(rows).toHaveLength(1);
     });
 
-    it('mudar o prazo configurado não altera itens já iniciados (CA15)', async () => {
-      await receive(agent, [itemIds[0]]).expect(201);
-      ctx.app.get<Env>(ENV).RMA_SLA_HOURS = 240;
-      await receive(agent, [itemIds[1]]).expect(201);
-      const [first, second] = (await portalDetail()).items;
-      expect([first.sla.hours, second.sla.hours]).toEqual([720, 240]);
-    });
-
-    it('registra histórico e aviso com o prazo de cada equipamento', async () => {
+    it('registra histórico e avisa que o prazo começa no diagnóstico', async () => {
       await receive(agent, [itemIds[1], itemIds[0]]).expect(201);
       const [audit] = await ctx.db
         .select()
         .from(auditEvents)
         .where(eq(auditEvents.action, 'rma.itens_recebidos'));
-      expect(audit.data).toMatchObject({
-        itemIds: [itemIds[1], itemIds[0]],
-        slaHours: 720,
-      });
-      const [notice] = await ctx.db.select().from(notifications);
-      expect(notice.template).toBe('rma_itens_recebidos');
+      expect(audit.data).toMatchObject({ itemIds: [itemIds[1], itemIds[0]] });
+      const [notice] = await ctx.db
+        .select()
+        .from(notifications)
+        .where(eq(notifications.template, 'rma_itens_recebidos'));
       expect(notice.recipient).toBe('cliente@um.local');
-      const lines = (notice.payload as { items: string[] }).items;
-      expect(lines).toHaveLength(2);
-      expect(lines[0]).toMatch(
-        /^VR10 \(S\/N SIM-VR10\): prazo até \d{2}\/\d{2}\/\d{4}/,
-      );
+      expect((notice.payload as { items: string[] }).items).toEqual([
+        'VR10 (S/N SIM-VR10)',
+        'SpeedFace (S/N SIM-SpeedFace)',
+      ]);
     });
 
     it('atribuir responsável não inicia o prazo (RN04)', async () => {

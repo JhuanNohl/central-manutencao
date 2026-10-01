@@ -1,15 +1,20 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
   RMA_ITEM_STAGE_LABELS,
+  SLA_END_STAGE,
+  SLA_START_STAGE,
   requiresValidationVideo,
   stageChangePermission,
-  stagesLeadingTo,
+  stagesChangeableTo,
   type ChangeItemStageRequest,
   type ItemStageChangeView,
+  type RmaItemStage,
 } from '@central/contracts';
 import { and, eq, inArray, ne, notExists } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service.js';
 import { ApiException } from '../common/http/api-exception.js';
+import { ENV } from '../config/config.module.js';
+import type { Env } from '../config/env.js';
 import { DATABASE } from '../database/database.module.js';
 import type { Database, Transaction } from '../database/database.types.js';
 import {
@@ -24,16 +29,18 @@ import { findRequesterContact } from './rma-customer.js';
 import type { ItemRow } from './rma-details.js';
 import { ensureAllMoved, touchRma } from './rma-movements.js';
 import { findRma, lockOpenRma, type RmaRow } from './rma-scope.js';
+import { itemSla } from './sla.js';
 
 /**
- * Mudança de etapa dos itens pela equipe, conforme `STAGE_TRANSITIONS`.
- * Cada item muda sozinho (A5.1); o chamado só se encerra quando todos os
- * equipamentos voltaram ao cliente.
+ * Mudança de etapa dos itens pela equipe: só o próximo passo de `NEXT_STAGES`,
+ * sem voltar. Cada item muda sozinho (A5.1). O prazo começa no diagnóstico e
+ * termina na devolução; o chamado se encerra quando todos chegam ao cliente.
  */
 @Injectable()
 export class RmaStagesService {
   constructor(
     @Inject(DATABASE) private readonly db: Database,
+    @Inject(ENV) private readonly env: Env,
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
     private readonly links: EmailLinks,
@@ -44,12 +51,12 @@ export class RmaStagesService {
     number: number,
     request: ChangeItemStageRequest,
   ): Promise<ItemStageChangeView> {
-    const sources = stagesLeadingTo(request.stage);
+    const sources = stagesChangeableTo(request.stage);
     if (sources.length === 0) {
       throw ApiException.validation([
         {
           path: 'stage',
-          message: 'Esta etapa é registrada por uma operação própria',
+          message: 'Esta etapa não é o próximo passo de nenhum equipamento',
         },
       ]);
     }
@@ -73,7 +80,7 @@ export class RmaStagesService {
         );
       const moved = await tx
         .update(rmaItems)
-        .set({ stage: request.stage })
+        .set({ stage: request.stage, ...this.slaChange(request.stage) })
         .where(
           and(
             eq(rmaItems.rmaId, rma.id),
@@ -88,7 +95,9 @@ export class RmaStagesService {
         'Alguns equipamentos não podem ir para esta etapa. Confira a seleção.',
       );
 
-      if (request.stage === 'entregue') await this.closeIfAllDelivered(tx, rma);
+      if (request.stage === 'finalizado') {
+        await this.closeIfAllDelivered(tx, rma);
+      }
       await touchRma(tx, rma.id);
       await this.audit.record(tx, {
         actorAccountId: auth.account.id,
@@ -113,6 +122,19 @@ export class RmaStagesService {
   }
 
   /**
+   * O diagnóstico inicia o prazo, com a duração configurada naquele momento
+   * gravada no item (CA15); a devolução o encerra (RN08).
+   */
+  private slaChange(stage: RmaItemStage) {
+    const now = new Date();
+    if (stage === SLA_START_STAGE) {
+      return { slaStartedAt: now, slaHours: this.env.RMA_SLA_HOURS };
+    }
+    if (stage === SLA_END_STAGE) return { slaFinishedAt: now };
+    return {};
+  }
+
+  /**
    * Sob o bloqueio do RMA, nenhum vídeo muda entre esta conferência e o
    * despacho. Aponta cada item sem vídeo, como nas movimentações.
    */
@@ -128,13 +150,13 @@ export class RmaStagesService {
         : [
             {
               path: `itemIds.${index}`,
-              message: 'Anexe o vídeo de validação deste equipamento',
+              message: 'Anexe o vídeo de comprovação deste equipamento',
             },
           ],
     );
     if (issues.length > 0) {
       throw ApiException.conflict(
-        'Anexe o vídeo de validação de cada equipamento antes do despacho.',
+        'Anexe o vídeo de comprovação de cada equipamento antes da devolução.',
         issues,
       );
     }
@@ -152,7 +174,10 @@ export class RmaStagesService {
               .select({ id: rmaItems.id })
               .from(rmaItems)
               .where(
-                and(eq(rmaItems.rmaId, rma.id), ne(rmaItems.stage, 'entregue')),
+                and(
+                  eq(rmaItems.rmaId, rma.id),
+                  ne(rmaItems.stage, 'finalizado'),
+                ),
               ),
           ),
         ),
@@ -169,10 +194,14 @@ export class RmaStagesService {
     if (!requester) return;
     const lines = [...items]
       .sort((a, b) => a.position - b.position)
-      .map(
-        (item) =>
-          `${item.model} (S/N ${item.serialNumber}): ${RMA_ITEM_STAGE_LABELS[item.stage]}`,
-      );
+      .map((item) => {
+        const line = `${item.model} (S/N ${item.serialNumber}): ${RMA_ITEM_STAGE_LABELS[item.stage]}`;
+        // No diagnóstico, o solicitante fica sabendo até quando vai o prazo.
+        const { dueAt } = itemSla(item, new Date());
+        return item.stage === SLA_START_STAGE && dueAt
+          ? `${line} · prazo até ${this.links.expiry(new Date(dueAt))}`
+          : line;
+      });
     await this.notifications.enqueue(tx, {
       template: 'rma_etapa_alterada',
       recipient: requester.email,

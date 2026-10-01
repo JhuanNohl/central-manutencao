@@ -1,4 +1,10 @@
-import type { Role } from '@central/contracts';
+import {
+  RMA_ITEM_STAGES,
+  SLA_FINISHED_STAGES,
+  SLA_START_STAGE,
+  type RmaItemStage,
+  type Role,
+} from '@central/contracts';
 import type { INestApplication } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
@@ -232,4 +238,25 @@ export async function recordValidationVideo(
   await db
     .insert(rmaValidationVideos)
     .values({ itemId, fileId: file.id, recordedByAccountId: accountId });
+}
+
+const HOUR_MS = 3_600_000;
+
+/**
+ * Colunas de um item já na etapa indicada, coerentes com as regras do banco:
+ * recebido a partir de "recebido", com prazo a partir do diagnóstico e prazo
+ * encerrado a partir da devolução. `startedHoursAgo` recua o início do prazo.
+ */
+export function itemAt(stage: RmaItemStage, startedHoursAgo = 0) {
+  const reached = (milestone: RmaItemStage) =>
+    RMA_ITEM_STAGES.indexOf(stage) >= RMA_ITEM_STAGES.indexOf(milestone);
+  const at = new Date(Date.now() - startedHoursAgo * HOUR_MS);
+  const started = reached(SLA_START_STAGE);
+  return {
+    stage,
+    receivedAt: reached('recebido') ? at : null,
+    slaStartedAt: started ? at : null,
+    slaHours: started ? 720 : null,
+    slaFinishedAt: SLA_FINISHED_STAGES.includes(stage) ? new Date() : null,
+  };
 }

@@ -6,8 +6,6 @@ import {
 } from '@central/contracts';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service.js';
-import { ENV } from '../config/config.module.js';
-import type { Env } from '../config/env.js';
 import { DATABASE } from '../database/database.module.js';
 import type { Database, Transaction } from '../database/database.types.js';
 import {
@@ -21,23 +19,20 @@ import { NotificationsService } from '../notifications/notifications.service.js'
 import { findRequesterContact } from './rma-customer.js';
 import { ensureAllMoved, touchRma } from './rma-movements.js';
 import { findRma, lockOpenRma, type RmaRow } from './rma-scope.js';
-import { itemSla } from './sla.js';
 
 type ReceivedItem = Pick<
   typeof rmaItems.$inferSelect,
-  'id' | 'position' | 'model' | 'serialNumber' | 'receivedAt' | 'slaHours'
+  'id' | 'position' | 'model' | 'serialNumber'
 >;
 
 /**
- * Recebimento físico registrado pelo agente (RF07). Cada item recebido
- * inicia o próprio prazo, com a duração configurada no momento gravada no
- * item (CA07, CA15). Itens ausentes continuam sem prazo.
+ * Recebimento físico registrado pelo agente (RF07), só de itens enviados.
+ * O prazo de cada um começa depois, na entrada em diagnóstico.
  */
 @Injectable()
 export class RmaReceiptsService {
   constructor(
     @Inject(DATABASE) private readonly db: Database,
-    @Inject(ENV) private readonly env: Env,
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
     private readonly links: EmailLinks,
@@ -57,14 +52,10 @@ export class RmaReceiptsService {
         .returning();
 
       // `received_at is null` torna o recebimento de uso único: repetir ou
-      // concorrer não reinicia o prazo (CA16).
+      // concorrer não registra a chegada duas vezes (CA16).
       const received = await tx
         .update(rmaItems)
-        .set({
-          stage: 'recebido',
-          receivedAt: receipt.receivedAt,
-          slaHours: this.env.RMA_SLA_HOURS,
-        })
+        .set({ stage: 'recebido', receivedAt: receipt.receivedAt })
         .where(
           and(
             eq(rmaItems.rmaId, rma.id),
@@ -91,11 +82,7 @@ export class RmaReceiptsService {
         action: 'rma.itens_recebidos',
         entityType: 'rma',
         entityId: rma.id,
-        data: {
-          receiptId: receipt.id,
-          itemIds: request.itemIds,
-          slaHours: this.env.RMA_SLA_HOURS,
-        },
+        data: { receiptId: receipt.id, itemIds: request.itemIds },
       });
       await this.notifyRequester(tx, rma, receipt.id, received);
 
@@ -108,7 +95,7 @@ export class RmaReceiptsService {
     });
   }
 
-  /** Avisa o solicitante com o prazo de cada equipamento recebido. */
+  /** Avisa o solicitante; o prazo de cada equipamento começa no diagnóstico. */
   private async notifyRequester(
     tx: Transaction,
     rma: RmaRow,
@@ -120,11 +107,7 @@ export class RmaReceiptsService {
 
     const lines = [...items]
       .sort((a, b) => a.position - b.position)
-      .map((item) => {
-        const { dueAt } = itemSla(item.receivedAt, item.slaHours, new Date());
-        const due = dueAt ? this.links.expiry(new Date(dueAt)) : '—';
-        return `${item.model} (S/N ${item.serialNumber}): prazo até ${due}`;
-      });
+      .map((item) => `${item.model} (S/N ${item.serialNumber})`);
     await this.notifications.enqueue(tx, {
       template: 'rma_itens_recebidos',
       recipient: requester.email,

@@ -8,30 +8,38 @@ import {
 
 const HOUR_MS = 3_600_000;
 
+/** Colunas do item que guardam o prazo. */
+export interface ItemSlaFields {
+  slaStartedAt: Date | null;
+  slaHours: number | null;
+  slaFinishedAt: Date | null;
+}
+
 /**
- * Prazo do item (P01: horas corridas desde o recebimento físico). Nesta
- * etapa não há pausas; quando entrarem, o tempo pausado é descontado aqui,
- * sem um segundo relógio (A6.2).
+ * Prazo do item (P01: horas corridas desde a entrada em diagnóstico, até o
+ * envio de volta ao cliente). Depois do envio, a situação fica a daquele dia.
+ * Nesta etapa não há pausas; quando entrarem, o tempo pausado é descontado
+ * aqui, sem um segundo relógio (A6.2).
  */
-export function itemSla(
-  receivedAt: Date | null,
-  slaHours: number | null,
-  now: Date,
-): ItemSlaView {
-  if (!receivedAt || !slaHours) {
+export function itemSla(item: ItemSlaFields, now: Date): ItemSlaView {
+  const { slaStartedAt, slaHours, slaFinishedAt } = item;
+  if (!slaStartedAt || !slaHours) {
     return {
       status: 'nao_iniciado',
       startedAt: null,
       dueAt: null,
       hours: null,
+      finishedAt: null,
     };
   }
-  const dueAt = new Date(receivedAt.getTime() + slaHours * HOUR_MS);
+  const dueAt = new Date(slaStartedAt.getTime() + slaHours * HOUR_MS);
+  const measuredAt = slaFinishedAt ?? now;
   return {
-    status: now.getTime() > dueAt.getTime() ? 'atrasado' : 'no_prazo',
-    startedAt: receivedAt.toISOString(),
+    status: measuredAt.getTime() > dueAt.getTime() ? 'atrasado' : 'no_prazo',
+    startedAt: slaStartedAt.toISOString(),
     dueAt: dueAt.toISOString(),
     hours: slaHours,
+    finishedAt: slaFinishedAt?.toISOString() ?? null,
   };
 }
 

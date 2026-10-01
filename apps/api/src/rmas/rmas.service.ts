@@ -58,6 +58,7 @@ import { itemSla, rmaSla } from './sla.js';
 
 const assignee = alias(accounts, 'assignee');
 const openedBy = alias(accounts, 'opened_by');
+const cancelledBy = alias(accounts, 'cancelled_by');
 
 const HOUR_MS = 3_600_000;
 
@@ -66,7 +67,7 @@ const HOUR_MS = 3_600_000;
  * `itemSla` e o mesmo recorte de `rmaSla`.
  */
 const nextDueAt = sql`(
-  select min(${rmaItems.receivedAt} + ${rmaItems.slaHours} * interval '1 hour')
+  select min(${rmaItems.slaStartedAt} + ${rmaItems.slaHours} * interval '1 hour')
   from ${rmaItems}
   where ${rmaItems.rmaId} = ${rmas.id}
     and ${notInArray(rmaItems.stage, [...SLA_FINISHED_STAGES])}
@@ -92,13 +93,15 @@ const headerColumns = {
   closedAt: rmas.closedAt,
   cancelledAt: rmas.cancelledAt,
   cancellationReason: rmas.cancellationReason,
+  cancelledById: cancelledBy.id,
+  cancelledByName: cancelledBy.name,
 };
 
 /** Itens da lista com o prazo calculado, como no detalhe (`toItemView`). */
 function withSla(items: ItemRow[] = [], now: Date) {
   return items.map((item) => ({
     ...item,
-    sla: itemSla(item.receivedAt, item.slaHours, now),
+    sla: itemSla(item, now),
   }));
 }
 
@@ -204,6 +207,7 @@ export class RmasService {
       )
       .leftJoin(assignee, eq(assignee.id, rmas.assigneeAccountId))
       .leftJoin(openedBy, eq(openedBy.id, rmas.openedByAccountId))
+      .leftJoin(cancelledBy, eq(cancelledBy.id, rmas.cancelledByAccountId))
       .$dynamic();
   }
 

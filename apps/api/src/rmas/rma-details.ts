@@ -166,7 +166,7 @@ function toItemView(item: ItemRow, media: ItemMedia, now: Date): RmaItemView {
     stage: item.stage,
     warranty: item.warranty,
     receivedAt: item.receivedAt?.toISOString() ?? null,
-    sla: itemSla(item.receivedAt, item.slaHours, now),
+    sla: itemSla(item, now),
     ...media,
     technicalReport: item.technicalReport,
     internalNote: item.internalNote,

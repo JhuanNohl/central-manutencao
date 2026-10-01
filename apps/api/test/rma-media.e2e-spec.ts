@@ -14,6 +14,7 @@ import {
   createAccount,
   createCustomer,
   createTestApp,
+  itemAt,
   resetDatabase,
   signIn,
   type TestAgent,
@@ -108,11 +109,8 @@ describe('Vídeos do chamado: falha na abertura e validação no despacho', () =
 
   const staffDetail = async () =>
     (await agent.get(`/api/rmas/${number}`).expect(200)).body as RmaDetail;
-  const setStage = (stage: 'em_testes' | 'recebido') =>
-    ctx.db
-      .update(rmaItems)
-      .set({ stage, receivedAt: new Date(), slaHours: 720 })
-      .where(eq(rmaItems.id, itemId));
+  const setStage = (stage: 'comprovacao' | 'testes') =>
+    ctx.db.update(rmaItems).set(itemAt(stage)).where(eq(rmaItems.id, itemId));
   const attach = (who: TestAgent, fileId: string) =>
     who
       .put(`/api/rmas/${number}/items/${itemId}/validation-video`)
@@ -120,7 +118,7 @@ describe('Vídeos do chamado: falha na abertura e validação no despacho', () =
   const dispatch = () =>
     agent
       .post(`/api/rmas/${number}/stage-changes`)
-      .send({ itemIds: [itemId], stage: 'em_devolucao' });
+      .send({ itemIds: [itemId], stage: 'devolucao' });
 
   describe('vídeo da falha', () => {
     it('fica junto das fotos do item, nas duas visões', async () => {
@@ -169,15 +167,15 @@ describe('Vídeos do chamado: falha na abertura e validação no despacho', () =
   });
 
   describe('vídeo de validação', () => {
-    it('só é gravado nas etapas finais', async () => {
-      await setStage('recebido');
+    it('só é anexado na comprovação', async () => {
+      await setStage('testes');
       const fileId = await upload(agent, 'video_validacao', 'ok.mp4', MP4);
       const res = await attach(agent, fileId).expect(409);
-      expect(res.body.error.message).toContain('em testes');
+      expect(res.body.error.message).toContain('Comprovação');
     });
 
     it('fica no item com quem gravou; o cliente vê o vídeo, não a conta', async () => {
-      await setStage('em_testes');
+      await setStage('comprovacao');
       const fileId = await upload(agent, 'video_validacao', 'ok.mp4', MP4);
       const res = await attach(agent, fileId).expect(200);
       expect(res.body as ValidationVideoView).toMatchObject({
@@ -196,7 +194,7 @@ describe('Vídeos do chamado: falha na abertura e validação no despacho', () =
     });
 
     it('um novo vídeo substitui o anterior, citado no histórico', async () => {
-      await setStage('em_testes');
+      await setStage('comprovacao');
       const first = await upload(agent, 'video_validacao', 'a.mp4', MP4);
       const second = await upload(agent, 'video_validacao', 'b.mp4', MP4);
       await attach(agent, first).expect(200);
@@ -216,7 +214,7 @@ describe('Vídeos do chamado: falha na abertura e validação no despacho', () =
     });
 
     it('recusa arquivo de outra finalidade e quem só consulta', async () => {
-      await setStage('em_testes');
+      await setStage('comprovacao');
       const failureVideo = await upload(agent, 'video_item', 'x.mp4', MP4);
       const res = await attach(agent, failureVideo).expect(400);
       expect(res.body.error.issues[0].path).toBe('fileId');
@@ -224,26 +222,19 @@ describe('Vídeos do chamado: falha na abertura e validação no despacho', () =
     });
 
     it('é exigido para o despacho de cada equipamento', async () => {
-      await ctx.db
-        .update(rmaItems)
-        .set({
-          stage: 'pronto_para_devolucao',
-          receivedAt: new Date(),
-          slaHours: 720,
-        })
-        .where(eq(rmaItems.id, itemId));
+      await setStage('comprovacao');
       const refused = await dispatch().expect(409);
       expect(refused.body.error.issues).toEqual([
         {
           path: 'itemIds.0',
-          message: 'Anexe o vídeo de validação deste equipamento',
+          message: 'Anexe o vídeo de comprovação deste equipamento',
         },
       ]);
 
       const fileId = await upload(agent, 'video_validacao', 'ok.mp4', MP4);
       await attach(agent, fileId).expect(200);
       await dispatch().expect(201);
-      expect((await staffDetail()).items[0].stage).toBe('em_devolucao');
+      expect((await staffDetail()).items[0].stage).toBe('devolucao');
     });
   });
 });

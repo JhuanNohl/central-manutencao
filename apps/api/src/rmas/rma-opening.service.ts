@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
   isStaffRole,
+  STAFF_OPENING_STAGE,
   type FieldIssue,
   type FilePurpose,
   type InvoiceValidation,
@@ -13,6 +14,8 @@ import { and, eq } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service.js';
 import { ApiException } from '../common/http/api-exception.js';
 import { isUniqueViolation } from '../common/http/exception.filter.js';
+import { ENV } from '../config/config.module.js';
+import type { Env } from '../config/env.js';
 import { DATABASE } from '../database/database.module.js';
 import type { Database, Transaction } from '../database/database.types.js';
 import {
@@ -35,6 +38,7 @@ import {
   type RmaCustomer,
   type RmaRequester,
 } from './rma-customer.js';
+import { recordReceipt } from './rma-movements.js';
 
 /** A equipe informa cliente e solicitante; o portal usa o próprio cadastro. */
 type OpeningRequest = OpenOwnRmaRequest &
@@ -58,6 +62,8 @@ interface FileClaim {
 const initialWarranty = (requested: boolean): WarrantyStatus =>
   requested ? 'em_analise' : 'nao_solicitada';
 
+const HOUR_MS = 3_600_000;
+
 const itemsLabel = (count: number) =>
   count === 1 ? '1 equipamento' : `${count} equipamentos`;
 
@@ -70,6 +76,7 @@ const itemsLabel = (count: number) =>
 export class RmaOpeningService {
   constructor(
     @Inject(DATABASE) private readonly db: Database,
+    @Inject(ENV) private readonly env: Env,
     private readonly files: FilesService,
     private readonly invoices: InvoiceValidationService,
     private readonly audit: AuditService,
@@ -172,6 +179,9 @@ export class RmaOpeningService {
     auth: AuthContext,
     { request, customer, requester, invoice }: OpeningPlan,
   ): Promise<OpenRmaResponse> {
+    // Pela equipe, o equipamento já está na fábrica (fluxo de 01/10/2026).
+    const atFactory = isStaffRole(auth.account.role);
+    const openedAt = new Date();
     const [rma] = await tx
       .insert(rmas)
       .values({
@@ -195,6 +205,7 @@ export class RmaOpeningService {
           warrantyRequested: item.warrantyRequested,
           warranty: initialWarranty(item.warrantyRequested),
           videoFileId: item.videoId ?? null,
+          ...(atFactory ? this.factoryEntry(openedAt) : {}),
         })),
       )
       .returning({ id: rmaItems.id, position: rmaItems.position });
@@ -223,6 +234,15 @@ export class RmaOpeningService {
       ...this.documentClaims(request),
     ]);
 
+    if (atFactory) {
+      await recordReceipt(tx, {
+        rmaId: rma.id,
+        receivedByAccountId: auth.account.id,
+        receivedAt: openedAt,
+        itemIds,
+      });
+    }
+
     const photos = request.items.flatMap((item, index) =>
       item.photoIds.map((fileId, photoIndex) => ({
         itemId: itemIds[index],
@@ -246,18 +266,36 @@ export class RmaOpeningService {
       },
     });
     await this.notifications.enqueue(tx, {
-      template: 'rma_aberto',
+      template: atFactory ? 'rma_aberto_na_fabrica' : 'rma_aberto',
       recipient: requester.email,
       payload: {
         name: requester.name,
         number: String(rma.number),
         itemsLabel: itemsLabel(items.length),
         link: this.links.portalRma(rma.number),
+        ...(atFactory && {
+          dueAtLabel: this.links.expiry(
+            new Date(openedAt.getTime() + this.env.RMA_SLA_HOURS * HOUR_MS),
+          ),
+        }),
       },
       origin: `rma:${rma.id}`,
       dedupeKey: `rma_aberto:${rma.id}`,
     });
     return { number: rma.number };
+  }
+
+  /**
+   * Item aberto pela equipe: recebido na abertura e já em diagnóstico, com o
+   * prazo iniciado e a duração configurada gravada no item (CA15).
+   */
+  private factoryEntry(openedAt: Date) {
+    return {
+      stage: STAFF_OPENING_STAGE,
+      receivedAt: openedAt,
+      slaStartedAt: openedAt,
+      slaHours: this.env.RMA_SLA_HOURS,
+    };
   }
 
   private documentClaims(request: OpeningRequest): FileClaim[] {

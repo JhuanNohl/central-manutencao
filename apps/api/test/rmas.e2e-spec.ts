@@ -5,13 +5,12 @@ import {
   createAccount,
   createCustomer,
   createTestApp,
+  itemAt,
   resetDatabase,
   signIn,
   type TestAgent,
   type TestContext,
 } from './support.js';
-
-const HOUR_MS = 3_600_000;
 
 describe('Chamados (visão da equipe)', () => {
   let ctx: TestContext;
@@ -63,13 +62,7 @@ describe('Chamados (visão da equipe)', () => {
         model: item.model,
         serialNumber: item.serial,
         reportedFailure: 'Não liga',
-        stage: item.stage,
-        receivedAt: ['aguardando_envio', 'em_transporte'].includes(item.stage)
-          ? null
-          : new Date(Date.now() - (item.receivedHoursAgo ?? 0) * HOUR_MS),
-        slaHours: ['aguardando_envio', 'em_transporte'].includes(item.stage)
-          ? null
-          : 720,
+        ...itemAt(item.stage, item.receivedHoursAgo ?? 0),
         internalNote: item.note ?? null,
       })),
     );
@@ -114,7 +107,7 @@ describe('Chamados (visão da equipe)', () => {
     });
     const second = await createRma({
       customerId: beta.customerId,
-      items: [{ model: 'VR10', serial: 'SIM-VR-9', stage: 'em_transporte' }],
+      items: [{ model: 'VR10', serial: 'SIM-VR-9', stage: 'enviado' }],
     });
     return { first, second };
   }
@@ -141,8 +134,8 @@ describe('Chamados (visão da equipe)', () => {
       itemCount: 3,
       stages: [
         { stage: 'recebido', count: 1 },
-        { stage: 'aguardando_peca', count: 1 },
         { stage: 'em_manutencao', count: 1 },
+        { stage: 'aguardando_peca', count: 1 },
       ],
     });
   });
@@ -180,7 +173,7 @@ describe('Chamados (visão da equipe)', () => {
       ],
     });
     const onTime = await createRma(received(10));
-    const dispatched = await createRma(received(740, 'em_devolucao'));
+    const dispatched = await createRma(received(740, 'devolucao'));
     const unassigned = await createRma({
       customerId,
       items: [{ model: 'VR10', serial: 'SIM-X', stage: 'aguardando_envio' }],
@@ -222,7 +215,7 @@ describe('Chamados (visão da equipe)', () => {
       (await listOf(query)).items.map((r) => r.number);
 
     expect(await numbers('?stage=aguardando_peca')).toEqual([first]);
-    expect(await numbers('?stage=em_transporte')).toEqual([second]);
+    expect(await numbers('?stage=enviado')).toEqual([second]);
     expect(await numbers('?priority=urgente')).toEqual([first]);
     expect(await numbers('?assignee=meus')).toEqual([first]);
     expect(await numbers('?assignee=sem_responsavel')).toEqual([second]);

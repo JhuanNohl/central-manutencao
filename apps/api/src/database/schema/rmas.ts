@@ -58,6 +58,10 @@ export const rmas = pgTable(
     /** Cancelamento com motivo: encerra o chamado sem apagar nada. */
     cancelledAt: instant('cancelled_at'),
     cancellationReason: text('cancellation_reason'),
+    /** Quem cancelou, documentado para eventuais contestações. */
+    cancelledByAccountId: uuid('cancelled_by_account_id').references(
+      () => accounts.id,
+    ),
   },
   (t) => [
     uniqueIndex('rmas_number_key').on(t.number),
@@ -94,10 +98,14 @@ export const rmaItems = pgTable(
     stage: text('stage', { enum: RMA_ITEM_STAGES })
       .notNull()
       .default('aguardando_envio'),
-    /** Recebimento físico registrado pelo agente; é o início do prazo do item. */
+    /** Recebimento físico registrado pelo agente. */
     receivedAt: instant('received_at'),
-    /** Prazo aplicado no recebimento, em horas; mudanças de configuração não o alteram. */
+    /** Início do prazo, na entrada em diagnóstico (SLA_START_STAGE). */
+    slaStartedAt: instant('sla_started_at'),
+    /** Prazo aplicado no início, em horas; mudanças de configuração não o alteram. */
     slaHours: integer('sla_hours'),
+    /** Fim do prazo, no envio de volta ao cliente (devolução). */
+    slaFinishedAt: instant('sla_finished_at'),
     /** Vídeo da falha enviado na abertura, opcional. */
     videoFileId: uuid('video_file_id').references(() => files.id),
     technicalReport: text('technical_report'),
@@ -114,11 +122,19 @@ export const rmaItems = pgTable(
     check('rma_items_warranty_valid', oneOf(t.warranty, WARRANTY_STATUSES)),
     check(
       'rma_items_received_before_stage',
-      sql`${t.stage} in ('aguardando_envio', 'em_transporte') or ${t.receivedAt} is not null`,
+      sql`${t.stage} in ('aguardando_envio', 'enviado') or ${t.receivedAt} is not null`,
     ),
     check(
-      'rma_items_sla_with_receipt',
-      sql`(${t.receivedAt} is null) = (${t.slaHours} is null) and (${t.slaHours} is null or ${t.slaHours} > 0)`,
+      'rma_items_sla_started_consistent',
+      sql`(${t.slaStartedAt} is null) = (${t.slaHours} is null) and (${t.slaHours} is null or ${t.slaHours} > 0)`,
+    ),
+    check(
+      'rma_items_sla_from_diagnosis',
+      sql`${t.stage} in ('aguardando_envio', 'enviado', 'recebido') or ${t.slaStartedAt} is not null`,
+    ),
+    check(
+      'rma_items_sla_finished_on_dispatch',
+      sql`(${t.stage} in ('devolucao', 'finalizado')) = (${t.slaFinishedAt} is not null)`,
     ),
   ],
 );

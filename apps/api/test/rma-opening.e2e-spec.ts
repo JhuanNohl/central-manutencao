@@ -366,6 +366,32 @@ describe('Abertura de RMA e consulta no portal', () => {
       await client.get(`/api/portal/rmas/${res.body.number}`).expect(200);
     });
 
+    it('o equipamento já está na fábrica: começa em diagnóstico, com o prazo correndo', async () => {
+      const body = {
+        ...(await minimalBody(agent)),
+        customerId,
+        requesterContactId: contactId,
+      };
+      const res = await agent.post('/api/rmas').send(body).expect(201);
+      const detail = (await agent.get(`/api/rmas/${res.body.number}`))
+        .body as RmaDetail;
+      expect(detail.items[0]).toMatchObject({
+        stage: 'em_diagnostico',
+        sla: { status: 'no_prazo', hours: 720 },
+      });
+      expect(detail.items[0].receivedAt).not.toBeNull();
+      expect(detail.receipts).toHaveLength(1);
+      expect(detail.receipts[0].receivedBy?.name).toBe('agente');
+
+      const [notice] = await ctx.db
+        .select()
+        .from(notifications)
+        .where(eq(notifications.template, 'rma_aberto_na_fabrica'));
+      expect(notice.payload).toMatchObject({
+        dueAtLabel: expect.stringMatching(/^\d{2}\/\d{2}\/\d{4}/),
+      });
+    });
+
     it('recusa solicitante de outro cliente', async () => {
       const other = await createCustomer(ctx.db, {
         document: cnpj('222222220001'),

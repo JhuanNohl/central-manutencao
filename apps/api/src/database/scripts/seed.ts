@@ -5,11 +5,14 @@
  * Cada bloco só é inserido se a respectiva tabela estiver vazia, de modo que
  * rodar de novo acrescenta o que falta sem duplicar nem apagar contas de teste.
  */
-import type {
-  RmaItemStage,
-  RmaPriority,
-  Role,
-  WarrantyStatus,
+import {
+  RMA_ITEM_STAGES,
+  SLA_FINISHED_STAGES,
+  SLA_START_STAGE,
+  type RmaItemStage,
+  type RmaPriority,
+  type Role,
+  type WarrantyStatus,
 } from '@central/contracts';
 import { eq, inArray, sql } from 'drizzle-orm';
 import { hashPassword } from '../../common/crypto/passwords.js';
@@ -162,7 +165,7 @@ const RMAS: SeedRma[] = [
         model: 'ProFace X',
         serialNumber: 'SIM-PX-000201',
         reportedFailure: 'Não liga',
-        stage: 'em_transporte',
+        stage: 'enviado',
         warranty: 'em_analise',
       },
     ],
@@ -183,7 +186,7 @@ const RMAS: SeedRma[] = [
         model: 'VR10',
         serialNumber: 'SIM-VR-000301',
         reportedFailure: 'Reinicia sozinho',
-        stage: 'pronto_para_devolucao',
+        stage: 'comprovacao',
         warranty: 'coberta',
         receivedDaysAgo: 16,
         technicalReport:
@@ -215,7 +218,7 @@ const RMAS: SeedRma[] = [
         model: 'MB460',
         serialNumber: 'SIM-MB-000402',
         reportedFailure: 'Teclado com teclas travadas',
-        stage: 'em_testes',
+        stage: 'testes',
         receivedDaysAgo: 4,
       },
     ],
@@ -231,7 +234,7 @@ const RMAS: SeedRma[] = [
         model: 'SC700',
         serialNumber: 'SIM-SC-000501',
         reportedFailure: 'Relé não aciona a fechadura',
-        stage: 'entregue',
+        stage: 'finalizado',
         warranty: 'nao_coberta',
         receivedDaysAgo: 30,
         technicalReport: 'Relé substituído.',
@@ -240,7 +243,7 @@ const RMAS: SeedRma[] = [
         model: 'SC700',
         serialNumber: 'SIM-SC-000502',
         reportedFailure: 'Relé não aciona a fechadura',
-        stage: 'em_devolucao',
+        stage: 'devolucao',
         warranty: 'nao_coberta',
         receivedDaysAgo: 30,
         technicalReport: 'Relé substituído.',
@@ -307,6 +310,24 @@ async function seedIdentity(db: Database): Promise<void> {
   ]);
 }
 
+/** O prazo começa no diagnóstico e termina no despacho, como na aplicação. */
+function slaOf(
+  item: { stage: RmaItemStage; receivedDaysAgo?: number },
+  updatedDaysAgo: number,
+) {
+  const diagnosed =
+    item.receivedDaysAgo !== undefined &&
+    RMA_ITEM_STAGES.indexOf(item.stage) >=
+      RMA_ITEM_STAGES.indexOf(SLA_START_STAGE);
+  return {
+    slaStartedAt: diagnosed ? daysAgo(item.receivedDaysAgo ?? 0) : null,
+    slaHours: diagnosed ? env.RMA_SLA_HOURS : null,
+    slaFinishedAt: SLA_FINISHED_STAGES.includes(item.stage)
+      ? daysAgo(updatedDaysAgo)
+      : null,
+  };
+}
+
 async function seedRmas(db: Database): Promise<void> {
   const documents = [...new Set(RMAS.map((rma) => rma.customerDocument))];
   const customerRows = await db
@@ -358,8 +379,7 @@ async function seedRmas(db: Database): Promise<void> {
             item.receivedDaysAgo === undefined
               ? null
               : daysAgo(item.receivedDaysAgo),
-          slaHours:
-            item.receivedDaysAgo === undefined ? null : env.RMA_SLA_HOURS,
+          ...slaOf(item, seed.updatedDaysAgo),
           technicalReport: item.technicalReport ?? null,
           internalNote: item.internalNote ?? null,
         })),

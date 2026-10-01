@@ -35,7 +35,7 @@ export async function findOwnRma(
 /**
  * Bloqueia o RMA até o fim da transação. Toda operação que muda o chamado ou
  * os itens passa por aqui, então cancelamento, recebimento e mudança de
- * etapa não se cruzam. Chamado encerrado (cancelado ou entregue) não muda mais.
+ * etapa não se cruzam. Chamado encerrado (cancelado ou finalizado) não muda mais.
  */
 export async function lockOpenRma(
   db: Executor,

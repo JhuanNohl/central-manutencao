@@ -18,6 +18,7 @@ import {
   createAccount,
   createCustomer,
   createTestApp,
+  itemAt,
   resetDatabase,
   signIn,
   type TestAgent,
@@ -213,9 +214,7 @@ describe('Envio pelo celular por QR Code', () => {
           model: 'MB460',
           serialNumber: 'SIM-MB-1',
           reportedFailure: 'Teclado travado',
-          stage: 'em_testes',
-          receivedAt: new Date(),
-          slaHours: 720,
+          ...itemAt('comprovacao'),
         })
         .returning();
       number = rma.number;
@@ -262,7 +261,7 @@ describe('Envio pelo celular por QR Code', () => {
       await validationSession(client).expect(403);
     });
 
-    it('fora das etapas finais, não gera o código nem anexa', async () => {
+    it('fora da comprovação, não gera o código nem anexa', async () => {
       const token = tokenOf(
         (await validationSession().expect(201)).body as UploadSessionCreated,
       );

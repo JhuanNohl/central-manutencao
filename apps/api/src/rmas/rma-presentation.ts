@@ -4,6 +4,7 @@ import {
   type RmaItemStage,
   type RmaStageCount,
 } from '@central/contracts';
+import { reference } from '../common/mapping.js';
 
 /**
  * Assunto exibido na lista, derivado dos itens (não é digitado):
@@ -41,14 +42,20 @@ export function stageCounts(stages: RmaItemStage[]): RmaStageCount[] {
   })).filter(({ count }) => count > 0);
 }
 
-/** Cancelamento do chamado, igual na visão da equipe e na do portal. */
+/** Cancelamento do chamado: quando, por quê e, para a equipe, por quem. */
 export function cancellationOf(row: {
   cancelledAt: Date | null;
   cancellationReason: string | null;
+  cancelledById?: string | null;
+  cancelledByName?: string | null;
 }): RmaCancellationView | null {
   if (!row.cancelledAt || row.cancellationReason === null) return null;
   return {
     cancelledAt: row.cancelledAt.toISOString(),
     reason: row.cancellationReason,
+    cancelledBy: reference(
+      row.cancelledById ?? null,
+      row.cancelledByName ?? null,
+    ),
   };
 }
