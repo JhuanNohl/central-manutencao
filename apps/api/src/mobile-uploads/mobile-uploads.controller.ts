@@ -18,6 +18,7 @@ import {
 import { ApiException } from '../common/http/api-exception.js';
 import { validate } from '../common/http/zod-validation.pipe.js';
 import { decodeFileName } from '../files/files.controller.js';
+import { UploadLimits } from '../files/upload-limits.js';
 import { Public } from '../identity/decorators.js';
 import { MobileUploadsService } from './mobile-uploads.service.js';
 
@@ -40,6 +41,7 @@ export class MobileUploadsController {
 
   /** Multipart com `token`, `media` (foto ou vídeo) e o arquivo em `file`. */
   @Post('files')
+  @UploadLimits()
   @UseInterceptors(
     FileInterceptor('file', {
       limits: { fileSize: MAX_UPLOAD_BYTES, files: 1, fields: 4 },

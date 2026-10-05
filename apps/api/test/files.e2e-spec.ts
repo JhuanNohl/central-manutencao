@@ -1,4 +1,8 @@
-import { MAX_UPLOAD_BYTES, type StoredFileView } from '@central/contracts';
+import {
+  MAX_UPLOAD_BYTES,
+  TEMPORARY_FILES_QUOTA,
+  type StoredFileView,
+} from '@central/contracts';
 import { eq } from 'drizzle-orm';
 import { files } from '../src/database/schema/index.js';
 import { FilesService } from '../src/files/files.service.js';
@@ -92,6 +96,31 @@ describe('Envio de arquivos', () => {
     );
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
     expect(ctx.storage.contents.size).toBe(0);
+  });
+
+  it('limita os temporários de cada conta, sem gravar o excedente', async () => {
+    const first = (await upload(client, 'foto_item', 'a.jpg', JPEG).expect(201))
+      .body as StoredFileView;
+    const [row] = await ctx.db
+      .select()
+      .from(files)
+      .where(eq(files.id, first.id));
+    // Simula a conta já no teto de arquivos ainda não usados.
+    await ctx.db.insert(files).values(
+      Array.from({ length: TEMPORARY_FILES_QUOTA.files - 1 }, (_, index) => ({
+        ownerAccountId: row.ownerAccountId,
+        purpose: 'foto_item' as const,
+        originalName: `cheia-${index}.jpg`,
+        contentType: 'image/jpeg' as const,
+        sizeBytes: 1,
+        sha256: row.sha256,
+        storageKey: `cota/${index}`,
+      })),
+    );
+
+    const res = await upload(client, 'foto_item', 'b.jpg', JPEG).expect(409);
+    expect(res.body.error.message).toContain('limite de arquivos');
+    expect(ctx.storage.contents.size).toBe(1);
   });
 
   it('exige sessão e permissão de abertura (CA05)', async () => {

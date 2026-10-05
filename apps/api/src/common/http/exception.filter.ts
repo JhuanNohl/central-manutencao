@@ -10,6 +10,7 @@ import type { ApiErrorBody, ErrorCode } from '@central/contracts';
 import type { Response } from 'express';
 import { ApiException } from './api-exception.js';
 import { currentRequestContext } from './request-context.js';
+import { isUniqueViolation } from '../db/errors.js';
 
 const STATUS_CODES: Partial<Record<number, ErrorCode>> = {
   400: 'VALIDATION_ERROR',
@@ -26,14 +27,6 @@ const STATUS_MESSAGES: Partial<Record<number, string>> = {
   413: 'O arquivo passa do tamanho máximo aceito.',
   429: 'Muitas tentativas. Aguarde um instante e tente novamente.',
 };
-
-/** Violação de unicidade do PostgreSQL, inclusive quando embrulhada pelo Drizzle. */
-export function isUniqueViolation(error: unknown): boolean {
-  for (let e = error; e instanceof Error; e = e.cause) {
-    if ((e as { code?: string }).code === '23505') return true;
-  }
-  return false;
-}
 
 /** Converte qualquer erro para o envelope `{ error: { code, message } }`. */
 @Catch()

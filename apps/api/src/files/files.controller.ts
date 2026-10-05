@@ -23,6 +23,7 @@ import type { AuthContext } from '../identity/auth-context.js';
 import { CurrentAuth, RequireAnyPermission } from '../identity/decorators.js';
 import { sendFile } from './file-response.js';
 import { FilesService } from './files.service.js';
+import { UploadLimits } from './upload-limits.js';
 
 /**
  * O multipart chega com o nome em Latin-1; os navegadores enviam UTF-8.
@@ -40,6 +41,7 @@ export class FilesController {
   /** Multipart com um campo `file` e a finalidade em `purpose`. */
   @Post()
   @RequireAnyPermission('rma.own.create', 'rma.write')
+  @UploadLimits()
   @UseInterceptors(
     FileInterceptor('file', {
       limits: { fileSize: MAX_UPLOAD_BYTES, files: 1, fields: 4 },

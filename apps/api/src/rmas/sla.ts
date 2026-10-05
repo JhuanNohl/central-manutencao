@@ -5,8 +5,7 @@ import {
   type RmaItemStage,
   type RmaSlaView,
 } from '@central/contracts';
-
-const HOUR_MS = 3_600_000;
+import { HOUR_MS } from '../common/time/durations.js';
 
 /** Colunas do item que guardam o prazo. */
 export interface ItemSlaFields {

@@ -1,21 +1,24 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import type { FilePurpose, StoredFileView } from '@central/contracts';
-import { and, eq, isNull, lt } from 'drizzle-orm';
+import {
+  TEMPORARY_FILES_QUOTA,
+  type FilePurpose,
+  type StoredFileView,
+} from '@central/contracts';
+import { and, count, eq, isNull, lt, sum } from 'drizzle-orm';
 import type { Readable } from 'node:stream';
 import { ApiException } from '../common/http/api-exception.js';
 import { ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
 import { DATABASE } from '../database/database.module.js';
-import type { Database } from '../database/database.types.js';
+import type { Database, Executor } from '../database/database.types.js';
 import { files } from '../database/schema/index.js';
 import { checkFileContent, safeFileName } from './file-content.js';
 import type { ByteRange } from './file-range.js';
 import { FILE_STORAGE, type FileStorage } from './file-storage.js';
+import { HOUR_MS } from '../common/time/durations.js';
 
 export type FileRow = typeof files.$inferSelect;
-
-const HOUR_MS = 3_600_000;
 
 export function toFileView(row: FileRow): StoredFileView {
   return {
@@ -47,24 +50,30 @@ export class FilesService {
     @Inject(FILE_STORAGE) private readonly storage: FileStorage,
   ) {}
 
+  /**
+   * `db` é a transação de quem chama, quando houver (envio pelo celular): uma
+   * segunda conexão dentro da transação esgotaria o pool sob concorrência.
+   */
   async upload(
     ownerAccountId: string,
     purpose: FilePurpose,
     originalName: string,
     content: Buffer,
+    db: Executor = this.db,
   ): Promise<StoredFileView> {
     const name = safeFileName(originalName);
     const check = checkFileContent(purpose, name, content);
     if (!check.ok) {
       throw ApiException.validation([{ path: 'file', message: check.message }]);
     }
+    await this.ensureTemporaryQuota(db, ownerAccountId, content.length);
 
     // O conteúdo é gravado antes do registro: um registro nunca aponta para
     // um arquivo inexistente. Se o banco falhar, o conteúdo é descartado.
     const storageKey = storageKeyFor(new Date());
     await this.storage.put(storageKey, content);
     try {
-      const [row] = await this.db
+      const [row] = await db
         .insert(files)
         .values({
           ownerAccountId,
@@ -80,6 +89,28 @@ export class FilesService {
     } catch (error) {
       await this.discard(storageKey);
       throw error;
+    }
+  }
+
+  /** Verificação prévia: um envio a mais na corrida não compromete o disco. */
+  private async ensureTemporaryQuota(
+    db: Executor,
+    ownerAccountId: string,
+    incomingBytes: number,
+  ): Promise<void> {
+    const [usage] = await db
+      .select({ files: count(), bytes: sum(files.sizeBytes).mapWith(Number) })
+      .from(files)
+      .where(
+        and(eq(files.ownerAccountId, ownerAccountId), isNull(files.linkedAt)),
+      );
+    if (
+      usage.files >= TEMPORARY_FILES_QUOTA.files ||
+      (usage.bytes ?? 0) + incomingBytes > TEMPORARY_FILES_QUOTA.bytes
+    ) {
+      throw ApiException.conflict(
+        'Você atingiu o limite de arquivos enviados e ainda não usados em um atendimento. Conclua a abertura com os arquivos já enviados ou aguarde a limpeza automática.',
+      );
     }
   }
 

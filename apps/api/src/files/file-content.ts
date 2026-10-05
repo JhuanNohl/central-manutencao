@@ -58,7 +58,12 @@ export function readSafeXml(content: Buffer): string | null {
   }
   if (!text.trimStart().startsWith('<')) return null;
   if (/<!(DOCTYPE|ENTITY)/i.test(text)) return null;
-  return XMLValidator.validate(text) === true ? text : null;
+  // Estrutura patológica (aninhamento extremo) é só um XML inválido, não um erro 500.
+  try {
+    return XMLValidator.validate(text) === true ? text : null;
+  } catch {
+    return null;
+  }
 }
 
 function matchesType(type: FileContentType, content: Buffer): boolean {
@@ -99,10 +104,16 @@ export function checkFileContent(
   return { ok: true, contentType };
 }
 
-/** Nome exibido e usado no download: sem caminho nem caracteres de controle. */
+/**
+ * Nome exibido e usado no download: sem caminho, caracteres de controle nem
+ * marcas de direção do texto (que disfarçam a extensão, ex.: "foto‮gpj.exe").
+ */
 export function safeFileName(name: string): string {
   const base = name.split(/[/\\]/).pop() ?? '';
-  // eslint-disable-next-line no-control-regex
-  const clean = base.replace(/[\u0000-\u001f\u007f"]/g, '').trim();
+  const clean = base
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u001f\u007f"]/g, '')
+    .replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '')
+    .trim();
   return clean.slice(0, FILE_NAME_MAX_LENGTH) || 'arquivo';
 }

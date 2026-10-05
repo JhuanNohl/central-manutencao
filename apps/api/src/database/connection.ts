@@ -11,8 +11,19 @@ export const MIGRATIONS_FOLDER = resolve(
   '../../drizzle',
 );
 
+/**
+ * Tempos máximos do pool: uma conexão presa (consulta lenta, transação
+ * esquecida) é encerrada em vez de travar a API inteira esperando conexão.
+ */
+const POOL_LIMITS = {
+  max: 10,
+  connectionTimeoutMillis: 10_000,
+  statement_timeout: 30_000,
+  idle_in_transaction_session_timeout: 60_000,
+} as const;
+
 export function createPool(connectionString: string): pg.Pool {
-  return new pg.Pool({ connectionString, max: 10 });
+  return new pg.Pool({ connectionString, ...POOL_LIMITS });
 }
 
 export function createDatabase(pool: pg.Pool): Database {

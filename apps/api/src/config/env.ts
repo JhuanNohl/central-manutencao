@@ -27,6 +27,14 @@ const envSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASSWORD: z.string().optional(),
   MAIL_FROM: z.string().min(3),
+  // Caixa do setor de manutenção: recebe aberturas, mudanças de etapa,
+  // cancelamentos e mensagens dos clientes. Obrigatória em produção.
+  MAINTENANCE_INBOX_EMAIL: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .pipe(z.email())
+    .optional(),
   NOTIFICATIONS_WORKER_ENABLED: booleanString.default(true),
   NOTIFICATIONS_POLL_SECONDS: z.coerce.number().positive().default(5),
   NOTIFICATIONS_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
@@ -35,7 +43,16 @@ const envSchema = z.object({
   // Arquivos privados em disco local (P03); a pasta precisa entrar no backup.
   FILES_STORAGE_DIR: z.string().min(1).default('storage/files'),
   FILES_TEMP_TTL_HOURS: z.coerce.number().positive().default(24),
+  // Envios de arquivos: por IP a cada minuto e simultâneos no processo (memória).
+  UPLOAD_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(300),
+  UPLOAD_MAX_CONCURRENT: z.coerce.number().int().positive().default(8),
   FILES_CLEANUP_ENABLED: booleanString.default(true),
+  // Cloudflare Turnstile nas rotas públicas (entrar, cadastro, redefinição de
+  // senha). A chave do site é pública; a secreta fica só no servidor.
+  TURNSTILE_SITE_KEY: z.string().trim().min(1).optional(),
+  TURNSTILE_SECRET_KEY: z.string().trim().min(1).optional(),
+  // Termo de garantia da empresa (JSON), fora do repositório; em produção é obrigatório.
+  WARRANTY_TERMS_FILE: z.string().min(1).default('legal/termo-garantia.json'),
   // CNPJ que deve constar como destinatário nas notas de remessa (P04).
   INVOICE_RECIPIENT_DOCUMENT: z
     .string()
@@ -45,6 +62,29 @@ const envSchema = z.object({
 });
 
 export type Env = z.infer<typeof envSchema>;
+
+/** O que produção exige além do esquema (a aplicação fica exposta ao público). */
+const PRODUCTION_REQUIREMENTS: {
+  isMet: (env: Env) => boolean;
+  message: string;
+}[] = [
+  {
+    isMet: (env) => env.COOKIE_SECURE,
+    message: 'COOKIE_SECURE deve ser true.',
+  },
+  {
+    isMet: (env) => Boolean(env.MAINTENANCE_INBOX_EMAIL),
+    message: 'MAINTENANCE_INBOX_EMAIL é obrigatório.',
+  },
+  {
+    isMet: (env) => Boolean(env.INVOICE_RECIPIENT_DOCUMENT),
+    message: 'INVOICE_RECIPIENT_DOCUMENT é obrigatório.',
+  },
+  {
+    isMet: (env) => Boolean(env.TURNSTILE_SECRET_KEY),
+    message: 'TURNSTILE_SITE_KEY e TURNSTILE_SECRET_KEY são obrigatórias.',
+  },
+];
 
 /** Carrega `.env` (se existir) sem sobrescrever variáveis já definidas. */
 export function loadEnvFile(path = '.env'): void {
@@ -60,11 +100,17 @@ export function parseEnv(source: NodeJS.ProcessEnv = process.env): Env {
     throw new Error(`Configuração inválida:\n${details}`);
   }
   const env = result.data;
-  if (env.NODE_ENV === 'production' && !env.COOKIE_SECURE) {
-    throw new Error('Em produção, COOKIE_SECURE deve ser true.');
+  if (Boolean(env.TURNSTILE_SITE_KEY) !== Boolean(env.TURNSTILE_SECRET_KEY)) {
+    throw new Error(
+      'Informe TURNSTILE_SITE_KEY e TURNSTILE_SECRET_KEY juntas, ou nenhuma.',
+    );
   }
-  if (env.NODE_ENV === 'production' && !env.INVOICE_RECIPIENT_DOCUMENT) {
-    throw new Error('Em produção, INVOICE_RECIPIENT_DOCUMENT é obrigatório.');
+  if (env.NODE_ENV !== 'production') return env;
+  const missing = PRODUCTION_REQUIREMENTS.filter((rule) => !rule.isMet(env));
+  if (missing.length > 0) {
+    throw new Error(
+      `Em produção:\n${missing.map((rule) => `  - ${rule.message}`).join('\n')}`,
+    );
   }
   return env;
 }

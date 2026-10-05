@@ -242,6 +242,10 @@ describe('Chamados (visão da equipe)', () => {
   it('chamado inexistente responde 404', async () => {
     const res = await agent.get('/api/rmas/999999').expect(404);
     expect(res.body.error.code).toBe('NOT_FOUND');
+    // Fora do tipo da coluna ou do formato: também 404, sem erro no banco.
+    await agent.get('/api/rmas/99999999999').expect(404);
+    await agent.get('/api/rmas/0').expect(404);
+    await agent.get('/api/rmas/1e3').expect(404);
   });
 
   it('cliente não acessa a visão da equipe', async () => {

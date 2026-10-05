@@ -8,8 +8,9 @@ import {
 import { ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
 import { FilesService } from './files.service.js';
+import { HOUR_MS } from '../common/time/durations.js';
 
-const CLEANUP_INTERVAL_MS = 3_600_000;
+const CLEANUP_INTERVAL_MS = HOUR_MS;
 
 /** Remove de hora em hora os arquivos enviados e nunca vinculados (5.3). */
 @Injectable()

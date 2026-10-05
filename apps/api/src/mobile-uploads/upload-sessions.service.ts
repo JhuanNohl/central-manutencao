@@ -18,13 +18,12 @@ import { EmailLinks } from '../notifications/email-links.js';
 import { VALIDATION_VIDEO_STAGE_MESSAGE } from '../rmas/rma-validation-videos.service.js';
 import { sessionFiles, type SessionRow } from './upload-session-queries.js';
 import { sessionStatus } from './upload-session-rules.js';
+import { MINUTE_MS } from '../common/time/durations.js';
 
 type SessionTarget = Pick<
   SessionRow,
   'label' | 'rmaItemId' | 'photoLimit' | 'videoLimit'
 >;
-
-const MINUTE_MS = 60_000;
 
 /**
  * QR Code de envio pelo celular, do lado do computador: gera a sessão de

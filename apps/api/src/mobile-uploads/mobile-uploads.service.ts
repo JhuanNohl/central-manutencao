@@ -77,7 +77,13 @@ export class MobileUploadsService {
         throw ApiException.conflict(LIMIT_REACHED[media]);
       }
       const owner = await this.activeOwner(tx, session);
-      const stored = await this.files.upload(owner.id, purpose, name, content);
+      const stored = await this.files.upload(
+        owner.id,
+        purpose,
+        name,
+        content,
+        tx,
+      );
       await tx
         .insert(uploadSessionFiles)
         .values({ sessionId: session.id, fileId: stored.id });

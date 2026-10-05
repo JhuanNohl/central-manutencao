@@ -4,7 +4,6 @@ import {
   Get,
   Headers,
   Param,
-  ParseIntPipe,
   ParseUUIDPipe,
   Patch,
   Post,
@@ -44,6 +43,7 @@ import { RmaOpeningService } from './rma-opening.service.js';
 import { RmaReceiptsService } from './rma-receipts.service.js';
 import { RmaStagesService } from './rma-stages.service.js';
 import { RmaValidationVideosService } from './rma-validation-videos.service.js';
+import { RmaNumberPipe } from './rma-number.pipe.js';
 import { RmasService } from './rmas.service.js';
 
 /** Chamados na visão da equipe. */
@@ -88,16 +88,16 @@ export class RmasController {
 
   /** Pelo número público (o mesmo exibido como "#100001"). */
   @Get(':number')
-  get(@Param('number', ParseIntPipe) number: number) {
+  get(@Param('number', RmaNumberPipe) number: number) {
     return this.rmas.get(number);
   }
 
-  /** Registra os itens fisicamente recebidos; cada um inicia o prazo (RF07). */
+  /** Registra os itens fisicamente recebidos; o prazo começa no diagnóstico (RF07). */
   @Post(':number/receipts')
   @RequirePermissions('rma.receive')
   registerReceipt(
     @CurrentAuth() auth: AuthContext,
-    @Param('number', ParseIntPipe) number: number,
+    @Param('number', RmaNumberPipe) number: number,
     @Body(validate(registerReceiptSchema)) body: RegisterReceiptRequest,
   ) {
     return this.receipts.register(auth, number, body);
@@ -108,7 +108,7 @@ export class RmasController {
   @RequirePermissions('rma.write')
   assign(
     @CurrentAuth() auth: AuthContext,
-    @Param('number', ParseIntPipe) number: number,
+    @Param('number', RmaNumberPipe) number: number,
     @Body(validate(assignRmaSchema)) body: AssignRmaRequest,
   ) {
     return this.management.assign(auth, number, body);
@@ -118,18 +118,18 @@ export class RmasController {
   @RequirePermissions('rma.write')
   changePriority(
     @CurrentAuth() auth: AuthContext,
-    @Param('number', ParseIntPipe) number: number,
+    @Param('number', RmaNumberPipe) number: number,
     @Body(validate(changePrioritySchema)) body: ChangePriorityRequest,
   ) {
     return this.management.changePriority(auth, number, body);
   }
 
-  /** Encerra sem apagar, antes de algum equipamento chegar à fábrica. */
+  /** Encerra sem apagar, com motivo, até o despacho do primeiro equipamento. */
   @Post(':number/cancellation')
   @RequirePermissions('rma.write')
   cancel(
     @CurrentAuth() auth: AuthContext,
-    @Param('number', ParseIntPipe) number: number,
+    @Param('number', RmaNumberPipe) number: number,
     @Body(validate(cancelRmaSchema)) body: CancelRmaRequest,
   ) {
     return this.management.cancel(auth, number, body);
@@ -140,7 +140,7 @@ export class RmasController {
   @RequirePermissions('rma.write')
   changeStage(
     @CurrentAuth() auth: AuthContext,
-    @Param('number', ParseIntPipe) number: number,
+    @Param('number', RmaNumberPipe) number: number,
     @Body(validate(changeItemStageSchema)) body: ChangeItemStageRequest,
   ) {
     return this.stages.change(auth, number, body);
@@ -151,7 +151,7 @@ export class RmasController {
   @RequirePermissions('rma.write')
   attachValidationVideo(
     @CurrentAuth() auth: AuthContext,
-    @Param('number', ParseIntPipe) number: number,
+    @Param('number', RmaNumberPipe) number: number,
     @Param('itemId', ParseUUIDPipe) itemId: string,
     @Body(validate(attachValidationVideoSchema))
     body: AttachValidationVideoRequest,
@@ -162,7 +162,7 @@ export class RmasController {
   @Get(':number/messages')
   listMessages(
     @CurrentAuth() auth: AuthContext,
-    @Param('number', ParseIntPipe) number: number,
+    @Param('number', RmaNumberPipe) number: number,
   ) {
     return this.messages.listForStaff(auth, number);
   }
@@ -171,7 +171,7 @@ export class RmasController {
   @RequirePermissions('rma.write')
   sendMessage(
     @CurrentAuth() auth: AuthContext,
-    @Param('number', ParseIntPipe) number: number,
+    @Param('number', RmaNumberPipe) number: number,
     @Body(validate(sendRmaMessageSchema)) body: SendRmaMessageRequest,
   ) {
     return this.messages.sendAsStaff(auth, number, body);
@@ -180,7 +180,7 @@ export class RmasController {
   /** Foto, vídeo ou documento do chamado. */
   @Get(':number/files/:fileId')
   async file(
-    @Param('number', ParseIntPipe) number: number,
+    @Param('number', RmaNumberPipe) number: number,
     @Param('fileId', ParseUUIDPipe) fileId: string,
     @Headers('range') range: string | undefined,
     @Res() response: Response,

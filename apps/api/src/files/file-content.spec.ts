@@ -95,4 +95,9 @@ describe('safeFileName', () => {
     expect(safeFileName('../../etc/passwd')).toBe('passwd');
     expect(safeFileName('\u0000')).toBe('arquivo');
   });
+
+  it('remove as marcas de direção que disfarçam a extensão', () => {
+    expect(safeFileName('foto\u202Egpj.exe')).toBe('fotogpj.exe');
+    expect(safeFileName('\u2066nota\u2069.xml')).toBe('nota.xml');
+  });
 });
