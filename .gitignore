@@ -16,3 +16,11 @@ Escopo-*.md
 apps/web/public/brand/
 /ZKTeco_logo-*.png
 /favicon.png
+
+# Termo de garantia da empresa: texto real mantido só localmente e no servidor.
+/Aceite.txt
+apps/api/legal/termo-garantia.json
+
+# Configuração local da homologação em contêineres (senhas).
+docker/*.env
+/caddy-homologacao.crt

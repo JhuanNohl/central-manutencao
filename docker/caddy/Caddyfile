@@ -1,0 +1,55 @@
+# Uma só origem para o portal e a API, como exige o cookie de sessão.
+# SITE_ADDRESS é o APP_ORIGIN da API, ex.: https://192.168.0.10:8443.
+{
+	# Rede interna, sem domínio público: certificado da CA local do Caddy.
+	auto_https disable_redirects
+	# Acesso pelo IP não envia o nome do servidor (SNI) no TLS.
+	default_sni {$SITE_HOST}
+
+	# Conexões lentas de propósito (slowloris) não seguram o servidor.
+	servers {
+		timeouts {
+			read_header 10s
+			read_body 5m
+			write 5m
+			idle 2m
+		}
+	}
+}
+
+(security_headers) {
+	header {
+		# Só recursos da própria origem; o Turnstile (anti-robô) vem da Cloudflare.
+		Content-Security-Policy "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; connect-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		-Server
+	}
+}
+
+{$SITE_ADDRESS} {
+	tls internal
+	encode zstd gzip
+	import security_headers
+
+	handle /api/* {
+		# Maior arquivo aceito (vídeo de 100 MB) com folga para o multipart.
+		request_body {
+			max_size 110MB
+		}
+		reverse_proxy api:3000
+	}
+
+	handle {
+		root * /srv
+		# Arquivos do build levam o hash no nome: podem ficar em cache.
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		# Rotas do SPA caem no index.html.
+		try_files {path} /index.html
+		file_server
+	}
+}

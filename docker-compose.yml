@@ -10,8 +10,9 @@ services:
       POSTGRES_PASSWORD: central
       POSTGRES_DB: central
       TZ: UTC
+    # Só nesta máquina: senha de desenvolvimento conhecida.
     ports:
-      - '5433:5432'
+      - '127.0.0.1:5433:5432'
     volumes:
       - pgdata:/var/lib/postgresql
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
@@ -25,8 +26,8 @@ services:
   mailpit:
     image: axllent/mailpit:latest
     ports:
-      - '1025:1025'
-      - '8025:8025'
+      - '127.0.0.1:1025:1025'
+      - '127.0.0.1:8025:8025'
     healthcheck:
       test: ['CMD', '/mailpit', 'readyz']
       interval: 2s

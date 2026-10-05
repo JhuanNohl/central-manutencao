@@ -1,0 +1,23 @@
+# Contexto de build das imagens: só o código. Nada de dependências locais,
+# segredos, dados ou documentos internos.
+**/node_modules
+**/dist
+**/coverage
+**/*.tsbuildinfo
+**/*.log
+.git
+.claude
+**/.env
+**/.env.*
+!**/.env.example
+docker/*.env
+apps/api/storage
+
+# Documentos internos e termo da empresa: o termo é montado no contêiner, não
+# entra na imagem. Os ativos da marca (apps/web/public/brand) entram no build
+# local da web, como no `npm run build`.
+Escopo-*.md
+Aceite.txt
+apps/api/legal/termo-garantia.json
+/ZKTeco_logo-*.png
+/favicon.png

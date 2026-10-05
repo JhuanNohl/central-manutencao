@@ -1,0 +1,99 @@
+# Homologação interna: a aplicação inteira em contêineres, com a mesma
+# configuração de produção (NODE_ENV=production, HTTPS e cookie seguro).
+#   npm run homolog:up      (usa docker/homologacao.env)
+# Separado do docker-compose.yml de desenvolvimento: outro projeto, outros
+# volumes e outras portas, para os dois poderem rodar juntos.
+name: central-homologacao
+
+x-api-image: &api-image
+  image: central-manutencao-api:homologacao
+  env_file: docker/homologacao.env
+  environment:
+    DATABASE_URL: postgres://central:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/central
+    APP_ORIGIN: https://${APP_HOST:?defina APP_HOST}:${HTTPS_PORT:-8443}
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: central
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
+      POSTGRES_DB: central
+      TZ: UTC
+    # Só nesta máquina: acesso para importar os dados do sistema atual.
+    ports:
+      - '127.0.0.1:${POSTGRES_PORT:-5434}:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U central -d central']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  # Caixa de teste: os e-mails ficam em http://localhost:8026 em vez de sair
+  # para os clientes. Para enviar de verdade, troque o SMTP_* no homologacao.env.
+  # Só nesta máquina: a caixa mostra links de redefinição e senhas provisórias.
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - '127.0.0.1:${MAILPIT_PORT:-8026}:8025'
+    healthcheck:
+      test: ['CMD', '/mailpit', 'readyz']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  # Aplica as migrations e termina; a API só sobe depois.
+  migrate:
+    <<: *api-image
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: api
+    command: ['node', 'dist/database/scripts/migrate.js']
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  api:
+    <<: *api-image
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      mailpit:
+        condition: service_healthy
+    volumes:
+      - files:/app/apps/api/storage/files
+      # Termo de garantia da empresa, fora da imagem (WARRANTY_TERMS_FILE).
+      - ./apps/api/legal:/app/apps/api/legal:ro
+    restart: unless-stopped
+
+  web:
+    image: central-manutencao-web:homologacao
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: web
+    environment:
+      SITE_ADDRESS: https://${APP_HOST:?defina APP_HOST}:${HTTPS_PORT:-8443}
+      SITE_HOST: ${APP_HOST}
+    ports:
+      - '${HTTPS_PORT:-8443}:${HTTPS_PORT:-8443}'
+    volumes:
+      # CA local e certificados do Caddy: preservados entre reinícios.
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  files:
+  caddy-data:
+  caddy-config:

@@ -15,6 +15,9 @@
   "scripts": {
     "infra:up": "docker compose up -d --wait",
     "infra:down": "docker compose down",
+    "homolog": "docker compose -f docker-compose.homologacao.yml --env-file docker/homologacao.env",
+    "homolog:up": "npm run homolog -- up -d --build --wait",
+    "homolog:down": "npm run homolog -- down",
     "build:contracts": "npm run build -w @central/contracts",
     "build": "npm run build:contracts && npm run build -w @central/api && npm run build -w @central/web",
     "dev": "npm run build:contracts && npm run dev:all",
