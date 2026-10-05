@@ -1,3 +1,4 @@
+import { randomInt } from 'node:crypto';
 import argon2 from 'argon2';
 
 // Argon2id com parâmetros recomendados pela OWASP (19 MiB, 2 iterações).
@@ -23,6 +24,25 @@ export async function verifyPassword(
   }
 }
 
+/** Sem 0/O, 1/l/I: a senha provisória é lida no e-mail e digitada. */
+const TEMPORARY_PASSWORD_ALPHABET =
+  'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+const TEMPORARY_PASSWORD_LENGTH = 12;
+
+/**
+ * Senha provisória única por conta, sorteada com gerador criptográfico.
+ * Vale até o primeiro acesso, quando a troca é obrigatória.
+ */
+export function generateTemporaryPassword(): string {
+  return Array.from(
+    { length: TEMPORARY_PASSWORD_LENGTH },
+    () =>
+      TEMPORARY_PASSWORD_ALPHABET[
+        randomInt(TEMPORARY_PASSWORD_ALPHABET.length)
+      ],
+  ).join('');
+}
+
 let dummyHash: Promise<string> | undefined;
 
 /**
@@ -32,4 +52,19 @@ let dummyHash: Promise<string> | undefined;
 export async function simulatePasswordCheck(password: string): Promise<void> {
   dummyHash ??= hashPassword('senha-inexistente-para-equalizar-tempo');
   await verifyPassword(await dummyHash, password);
+}
+
+/** Senha provisória e o seu hash, para a conta criada pela equipe. */
+export interface TemporaryCredentials {
+  temporaryPassword: string;
+  passwordHash: string;
+}
+
+/** O hash é caro: quem chama gera as credenciais antes de abrir a transação. */
+export async function temporaryCredentials(): Promise<TemporaryCredentials> {
+  const temporaryPassword = generateTemporaryPassword();
+  return {
+    temporaryPassword,
+    passwordHash: await hashPassword(temporaryPassword),
+  };
 }

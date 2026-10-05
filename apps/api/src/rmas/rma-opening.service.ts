@@ -2,32 +2,27 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   isStaffRole,
   STAFF_OPENING_STAGE,
-  type FieldIssue,
-  type FilePurpose,
   type InvoiceValidation,
-  type OpenOwnRmaRequest,
-  type OpenRmaForCustomerRequest,
   type OpenRmaResponse,
   type WarrantyStatus,
 } from '@central/contracts';
 import { and, eq } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service.js';
 import { ApiException } from '../common/http/api-exception.js';
-import { isUniqueViolation } from '../common/http/exception.filter.js';
+import { isUniqueViolation } from '../common/db/errors.js';
 import { ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
 import { DATABASE } from '../database/database.module.js';
 import type { Database, Transaction } from '../database/database.types.js';
-import {
-  rmaDocuments,
-  rmaInvoices,
-  rmaItemPhotos,
-  rmaItems,
-  rmas,
-} from '../database/schema/index.js';
-import { claimTemporaryFiles, UNAVAILABLE_FILE } from '../files/file-links.js';
+import { rmaItemPhotos, rmaItems, rmas } from '../database/schema/index.js';
+import { UNAVAILABLE_FILE } from '../files/file-links.js';
 import { FilesService } from '../files/files.service.js';
 import type { AuthContext } from '../identity/auth-context.js';
+import {
+  recordTermsAcceptance,
+  type TermsAcceptance,
+} from '../legal/terms-acceptance.js';
+import { WarrantyTermsService } from '../legal/warranty-terms.service.js';
 import { EmailLinks } from '../notifications/email-links.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { isInvoiceAccepted } from './invoice-xml.js';
@@ -39,30 +34,28 @@ import {
   type RmaRequester,
 } from './rma-customer.js';
 import { recordReceipt } from './rma-movements.js';
-
-/** A equipe informa cliente e solicitante; o portal usa o próprio cadastro. */
-type OpeningRequest = OpenOwnRmaRequest &
-  Partial<Pick<OpenRmaForCustomerRequest, 'customerId' | 'requesterContactId'>>;
+import {
+  claimOpeningFiles,
+  insertOpeningDocuments,
+  openingDocumentPurposes,
+  type OpeningRequest,
+} from './rma-opening-documents.js';
+import { itemLine } from './rma-presentation.js';
+import { RmaTeamNotices } from './rma-team-notices.js';
+import { HOUR_MS } from '../common/time/durations.js';
 
 interface OpeningPlan {
   request: OpeningRequest;
   customer: RmaCustomer;
   requester: RmaRequester;
   invoice: InvoiceValidation | null;
-}
-
-/** Arquivos pedidos para um campo do formulário. */
-interface FileClaim {
-  path: string;
-  purpose: FilePurpose;
-  ids: string[];
+  /** Aceite do termo pelo cliente; `renewed` quando aceito nesta abertura. */
+  terms: TermsAcceptance | null;
 }
 
 /** Garantia solicitada entra em análise; a decisão é da equipe (P09). */
 const initialWarranty = (requested: boolean): WarrantyStatus =>
   requested ? 'em_analise' : 'nao_solicitada';
-
-const HOUR_MS = 3_600_000;
 
 const itemsLabel = (count: number) =>
   count === 1 ? '1 equipamento' : `${count} equipamentos`;
@@ -82,15 +75,21 @@ export class RmaOpeningService {
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
     private readonly links: EmailLinks,
+    private readonly team: RmaTeamNotices,
+    private readonly terms: WarrantyTermsService,
   ) {}
 
   async open(
     auth: AuthContext,
     request: OpeningRequest,
   ): Promise<OpenRmaResponse> {
-    if (!isStaffRole(auth.account.role) && !auth.account.emailVerified) {
-      throw ApiException.emailNotVerified();
-    }
+    // A equipe não aceita o termo em nome do cliente.
+    const terms = isStaffRole(auth.account.role)
+      ? null
+      : this.terms.acceptanceOnOpening(
+          request.termsVersion,
+          auth.account.acceptedTermsVersion,
+        );
     // Repetição da mesma tentativa (clique duplo, tempo esgotado): devolve o RMA já criado.
     const previous = await this.findPrevious(auth, request.openingKey);
     if (previous) return previous;
@@ -112,6 +111,7 @@ export class RmaOpeningService {
       invoice: request.invoiceXmlFileId
         ? await this.checkInvoice(auth, request.invoiceXmlFileId, customer)
         : null,
+      terms,
     };
 
     try {
@@ -177,11 +177,15 @@ export class RmaOpeningService {
   private async insert(
     tx: Transaction,
     auth: AuthContext,
-    { request, customer, requester, invoice }: OpeningPlan,
+    { request, customer, requester, invoice, terms }: OpeningPlan,
   ): Promise<OpenRmaResponse> {
     // Pela equipe, o equipamento já está na fábrica (fluxo de 01/10/2026).
     const atFactory = isStaffRole(auth.account.role);
     const openedAt = new Date();
+    const termsVersion = terms?.version ?? null;
+    const termsAcceptedAt = terms
+      ? await recordTermsAcceptance(tx, auth.account.id, terms, openedAt)
+      : null;
     const [rma] = await tx
       .insert(rmas)
       .values({
@@ -189,6 +193,8 @@ export class RmaOpeningService {
         requesterContactId: requester.id,
         openedByAccountId: auth.account.id,
         openingKey: request.openingKey,
+        termsVersion,
+        termsAcceptedAt,
       })
       .returning({ id: rmas.id, number: rmas.number });
 
@@ -214,25 +220,7 @@ export class RmaOpeningService {
       .sort((a, b) => a.position - b.position)
       .map((item) => item.id);
 
-    await this.claimFiles(tx, auth, [
-      ...request.items.map((item, index) => ({
-        path: `items.${index}.photoIds`,
-        purpose: 'foto_item' as const,
-        ids: item.photoIds,
-      })),
-      ...request.items.flatMap((item, index) =>
-        item.videoId
-          ? [
-              {
-                path: `items.${index}.videoId`,
-                purpose: 'video_item' as const,
-                ids: [item.videoId],
-              },
-            ]
-          : [],
-      ),
-      ...this.documentClaims(request),
-    ]);
+    await claimOpeningFiles(tx, auth.account.id, request);
 
     if (atFactory) {
       await recordReceipt(tx, {
@@ -251,7 +239,7 @@ export class RmaOpeningService {
       })),
     );
     await tx.insert(rmaItemPhotos).values(photos);
-    await this.insertDocuments(tx, rma.id, request, invoice);
+    await insertOpeningDocuments(tx, rma.id, request, invoice);
 
     await this.audit.record(tx, {
       actorAccountId: auth.account.id,
@@ -262,7 +250,8 @@ export class RmaOpeningService {
         number: rma.number,
         customerId: customer.id,
         itemCount: items.length,
-        documents: this.documentClaims(request).map((claim) => claim.purpose),
+        documents: openingDocumentPurposes(request),
+        ...(termsVersion && { termsVersion }),
       },
     });
     await this.notifications.enqueue(tx, {
@@ -278,10 +267,20 @@ export class RmaOpeningService {
             new Date(openedAt.getTime() + this.env.RMA_SLA_HOURS * HOUR_MS),
           ),
         }),
+        ...(termsAcceptedAt && {
+          termsVersion,
+          termsAcceptedAtLabel: this.links.expiry(termsAcceptedAt),
+        }),
       },
       origin: `rma:${rma.id}`,
       dedupeKey: `rma_aberto:${rma.id}`,
     });
+    // Aberto pelo cliente, o chamado chega ao setor sem responsável.
+    if (!atFactory) {
+      await this.team.notify(tx, rma, 'aberto', {
+        items: request.items.map(itemLine),
+      });
+    }
     return { number: rma.number };
   }
 
@@ -296,87 +295,5 @@ export class RmaOpeningService {
       slaStartedAt: openedAt,
       slaHours: this.env.RMA_SLA_HOURS,
     };
-  }
-
-  private documentClaims(request: OpeningRequest): FileClaim[] {
-    const claims: FileClaim[] = [];
-    if (request.invoiceXmlFileId) {
-      claims.push({
-        path: 'invoiceXmlFileId',
-        purpose: 'nota_xml',
-        ids: [request.invoiceXmlFileId],
-      });
-    }
-    if (request.declarationFileId) {
-      claims.push({
-        path: 'declarationFileId',
-        purpose: 'declaracao',
-        ids: [request.declarationFileId],
-      });
-    }
-    return claims;
-  }
-
-  /**
-   * Vincula os arquivos de cada campo; se algum não puder ser vinculado, a
-   * transação inteira é desfeita e os arquivos continuam temporários.
-   */
-  private async claimFiles(
-    tx: Transaction,
-    auth: AuthContext,
-    claims: FileClaim[],
-  ): Promise<void> {
-    const issues: FieldIssue[] = [];
-    for (const claim of claims) {
-      const claimed = await claimTemporaryFiles(
-        tx,
-        auth.account.id,
-        claim.purpose,
-        claim.ids,
-      );
-      if (claim.ids.some((id) => !claimed.has(id))) {
-        issues.push({ path: claim.path, message: UNAVAILABLE_FILE });
-      }
-    }
-    if (issues.length > 0) {
-      throw ApiException.validation(
-        issues,
-        'Alguns arquivos precisam ser enviados novamente.',
-      );
-    }
-  }
-
-  private async insertDocuments(
-    tx: Transaction,
-    rmaId: string,
-    request: OpeningRequest,
-    invoice: InvoiceValidation | null,
-  ): Promise<void> {
-    if (request.declarationFileId) {
-      await tx.insert(rmaDocuments).values({
-        rmaId,
-        kind: 'declaracao',
-        fileId: request.declarationFileId,
-      });
-    }
-    if (!request.invoiceXmlFileId || !invoice?.invoice) return;
-    const [document] = await tx
-      .insert(rmaDocuments)
-      .values({
-        rmaId,
-        kind: 'nota_xml',
-        fileId: request.invoiceXmlFileId,
-        validationStatus: invoice.status,
-        rulesVersion: invoice.rulesVersion,
-        issues: invoice.issues,
-      })
-      .returning({ id: rmaDocuments.id });
-    await tx.insert(rmaInvoices).values({
-      rmaId,
-      documentId: document.id,
-      number: invoice.invoice.number,
-      issuerName: invoice.invoice.issuerName,
-      issuerDocument: invoice.invoice.issuerDocument,
-    });
   }
 }

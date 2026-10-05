@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import {
   accounts,
   auditEvents,
@@ -13,6 +13,7 @@ import {
   PASSWORD,
   resetDatabase,
   signIn,
+  TERMS_VERSION,
   type TestContext,
 } from './support.js';
 
@@ -25,6 +26,7 @@ const registration = (overrides: Record<string, unknown> = {}) => ({
   contact: { name: 'Maria Solicitante', phone: '(11) 90000-0000' },
   email: 'Maria@Cliente.Local',
   password: PASSWORD,
+  termsVersion: TERMS_VERSION,
   ...overrides,
 });
 
@@ -51,7 +53,9 @@ describe('Autenticação e sessão', () => {
     expect(res.body.account).toMatchObject({
       email: 'maria@cliente.local',
       role: 'cliente',
-      emailVerified: false,
+      // Sem confirmação por e-mail: a conta já nasce ativa (02/10/2026).
+      emailVerified: true,
+      acceptedTermsVersion: TERMS_VERSION,
       customer: { name: 'Cliente Autocadastro Ltda.' },
     });
     expect(res.body.account.permissions).toEqual([
@@ -72,11 +76,19 @@ describe('Autenticação e sessão', () => {
     const [customer] = await ctx.db.select().from(customers);
     expect(customer.document).toBe('11222333000181');
 
-    const [verification] = await ctx.db.select().from(notifications);
-    expect(verification).toMatchObject({
-      template: 'confirmacao_email',
+    // Boas-vindas com o termo aceito, sem link de confirmação.
+    const [welcome] = await ctx.db.select().from(notifications);
+    expect(welcome).toMatchObject({
+      template: 'boas_vindas',
       recipient: 'maria@cliente.local',
       status: 'pendente',
+      payload: expect.objectContaining({ termsVersion: TERMS_VERSION }),
+    });
+    const [account] = await ctx.db.select().from(accounts);
+    expect(account).toMatchObject({
+      termsVersion: TERMS_VERSION,
+      termsAcceptedAt: expect.any(Date),
+      emailVerifiedAt: expect.any(Date),
     });
     const [audit] = await ctx.db.select().from(auditEvents);
     expect(audit.action).toBe('conta.autocadastro');
@@ -244,25 +256,28 @@ describe('Autenticação e sessão', () => {
       await ctx
         .http()
         .post('/api/auth/password-reset/confirm')
-        .send({ token, password: 'nova-senha-segura' })
+        .send({ token, password: 'Nova-senha-segura-1' })
         .expect(204);
       await oldSession.get('/api/auth/me').expect(401);
 
       const reused = await ctx
         .http()
         .post('/api/auth/password-reset/confirm')
-        .send({ token, password: 'outra-senha-segura' })
+        .send({ token, password: 'Outra-senha-segura-2' })
         .expect(400);
       expect(reused.body.error.code).toBe('INVALID_OR_EXPIRED_TOKEN');
 
       await ctx
         .http()
         .post('/api/auth/login')
-        .send({ email: 'agente@central.local', password: 'nova-senha-segura' })
+        .send({
+          email: 'agente@central.local',
+          password: 'Nova-senha-segura-1',
+        })
         .expect(200);
     });
 
-    it('um pedido novo invalida o link anterior', async () => {
+    it('pedidos repetidos não reenviam; depois do intervalo, o link novo invalida o anterior', async () => {
       await createAccount(ctx.db, {
         email: 'agente@central.local',
         role: 'agente',
@@ -277,29 +292,52 @@ describe('Autenticação e sessão', () => {
       await requestReset();
       await ctx.processor.processBatch();
       const first = ctx.mail.tokenFor('agente@central.local');
-      await requestReset();
 
+      // Dentro do intervalo: nenhum e-mail a mais, e o link enviado continua valendo.
+      await requestReset();
+      expect(
+        await ctx.db
+          .select()
+          .from(notifications)
+          .where(eq(notifications.template, 'redefinicao_senha')),
+      ).toHaveLength(1);
+
+      await ctx.db.execute(
+        sql`update account_tokens set created_at = now() - interval '6 minutes'`,
+      );
+      await requestReset();
       await ctx
         .http()
         .post('/api/auth/password-reset/confirm')
-        .send({ token: first, password: 'nova-senha-segura' })
+        .send({ token: first, password: 'Nova-senha-segura-1' })
         .expect(400);
     });
   });
 
-  it('confirma o e-mail pelo link enviado no autocadastro', async () => {
-    const agent = ctx.http();
-    await agent.post('/api/auth/register').send(registration()).expect(201);
-    await ctx.processor.processBatch();
-    const token = ctx.mail.tokenFor('maria@cliente.local');
-
-    await ctx
+  it('autocadastro exige o aceite da versão vigente do termo de garantia', async () => {
+    const missing = await ctx
       .http()
-      .post('/api/auth/email-verification/confirm')
-      .send({ token })
-      .expect(204);
-    const me = await agent.get('/api/auth/me').expect(200);
-    expect(me.body.account.emailVerified).toBe(true);
+      .post('/api/auth/register')
+      .send(registration({ termsVersion: undefined }))
+      .expect(400);
+    expect(missing.body.error.issues).toEqual([
+      { path: 'termsVersion', message: 'Leia e aceite o termo de garantia' },
+    ]);
+    const outdated = await ctx
+      .http()
+      .post('/api/auth/register')
+      .send(registration({ termsVersion: '0.9' }))
+      .expect(400);
+    expect(outdated.body.error.issues[0]).toMatchObject({
+      path: 'termsVersion',
+      message: expect.stringContaining('atualizado'),
+    });
+    expect(await ctx.db.select().from(accounts)).toHaveLength(0);
+  });
+
+  it('o termo é público: aparece antes do cadastro', async () => {
+    const res = await ctx.http().get('/api/legal/warranty-terms').expect(200);
+    expect(res.body.version).toBe(TERMS_VERSION);
   });
 
   it('troca de senha exige a senha atual e mantém só a sessão corrente', async () => {
@@ -312,11 +350,11 @@ describe('Autenticação e sessão', () => {
 
     await current
       .post('/api/auth/password')
-      .send({ currentPassword: 'errada', newPassword: 'nova-senha-segura' })
+      .send({ currentPassword: 'errada', newPassword: 'Nova-senha-segura-1' })
       .expect(400);
     await current
       .post('/api/auth/password')
-      .send({ currentPassword: PASSWORD, newPassword: 'nova-senha-segura' })
+      .send({ currentPassword: PASSWORD, newPassword: 'Nova-senha-segura-1' })
       .expect(204);
 
     await current.get('/api/auth/me').expect(200);

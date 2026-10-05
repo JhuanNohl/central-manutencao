@@ -15,11 +15,15 @@ import { NotificationsService } from '../notifications/notifications.service.js'
 import { AccountTokensService } from './account-tokens.service.js';
 import type { AuthContext } from './auth-context.js';
 import { SessionsService } from './sessions.service.js';
+import { MINUTE_MS } from '../common/time/durations.js';
 
 /**
  * Redefinição (por link enviado ao e-mail) e troca de senha. As duas
  * encerram as sessões que não comprovaram a senha nova.
  */
+/** Intervalo mínimo entre dois e-mails de redefinição para a mesma conta. */
+export const RESET_REQUEST_INTERVAL_MS = 5 * MINUTE_MS;
+
 @Injectable()
 export class PasswordsService {
   constructor(
@@ -31,14 +35,27 @@ export class PasswordsService {
     private readonly notifications: NotificationsService,
   ) {}
 
-  /** Sempre responde igual, exista ou não a conta (não revela e-mails cadastrados). */
+  /**
+   * Sempre responde igual, exista ou não a conta (não revela e-mails
+   * cadastrados). Um link por conta a cada intervalo: pedidos repetidos não
+   * inundam a caixa da pessoa e o link já enviado continua valendo.
+   */
   async requestReset(email: string): Promise<void> {
     await this.db.transaction(async (tx) => {
+      // O bloqueio da conta serializa pedidos simultâneos para o mesmo e-mail.
       const [account] = await tx
         .select({ id: accounts.id, name: accounts.name })
         .from(accounts)
-        .where(and(eq(accounts.email, email), eq(accounts.status, 'ativa')));
+        .where(and(eq(accounts.email, email), eq(accounts.status, 'ativa')))
+        .for('update');
       if (!account) return;
+      const recent = await this.tokens.issuedWithin(
+        tx,
+        account.id,
+        'redefinicao_senha',
+        RESET_REQUEST_INTERVAL_MS,
+      );
+      if (recent) return;
 
       const { token, expiresAt } = await this.tokens.issue(
         tx,
@@ -89,7 +106,10 @@ export class PasswordsService {
     });
   }
 
-  /** Troca a senha e encerra as demais sessões da conta. */
+  /**
+   * Troca a senha e encerra as demais sessões da conta. Trocar a senha
+   * provisória, recebida por e-mail, também confirma o endereço.
+   */
   async change(auth: AuthContext, input: ChangePasswordRequest): Promise<void> {
     await this.assertCurrentPassword(auth.account.id, input.currentPassword);
     const passwordHash = await hashPassword(input.newPassword);
@@ -97,7 +117,13 @@ export class PasswordsService {
     await this.db.transaction(async (tx) => {
       await tx
         .update(accounts)
-        .set({ passwordHash })
+        .set({
+          passwordHash,
+          ...(auth.account.passwordChangeRequired && {
+            passwordChangeRequired: false,
+            emailVerifiedAt: sql`coalesce(${accounts.emailVerifiedAt}, now())`,
+          }),
+        })
         .where(eq(accounts.id, auth.account.id));
       await this.sessions.revokeAll(tx, auth.account.id, auth.sessionId);
       await this.audit.record(tx, {

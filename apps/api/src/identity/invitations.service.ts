@@ -1,32 +1,22 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type {
-  AcceptInvitationRequest,
-  CreateStaffInvitationRequest,
-  InvitationPreview,
-  InvitationStatus,
-  InvitationView,
-  ListInvitationsQuery,
-  Page,
-} from '@central/contracts';
 import {
-  and,
-  count,
-  desc,
-  eq,
-  gt,
-  isNotNull,
-  isNull,
-  lte,
-  sql,
-  type SQL,
-} from 'drizzle-orm';
-import { alias } from 'drizzle-orm/pg-core';
+  ROLE_LABELS,
+  type AcceptInvitationRequest,
+  type CreateStaffInvitationRequest,
+  type InvitationPreview,
+  type InvitationView,
+  type ListInvitationsQuery,
+  type Page,
+  INVITATION_TTL_DAYS,
+} from '@central/contracts';
+import { and, count, desc, eq, gt, isNull, sql } from 'drizzle-orm';
+import {} from 'drizzle-orm/pg-core';
 import { AuditService } from '../audit/audit.service.js';
 import { hashPassword } from '../common/crypto/passwords.js';
 import { generateToken, hashToken } from '../common/crypto/tokens.js';
 import { ApiException } from '../common/http/api-exception.js';
 import { pageWindow, toPage } from '../common/db/pagination.js';
-import { reference } from '../common/mapping.js';
+import {} from '../common/mapping.js';
 import { DATABASE } from '../database/database.module.js';
 import type { Database, Executor } from '../database/database.types.js';
 import {
@@ -38,49 +28,18 @@ import {
 import { EmailLinks } from '../notifications/email-links.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { ensureEmailAvailable } from './account-rules.js';
+import {
+  openInvitation,
+  revokeOpenInvitations,
+  selectInvitationViews,
+  statusFilter,
+  toInvitationView,
+} from './invitation-queries.js';
 import type { AuthContext } from './auth-context.js';
 import { SessionsService, type SignedIn } from './sessions.service.js';
+import { DAY_MS } from '../common/time/durations.js';
 
-export const INVITATION_TTL_MS = 7 * 24 * 3_600_000;
-
-const inviter = alias(accounts, 'inviter');
-
-function statusOf(row: {
-  acceptedAt: Date | null;
-  revokedAt: Date | null;
-  expiresAt: Date;
-}): InvitationStatus {
-  if (row.acceptedAt) return 'aceito';
-  if (row.revokedAt) return 'revogado';
-  if (row.expiresAt.getTime() <= Date.now()) return 'expirado';
-  return 'pendente';
-}
-
-function statusFilter(status: InvitationStatus): SQL | undefined {
-  switch (status) {
-    case 'aceito':
-      return isNotNull(invitations.acceptedAt);
-    case 'revogado':
-      return isNotNull(invitations.revokedAt);
-    case 'expirado':
-      return and(
-        isNull(invitations.acceptedAt),
-        isNull(invitations.revokedAt),
-        lte(invitations.expiresAt, sql`now()`),
-      );
-    case 'pendente':
-      return and(
-        isNull(invitations.acceptedAt),
-        isNull(invitations.revokedAt),
-        gt(invitations.expiresAt, sql`now()`),
-      );
-  }
-}
-
-const openInvitation = and(
-  isNull(invitations.acceptedAt),
-  isNull(invitations.revokedAt),
-);
+export const INVITATION_TTL_MS = INVITATION_TTL_DAYS * DAY_MS;
 
 @Injectable()
 export class InvitationsService {
@@ -98,51 +57,7 @@ export class InvitationsService {
   ): Promise<InvitationView> {
     const id = await this.db.transaction(async (tx) => {
       await ensureEmailAvailable(tx, input.email);
-      return this.issue(tx, auth, {
-        email: input.email,
-        role: input.role,
-        customerContactId: null,
-        customerName: null,
-      });
-    });
-    return this.get(id);
-  }
-
-  /** Convida um contato já cadastrado de um cliente a acessar o portal. */
-  async createForContact(
-    auth: AuthContext,
-    customerId: string,
-    contactId: string,
-  ): Promise<InvitationView> {
-    const id = await this.db.transaction(async (tx) => {
-      const [contact] = await tx
-        .select({
-          id: customerContacts.id,
-          email: customerContacts.email,
-          accountId: customerContacts.accountId,
-          customerName: customers.name,
-        })
-        .from(customerContacts)
-        .innerJoin(customers, eq(customers.id, customerContacts.customerId))
-        .where(
-          and(
-            eq(customerContacts.id, contactId),
-            eq(customerContacts.customerId, customerId),
-          ),
-        )
-        .for('update', { of: customerContacts });
-      if (!contact) throw ApiException.notFound('Contato não encontrado.');
-      if (contact.accountId) {
-        throw ApiException.conflict('Este contato já possui acesso ao portal.');
-      }
-      await ensureEmailAvailable(tx, contact.email);
-
-      return this.issue(tx, auth, {
-        email: contact.email,
-        role: 'cliente',
-        customerContactId: contact.id,
-        customerName: contact.customerName,
-      });
+      return this.issue(tx, auth, input);
     });
     return this.get(id);
   }
@@ -152,13 +67,13 @@ export class InvitationsService {
     const { limit, offset } = pageWindow(query);
     return toPage(
       query,
-      this.selectViews()
+      selectInvitationViews(this.db)
         .where(where)
         .orderBy(desc(invitations.createdAt))
         .limit(limit)
         .offset(offset),
       this.db.select({ total: count() }).from(invitations).where(where),
-      toView,
+      toInvitationView,
     );
   }
 
@@ -271,6 +186,18 @@ export class InvitationsService {
         entityId: invitation.id,
         data: { accountId: account.id, role: invitation.role },
       });
+      await this.notifications.enqueue(tx, {
+        template: 'acesso_liberado',
+        recipient: invitation.email,
+        origin: `account:${account.id}`,
+        dedupeKey: `acesso_liberado:${account.id}`,
+        payload: {
+          name: input.name,
+          email: invitation.email,
+          roleLabel: ROLE_LABELS[invitation.role],
+          link: this.links.login(),
+        },
+      });
 
       return this.sessions.signIn(tx, account.id);
     });
@@ -279,19 +206,10 @@ export class InvitationsService {
   private async issue(
     tx: Executor,
     auth: AuthContext,
-    target: {
-      email: string;
-      role: typeof invitations.$inferInsert.role;
-      customerContactId: string | null;
-      customerName: string | null;
-    },
+    target: CreateStaffInvitationRequest,
   ): Promise<string> {
     // Um novo convite substitui o anterior ainda em aberto para o mesmo e-mail.
-    const superseded = await tx
-      .update(invitations)
-      .set({ revokedAt: sql`now()` })
-      .where(and(eq(invitations.email, target.email), openInvitation))
-      .returning({ id: invitations.id });
+    const superseded = await revokeOpenInvitations(tx, target.email);
 
     const token = generateToken();
     const expiresAt = new Date(Date.now() + INVITATION_TTL_MS);
@@ -301,7 +219,6 @@ export class InvitationsService {
         tokenHash: hashToken(token),
         email: target.email,
         role: target.role,
-        customerContactId: target.customerContactId,
         invitedByAccountId: auth.account.id,
         expiresAt,
       })
@@ -314,7 +231,8 @@ export class InvitationsService {
       dedupeKey: `invitation:${invitation.id}`,
       payload: {
         link: this.links.withToken('convite', token),
-        customerName: target.customerName,
+        roleLabel: ROLE_LABELS[target.role],
+        invitedByName: auth.account.name,
         expiresAtLabel: this.links.expiry(expiresAt),
       },
     });
@@ -326,59 +244,15 @@ export class InvitationsService {
       data: {
         email: target.email,
         role: target.role,
-        customerContactId: target.customerContactId,
-        supersededInvitationIds: superseded.map((row) => row.id),
+        supersededInvitationIds: superseded,
       },
     });
     return invitation.id;
   }
 
-  private selectViews(db: Executor = this.db) {
-    return db
-      .select({
-        id: invitations.id,
-        email: invitations.email,
-        role: invitations.role,
-        createdAt: invitations.createdAt,
-        expiresAt: invitations.expiresAt,
-        acceptedAt: invitations.acceptedAt,
-        revokedAt: invitations.revokedAt,
-        customerId: customers.id,
-        customerName: customers.name,
-        inviterId: inviter.id,
-        inviterName: inviter.name,
-      })
-      .from(invitations)
-      .leftJoin(
-        customerContacts,
-        eq(customerContacts.id, invitations.customerContactId),
-      )
-      .leftJoin(customers, eq(customers.id, customerContacts.customerId))
-      .leftJoin(inviter, eq(inviter.id, invitations.invitedByAccountId))
-      .$dynamic();
-  }
-
   private async get(id: string, db: Executor = this.db) {
-    const [row] = await this.selectViews(db).where(eq(invitations.id, id));
+    const [row] = await selectInvitationViews(db).where(eq(invitations.id, id));
     if (!row) throw ApiException.notFound('Convite não encontrado.');
-    return toView(row);
+    return toInvitationView(row);
   }
-}
-
-type InvitationRow = Awaited<
-  ReturnType<InvitationsService['selectViews']>
->[number];
-
-function toView(row: InvitationRow): InvitationView {
-  return {
-    id: row.id,
-    email: row.email,
-    role: row.role,
-    status: statusOf(row),
-    customer: reference(row.customerId, row.customerName),
-    invitedBy: reference(row.inviterId, row.inviterName),
-    createdAt: row.createdAt.toISOString(),
-    expiresAt: row.expiresAt.toISOString(),
-    acceptedAt: row.acceptedAt?.toISOString() ?? null,
-  };
 }

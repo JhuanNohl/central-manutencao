@@ -21,7 +21,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/database/scripts/migrate.ts",
-    "db:seed": "tsx src/database/scripts/seed.ts"
+    "db:seed": "tsx src/database/scripts/seed.ts",
+    "mail:test": "tsx src/notifications/scripts/send-test-mail.ts",
+    "admin:create": "tsx src/identity/scripts/create-admin.ts"
   },
   "dependencies": {
     "@central/contracts": "*",

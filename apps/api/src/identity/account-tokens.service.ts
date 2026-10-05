@@ -6,10 +6,12 @@ import {
   accountTokens,
   type AccountTokenPurpose,
 } from '../database/schema/index.js';
+import { DAY_MS, HOUR_MS } from '../common/time/durations.js';
+import { PASSWORD_RESET_TTL_HOURS } from '@central/contracts';
 
 export const TOKEN_TTL_MS: Record<AccountTokenPurpose, number> = {
-  redefinicao_senha: 60 * 60_000,
-  confirmacao_email: 72 * 3_600_000,
+  redefinicao_senha: PASSWORD_RESET_TTL_HOURS * HOUR_MS,
+  confirmacao_email: 3 * DAY_MS,
 };
 
 @Injectable()
@@ -38,6 +40,30 @@ export class AccountTokensService {
       expiresAt,
     });
     return { token, expiresAt };
+  }
+
+  /** Há token ainda não usado emitido há menos de `withinMs`? */
+  async issuedWithin(
+    db: Executor,
+    accountId: string,
+    purpose: AccountTokenPurpose,
+    withinMs: number,
+  ): Promise<boolean> {
+    const [row] = await db
+      .select({ id: accountTokens.id })
+      .from(accountTokens)
+      .where(
+        and(
+          eq(accountTokens.accountId, accountId),
+          eq(accountTokens.purpose, purpose),
+          isNull(accountTokens.usedAt),
+          gt(
+            accountTokens.createdAt,
+            sql`now() - make_interval(secs => ${withinMs / 1000})`,
+          ),
+        ),
+      );
+    return row !== undefined;
   }
 
   /**

@@ -1,6 +1,7 @@
 import { ACCOUNT_STATUSES, CUSTOMER_KINDS, ROLES } from '@central/contracts';
 import { sql } from 'drizzle-orm';
 import {
+  boolean,
   check,
   index,
   pgTable,
@@ -12,6 +13,7 @@ import { createdAt, instant, oneOf, updatedAt } from './columns.js';
 
 export const ACCOUNT_TOKEN_PURPOSES = [
   'redefinicao_senha',
+  // Sem uso desde 02/10/2026 (a conta nasce ativa); mantido pelos registros antigos.
   'confirmacao_email',
 ] as const;
 export type AccountTokenPurpose = (typeof ACCOUNT_TOKEN_PURPOSES)[number];
@@ -29,6 +31,16 @@ export const accounts = pgTable(
       .notNull()
       .default('ativa'),
     emailVerifiedAt: instant('email_verified_at'),
+    /** Senha provisória criada pela equipe: a troca é obrigatória no primeiro acesso. */
+    passwordChangeRequired: boolean('password_change_required')
+      .notNull()
+      .default(false),
+    /**
+     * Último aceite do termo de garantia pela conta: no autocadastro ou na
+     * primeira abertura de atendimento depois de uma versão nova.
+     */
+    termsVersion: text('terms_version'),
+    termsAcceptedAt: instant('terms_accepted_at'),
     lastLoginAt: instant('last_login_at'),
     disabledAt: instant('disabled_at'),
     createdAt: createdAt(),
@@ -39,6 +51,10 @@ export const accounts = pgTable(
     check('accounts_email_lowercase', sql`${t.email} = lower(${t.email})`),
     check('accounts_role_valid', oneOf(t.role, ROLES)),
     check('accounts_status_valid', oneOf(t.status, ACCOUNT_STATUSES)),
+    check(
+      'accounts_terms_acceptance_consistent',
+      sql`(${t.termsVersion} is null) = (${t.termsAcceptedAt} is null)`,
+    ),
     check(
       'accounts_disabled_consistent',
       sql`(${t.status} = 'desativada') = (${t.disabledAt} is not null)`,

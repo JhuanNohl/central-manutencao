@@ -52,6 +52,12 @@ export const rmas = pgTable(
       .default('normal'),
     /** Chave da tentativa de abertura, gerada pelo formulário (CA16). */
     openingKey: uuid('opening_key'),
+    /**
+     * Aceite eletrônico do termo de garantia na abertura pelo cliente: versão
+     * aceita e momento. Quem aceitou é a conta que abriu (`openedByAccountId`).
+     */
+    termsVersion: text('terms_version'),
+    termsAcceptedAt: instant('terms_accepted_at'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     closedAt: instant('closed_at'),
@@ -70,6 +76,10 @@ export const rmas = pgTable(
     index('rmas_assignee_idx').on(t.assigneeAccountId),
     index('rmas_updated_idx').on(t.updatedAt),
     check('rmas_priority_valid', oneOf(t.priority, RMA_PRIORITIES)),
+    check(
+      'rmas_terms_acceptance_consistent',
+      sql`(${t.termsVersion} is null) = (${t.termsAcceptedAt} is null)`,
+    ),
     check(
       'rmas_cancellation_consistent',
       sql`(${t.cancelledAt} is null) = (${t.cancellationReason} is null) and (${t.cancelledAt} is null or ${t.closedAt} is not null)`,

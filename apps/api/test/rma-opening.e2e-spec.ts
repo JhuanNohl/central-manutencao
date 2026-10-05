@@ -1,8 +1,9 @@
-import type {
-  PortalRmaDetail,
-  PortalRmaSummary,
-  RmaDetail,
-  StoredFileView,
+import {
+  MAX_ITEMS_PER_RMA,
+  type PortalRmaDetail,
+  type PortalRmaSummary,
+  type RmaDetail,
+  type StoredFileView,
 } from '@central/contracts';
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
@@ -14,6 +15,7 @@ import {
   rmaItems,
   rmas,
 } from '../src/database/schema/index.js';
+import { FilesService } from '../src/files/files.service.js';
 import { TEST_ENV } from '../vitest.config.e2e.js';
 import { JPEG, PDF, nfeXml } from './fixtures.js';
 import {
@@ -23,6 +25,7 @@ import {
   createTestApp,
   resetDatabase,
   signIn,
+  TERMS_VERSION,
   type TestAgent,
   type TestContext,
 } from './support.js';
@@ -91,6 +94,7 @@ describe('Abertura de RMA e consulta no portal', () => {
   async function minimalBody(agent: TestAgent, photoOwner = agent) {
     return {
       openingKey: randomUUID(),
+      termsVersion: TERMS_VERSION,
       items: [item('VR10', [await photo(photoOwner)])],
       declarationFileId: await upload(agent, 'declaracao', 'dc.pdf', PDF),
     };
@@ -102,6 +106,7 @@ describe('Abertura de RMA e consulta no portal', () => {
     const photoB2 = await photo(agent, 'b2.jpg');
     const body = {
       openingKey: randomUUID(),
+      termsVersion: TERMS_VERSION,
       items: [
         item('VR10', [photoA]),
         { ...item('SpeedFace', [photoB1, photoB2]), warrantyRequested: true },
@@ -146,7 +151,8 @@ describe('Abertura de RMA e consulta no portal', () => {
       },
     ]);
     expect(detail.requester?.email).toBe('cliente@um.local');
-    expect(detail).not.toHaveProperty('assignee');
+    // O portal mostra só o nome do responsável, ainda indefinido (02/10/2026).
+    expect(detail.assignee).toBeNull();
 
     const list = (await client.get('/api/portal/rmas').expect(200)).body as {
       items: PortalRmaSummary[];
@@ -187,12 +193,57 @@ describe('Abertura de RMA e consulta no portal', () => {
       .from(auditEvents)
       .where(eq(auditEvents.action, 'rma.aberto'));
     expect(audit.data).toMatchObject({ number, itemCount: 2 });
-    const [notice] = await ctx.db.select().from(notifications);
+    const [notice] = await ctx.db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.template, 'rma_aberto'));
     expect(notice).toMatchObject({
-      template: 'rma_aberto',
       recipient: 'cliente@um.local',
       status: 'pendente',
     });
+    // Aberto pelo cliente, o chamado chega à caixa do setor.
+    const [team] = await ctx.db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.template, 'equipe_rma'));
+    expect(team.recipient).toBe('manutencao@central.local');
+    expect(team.payload).toMatchObject({
+      event: 'aberto',
+      customerName: 'Cliente Um',
+      assigneeName: null,
+    });
+  });
+
+  it('abre com 200 equipamentos, cada um com a sua foto', async () => {
+    const [owner] = await ctx.db
+      .select({ id: accounts.id })
+      .from(accounts)
+      .where(eq(accounts.email, 'cliente@um.local'));
+    const uploads = ctx.app.get(FilesService);
+    const photos: string[] = [];
+    for (let i = 0; i < MAX_ITEMS_PER_RMA; i++) {
+      const stored = await uploads.upload(
+        owner.id,
+        'foto_item',
+        `f${i}.jpg`,
+        JPEG,
+      );
+      photos.push(stored.id);
+    }
+    const body = {
+      openingKey: randomUUID(),
+      termsVersion: TERMS_VERSION,
+      items: photos.map((photoId, i) => item(`VR10-${i + 1}`, [photoId])),
+      declarationFileId: await upload(client, 'declaracao', 'dc.pdf', PDF),
+    };
+
+    const res = await client.post('/api/portal/rmas').send(body).expect(201);
+    const detail = (
+      await client.get(`/api/portal/rmas/${res.body.number}`).expect(200)
+    ).body as PortalRmaDetail;
+    expect(detail.items).toHaveLength(MAX_ITEMS_PER_RMA);
+    expect(detail.items.every((i) => i.photos.length === 1)).toBe(true);
+    expect(detail.items[199].model).toBe('VR10-200');
   });
 
   it('XML com divergência não abre, mesmo se outro XML foi validado antes (CA02, CA03)', async () => {
@@ -204,6 +255,7 @@ describe('Abertura de RMA e consulta no portal', () => {
     const divergent = await validXml(client, cnpj('999999990001'));
     const body = {
       openingKey: randomUUID(),
+      termsVersion: TERMS_VERSION,
       items: [item('VR10', [await photo(client)])],
       invoiceXmlFileId: divergent,
     };
@@ -223,6 +275,7 @@ describe('Abertura de RMA e consulta no portal', () => {
     const openingKey = randomUUID();
     const body = {
       openingKey,
+      termsVersion: TERMS_VERSION,
       items: [item('VR10', [first]), item('Inbio', [randomUUID()])],
       declarationFileId: await upload(client, 'declaracao', 'dc.pdf', PDF),
     };
@@ -313,18 +366,88 @@ describe('Abertura de RMA e consulta no portal', () => {
     expect(res.body.items[0]).not.toHaveProperty('internalNote');
   });
 
-  it('exige e-mail confirmado para o cliente abrir (P02)', async () => {
+  it('conta que já aceitou a versão vigente abre sem aceitar de novo', async () => {
+    const acceptedAt = new Date('2026-10-01T12:00:00Z');
     await ctx.db
       .update(accounts)
-      .set({ emailVerifiedAt: null })
+      .set({ termsVersion: TERMS_VERSION, termsAcceptedAt: acceptedAt })
       .where(eq(accounts.email, 'cliente@um.local'));
-    const unverified = await signIn(ctx, 'cliente@um.local');
-    const body = await minimalBody(unverified);
-    const res = await unverified
+    const accepted = await signIn(ctx, 'cliente@um.local');
+    const body = {
+      ...(await minimalBody(accepted)),
+      termsVersion: undefined,
+    };
+    const res = await accepted.post('/api/portal/rmas').send(body).expect(201);
+    const [rma] = await ctx.db
+      .select()
+      .from(rmas)
+      .where(eq(rmas.number, res.body.number));
+    expect(rma).toMatchObject({
+      termsVersion: TERMS_VERSION,
+      termsAcceptedAt: acceptedAt,
+    });
+  });
+
+  it('grava o aceite do termo de garantia com a versão, a data e a conta', async () => {
+    const terms = await client.get('/api/legal/warranty-terms').expect(200);
+    expect(terms.body).toMatchObject({
+      version: TERMS_VERSION,
+      summary: expect.any(Array),
+      sections: expect.any(Array),
+    });
+
+    // Os envios terminam antes da abertura (o supertest abre um servidor por requisição).
+    const body = await minimalBody(client);
+    const res = await client.post('/api/portal/rmas').send(body).expect(201);
+    const [rma] = await ctx.db
+      .select()
+      .from(rmas)
+      .where(eq(rmas.number, res.body.number));
+    const [customer] = await ctx.db
+      .select({ id: accounts.id })
+      .from(accounts)
+      .where(eq(accounts.email, 'cliente@um.local'));
+    expect(rma).toMatchObject({
+      termsVersion: TERMS_VERSION,
+      termsAcceptedAt: expect.any(Date),
+      openedByAccountId: customer.id,
+    });
+    // O aceite desta abertura passa a valer para a conta.
+    const [account] = await ctx.db
+      .select()
+      .from(accounts)
+      .where(eq(accounts.id, customer.id));
+    expect(account.termsVersion).toBe(TERMS_VERSION);
+
+    await ctx.processor.processBatch();
+    const mail = ctx.mail.sent.find((m) => m.to === 'cliente@um.local');
+    expect(mail?.text).toContain(
+      `Termo de garantia aceito: versão ${TERMS_VERSION}`,
+    );
+  });
+
+  it('sem aceite, ou com o aceite de uma versão antiga, não abre', async () => {
+    // Sem o campo: o JSON não leva propriedades indefinidas.
+    const withoutTerms = {
+      ...(await minimalBody(client)),
+      termsVersion: undefined,
+    };
+    const missing = await client
       .post('/api/portal/rmas')
-      .send(body)
-      .expect(403);
-    expect(res.body.error.code).toBe('EMAIL_NOT_VERIFIED');
+      .send(withoutTerms)
+      .expect(400);
+    expect(missing.body.error.issues).toEqual([
+      { path: 'termsVersion', message: 'Leia e aceite o termo de garantia' },
+    ]);
+
+    const outdated = await client
+      .post('/api/portal/rmas')
+      .send({ ...withoutTerms, termsVersion: '0.9' })
+      .expect(400);
+    expect(outdated.body.error.issues).toEqual([
+      { path: 'termsVersion', message: expect.stringContaining('atualizado') },
+    ]);
+    expect(await ctx.db.select().from(rmas)).toHaveLength(0);
   });
 
   it('SMTP indisponível preserva o RMA e deixa o aviso recuperável (CA18)', async () => {
@@ -334,9 +457,9 @@ describe('Abertura de RMA e consulta no portal', () => {
     ).body as { number: number };
     ctx.mail.failing = true;
     await ctx.processor.processBatch();
-    const [notice] = await ctx.db.select().from(notifications);
-    expect(notice.status).toBe('pendente');
-    expect(notice.lastError).toContain('SMTP');
+    const notices = await ctx.db.select().from(notifications);
+    expect(notices.every((notice) => notice.status === 'pendente')).toBe(true);
+    expect(notices[0].lastError).toContain('SMTP');
     await client.get(`/api/portal/rmas/${number}`).expect(200);
   });
 
@@ -364,6 +487,13 @@ describe('Abertura de RMA e consulta no portal', () => {
       expect(detail.requester?.email).toBe('cliente@um.local');
       expect(detail.openedBy?.name).toBe('agente');
       await client.get(`/api/portal/rmas/${res.body.number}`).expect(200);
+
+      // A equipe não aceita o termo em nome do cliente.
+      const [rma] = await ctx.db
+        .select()
+        .from(rmas)
+        .where(eq(rmas.number, res.body.number));
+      expect(rma).toMatchObject({ termsVersion: null, termsAcceptedAt: null });
     });
 
     it('o equipamento já está na fábrica: começa em diagnóstico, com o prazo correndo', async () => {
@@ -415,6 +545,7 @@ describe('Abertura de RMA e consulta no portal', () => {
       const reader = await signIn(ctx, 'consulta@central.local');
       const body = {
         openingKey: randomUUID(),
+        termsVersion: TERMS_VERSION,
         customerId,
         requesterContactId: contactId,
         items: [],

@@ -17,6 +17,7 @@ import {
   itemAt,
   resetDatabase,
   signIn,
+  TERMS_VERSION,
   type TestAgent,
   type TestContext,
 } from './support.js';
@@ -91,6 +92,7 @@ describe('Vídeos do chamado: falha na abertura e validação no despacho', () =
       .post('/api/portal/rmas')
       .send({
         openingKey: randomUUID(),
+        termsVersion: TERMS_VERSION,
         items: [
           {
             model: 'SpeedFace V5L',

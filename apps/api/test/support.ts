@@ -14,6 +14,10 @@ import request from 'supertest';
 
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
+import {
+  CAPTCHA_VERIFIER,
+  type CaptchaVerifier,
+} from '../src/common/captcha/captcha-verifier.js';
 import { hashPassword } from '../src/common/crypto/passwords.js';
 import { DATABASE } from '../src/database/database.module.js';
 import type { Database } from '../src/database/database.types.js';
@@ -35,7 +39,10 @@ import { NotificationProcessor } from '../src/notifications/notification-process
 export type TestAgent = ReturnType<typeof request.agent>;
 
 export const ORIGIN = 'http://localhost:5173';
-export const PASSWORD = 'senha-de-teste-123';
+export const PASSWORD = 'Senha-de-teste-123';
+
+/** Versão do termo de exemplo (`legal/termo-garantia.exemplo.json`). */
+export const TERMS_VERSION = 'exemplo';
 
 /** SMTP falso: guarda as mensagens e pode simular indisponibilidade. */
 export class FakeMailTransport implements MailTransport {
@@ -97,15 +104,23 @@ export interface TestContext {
   http: () => TestAgent;
 }
 
-export async function createTestApp(): Promise<TestContext> {
+export async function createTestApp(
+  options: { captcha?: CaptchaVerifier } = {},
+): Promise<TestContext> {
   const mail = new FakeMailTransport();
   const storage = new MemoryFileStorage();
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+  let builder = Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(MAIL_TRANSPORT)
     .useValue(mail)
     .overrideProvider(FILE_STORAGE)
-    .useValue(storage)
-    .compile();
+    .useValue(storage);
+  // Sem chaves no ambiente de teste, a verificação anti-robô fica desligada.
+  if (options.captcha) {
+    builder = builder
+      .overrideProvider(CAPTCHA_VERIFIER)
+      .useValue(options.captcha);
+  }
+  const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication<NestExpressApplication>({
     bodyParser: false,
     logger: ['error'],

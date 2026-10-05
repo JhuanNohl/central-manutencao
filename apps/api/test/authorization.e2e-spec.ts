@@ -68,7 +68,14 @@ describe('Autorização e escopo', () => {
     await viewer.get(`/api/customers/${customerId}`).expect(200);
     await viewer
       .post('/api/customers')
-      .send({ kind: 'pessoa_fisica', name: 'Novo', document: '529.982.247-25' })
+      .send({
+        customer: {
+          kind: 'pessoa_fisica',
+          name: 'Novo',
+          document: '529.982.247-25',
+        },
+        contact: { name: 'Novo', email: 'novo@c.local' },
+      })
       .expect(403);
     await viewer
       .post(`/api/customers/${customerId}/contacts`)
@@ -76,7 +83,7 @@ describe('Autorização e escopo', () => {
       .expect(403);
   });
 
-  it('agente cadastra cliente e contato, com auditoria', async () => {
+  it('agente cadastra cliente, acesso do contato principal e outro contato, com auditoria', async () => {
     await createAccount(ctx.db, {
       email: 'agente@central.local',
       role: 'agente',
@@ -86,28 +93,39 @@ describe('Autorização e escopo', () => {
     const created = await agent
       .post('/api/customers')
       .send({
-        kind: 'pessoa_fisica',
-        name: 'Pessoa Física',
-        document: '529.982.247-25',
+        customer: {
+          kind: 'pessoa_fisica',
+          name: 'Pessoa Física',
+          document: '529.982.247-25',
+        },
+        contact: { name: 'Pessoa Física', email: 'PF@Exemplo.local' },
       })
       .expect(201);
     await agent
       .post(`/api/customers/${created.body.id}/contacts`)
-      .send({ name: 'Pessoa Física', email: 'PF@Exemplo.local' })
+      .send({ name: 'Financeiro', email: 'financeiro@exemplo.local' })
       .expect(201);
-    await agent
+    const duplicate = await agent
       .post('/api/customers')
       .send({
-        kind: 'pessoa_fisica',
-        name: 'Duplicada',
-        document: '52998224725',
+        customer: {
+          kind: 'pessoa_fisica',
+          name: 'Duplicada',
+          document: '52998224725',
+        },
+        contact: { name: 'Duplicada', email: 'duplicada@exemplo.local' },
       })
       .expect(409);
+    expect(duplicate.body.error.issues[0].path).toBe('customer.document');
 
     const actions = (await ctx.db.select().from(auditEvents)).map(
       (e) => e.action,
     );
-    expect(actions).toEqual(['cliente.criado', 'cliente.contato_adicionado']);
+    expect(actions).toEqual([
+      'cliente.criado',
+      'conta.acesso_portal_criado',
+      'cliente.contato_adicionado',
+    ]);
   });
 
   describe('administração de contas', () => {
@@ -131,7 +149,7 @@ describe('Autorização e escopo', () => {
       const login = await ctx
         .http()
         .post('/api/auth/login')
-        .send({ email: 'agente@central.local', password: 'senha-de-teste-123' })
+        .send({ email: 'agente@central.local', password: 'Senha-de-teste-123' })
         .expect(403);
       expect(login.body.error.message).toMatch(/desativada/);
 
@@ -222,7 +240,14 @@ describe('Autorização e escopo', () => {
     const agent = await signIn(ctx, 'agente@central.local');
     await agent
       .post('/api/customers')
-      .send({ kind: 'pessoa_fisica', name: 'Pessoa', document: '52998224725' })
+      .send({
+        customer: {
+          kind: 'pessoa_fisica',
+          name: 'Pessoa',
+          document: '52998224725',
+        },
+        contact: { name: 'Pessoa', email: 'pessoa@exemplo.local' },
+      })
       .expect(201);
 
     await expect(
@@ -231,6 +256,7 @@ describe('Autorização e escopo', () => {
     await expect(
       ctx.db.execute(sql`delete from audit_events`),
     ).rejects.toThrow();
-    expect(await ctx.db.select().from(auditEvents)).toHaveLength(1);
+    // Cadastro do cliente e criação do acesso do contato principal.
+    expect(await ctx.db.select().from(auditEvents)).toHaveLength(2);
   });
 });

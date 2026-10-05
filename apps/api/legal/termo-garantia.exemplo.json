@@ -1,0 +1,53 @@
+{
+  "version": "exemplo",
+  "title": "Termo de garantia — modelo de exemplo",
+  "issuer": "Central de Manutenção",
+  "intro": [
+    "Este é um termo de exemplo, usado em desenvolvimento e nos testes. O termo real da empresa fica só no servidor, no arquivo indicado por WARRANTY_TERMS_FILE, e não é versionado."
+  ],
+  "summary": [
+    "Resumo das principais condições de garantia, cobranças, transporte e armazenagem.",
+    "Cada item do resumo é uma frase curta, com o valor das taxas quando houver."
+  ],
+  "highlight": {
+    "title": "Informação destacada — cobranças",
+    "paragraphs": [
+      "Aqui aparece, em destaque, qualquer valor que possa ser cobrado do cliente."
+    ]
+  },
+  "sections": [
+    {
+      "title": "1. Objeto",
+      "blocks": [
+        {
+          "kind": "paragraph",
+          "text": "Condições de garantia, análise técnica e manutenção dos equipamentos atendidos."
+        }
+      ]
+    },
+    {
+      "title": "2. Garantia",
+      "blocks": [
+        { "kind": "subtitle", "text": "2.1. Prazo" },
+        {
+          "kind": "paragraph",
+          "text": "O prazo de garantia é composto por:"
+        },
+        {
+          "kind": "list",
+          "items": ["garantia legal;", "garantia contratual complementar."]
+        }
+      ]
+    },
+    {
+      "title": "3. Aceite eletrônico",
+      "blocks": [
+        {
+          "kind": "paragraph",
+          "text": "O portal registra quem aceitou, o número do atendimento, a data e a hora do aceite e a versão do termo."
+        }
+      ]
+    }
+  ],
+  "closing": "Documento eletrônico — modelo de exemplo"
+}

@@ -9,23 +9,23 @@ import {
 } from '@nestjs/common';
 import {
   contactInputSchema,
-  customerInputSchema,
+  createCustomerSchema,
   listCustomersQuerySchema,
   type ContactInput,
-  type CustomerInput,
+  type CreateCustomerRequest,
   type ListCustomersQuery,
 } from '@central/contracts';
 import { validate } from '../common/http/zod-validation.pipe.js';
 import type { AuthContext } from '../identity/auth-context.js';
 import { CurrentAuth, RequirePermissions } from '../identity/decorators.js';
-import { InvitationsService } from '../identity/invitations.service.js';
+import { PortalAccessService } from '../identity/portal-access.service.js';
 import { CustomersService } from './customers.service.js';
 
 @Controller('customers')
 export class CustomersController {
   constructor(
     private readonly customers: CustomersService,
-    private readonly invitations: InvitationsService,
+    private readonly portalAccess: PortalAccessService,
   ) {}
 
   @Get()
@@ -35,10 +35,11 @@ export class CustomersController {
   }
 
   @Post()
-  @RequirePermissions('customers.write')
+  // O cadastro já cria o acesso do contato principal ao portal.
+  @RequirePermissions('customers.write', 'customers.invite_contact')
   create(
     @CurrentAuth() auth: AuthContext,
-    @Body(validate(customerInputSchema)) body: CustomerInput,
+    @Body(validate(createCustomerSchema)) body: CreateCustomerRequest,
   ) {
     return this.customers.create(auth, body);
   }
@@ -62,13 +63,14 @@ export class CustomersController {
     return this.customers.addContact(auth, id, body);
   }
 
-  @Post(':id/contacts/:contactId/invitation')
+  /** Cria a conta de portal do contato, com senha provisória por e-mail. */
+  @Post(':id/contacts/:contactId/access')
   @RequirePermissions('customers.invite_contact')
-  inviteContact(
+  grantPortalAccess(
     @CurrentAuth() auth: AuthContext,
     @Param('id', ParseUUIDPipe) id: string,
     @Param('contactId', ParseUUIDPipe) contactId: string,
   ) {
-    return this.invitations.createForContact(auth, id, contactId);
+    return this.portalAccess.grantForContact(auth, id, contactId);
   }
 }

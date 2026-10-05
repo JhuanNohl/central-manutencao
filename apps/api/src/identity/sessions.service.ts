@@ -18,9 +18,10 @@ import {
   toAuthenticatedAccount,
 } from './account-loader.js';
 import type { AuthContext, AuthenticatedAccount } from './auth-context.js';
+import { HOUR_MS, MINUTE_MS } from '../common/time/durations.js';
 
 /** Intervalo mínimo entre gravações de "última atividade" da mesma sessão. */
-const TOUCH_INTERVAL_MS = 60_000;
+const TOUCH_INTERVAL_MS = MINUTE_MS;
 
 export interface IssuedSession {
   token: string;
@@ -109,7 +110,7 @@ export class SessionsService {
     const token = generateToken();
     const now = Date.now();
     const absoluteExpiresAt = new Date(
-      now + this.env.SESSION_ABSOLUTE_HOURS * 3_600_000,
+      now + this.env.SESSION_ABSOLUTE_HOURS * HOUR_MS,
     );
     const context = currentRequestContext();
     await db.insert(sessions).values({
@@ -141,7 +142,7 @@ export class SessionsService {
   }
 
   private idleExpiry(now: number, absoluteExpiresAt: Date): Date {
-    const idle = now + this.env.SESSION_IDLE_MINUTES * 60_000;
+    const idle = now + this.env.SESSION_IDLE_MINUTES * MINUTE_MS;
     return new Date(Math.min(idle, absoluteExpiresAt.getTime()));
   }
 }

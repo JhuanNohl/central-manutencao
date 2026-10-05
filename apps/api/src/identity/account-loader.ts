@@ -18,6 +18,8 @@ export const authenticatedAccountColumns = {
   name: accounts.name,
   role: accounts.role,
   emailVerifiedAt: accounts.emailVerifiedAt,
+  passwordChangeRequired: accounts.passwordChangeRequired,
+  termsVersion: accounts.termsVersion,
   customerId: customers.id,
   customerName: customers.name,
 };
@@ -28,6 +30,8 @@ type AuthenticatedAccountRow = {
   name: string;
   role: AuthenticatedAccount['role'];
   emailVerifiedAt: Date | null;
+  passwordChangeRequired: boolean;
+  termsVersion: string | null;
   customerId: string | null;
   customerName: string | null;
 };
@@ -41,6 +45,8 @@ export function toAuthenticatedAccount(
     name: row.name,
     role: row.role,
     emailVerified: row.emailVerifiedAt !== null,
+    passwordChangeRequired: row.passwordChangeRequired,
+    acceptedTermsVersion: row.termsVersion,
     customer: reference(row.customerId, row.customerName),
   };
 }

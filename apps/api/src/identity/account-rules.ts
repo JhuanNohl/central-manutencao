@@ -10,6 +10,8 @@ import { accounts } from '../database/schema/index.js';
 export async function ensureEmailAvailable(
   db: Executor,
   email: string,
+  /** Campo do formulário que recebe o erro. */
+  path = 'email',
 ): Promise<void> {
   const [taken] = await db
     .select({ id: accounts.id })
@@ -17,7 +19,7 @@ export async function ensureEmailAvailable(
     .where(eq(accounts.email, email));
   if (taken) {
     throw ApiException.conflict('Este e-mail já possui conta.', [
-      { path: 'email', message: 'E-mail já cadastrado' },
+      { path, message: 'E-mail já cadastrado' },
     ]);
   }
 }

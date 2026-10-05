@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import type {
   ContactInput,
   ContactView,
-  CustomerInput,
+  CreateCustomerRequest,
   CustomerSummary,
   CustomerView,
   ListCustomersQuery,
@@ -17,6 +17,8 @@ import { DATABASE } from '../database/database.module.js';
 import type { Database, Executor } from '../database/database.types.js';
 import { customerContacts, customers } from '../database/schema/index.js';
 import { type AuthContext, can } from '../identity/auth-context.js';
+import { temporaryCredentials } from '../common/crypto/passwords.js';
+import { PortalAccessService } from '../identity/portal-access.service.js';
 import {
   insertContact,
   insertCustomer,
@@ -65,6 +67,7 @@ export class CustomersService {
   constructor(
     @Inject(DATABASE) private readonly db: Database,
     private readonly audit: AuditService,
+    private readonly portalAccess: PortalAccessService,
   ) {}
 
   async list(query: ListCustomersQuery): Promise<Page<CustomerSummary>> {
@@ -96,20 +99,38 @@ export class CustomersService {
     return this.load(this.db, id);
   }
 
-  async create(auth: AuthContext, input: CustomerInput): Promise<CustomerView> {
+  /**
+   * Cadastro pela equipe: cliente, contato principal e acesso ao portal
+   * gravam juntos, com o e-mail da senha provisória (decisão de 02/10/2026).
+   */
+  async create(
+    auth: AuthContext,
+    input: CreateCustomerRequest,
+  ): Promise<CustomerView> {
+    const credentials = await temporaryCredentials();
+
     return this.db.transaction(async (tx) => {
-      if (await isDocumentRegistered(tx, input.document)) {
+      if (await isDocumentRegistered(tx, input.customer.document)) {
         throw ApiException.conflict('Já existe cliente com este documento.', [
-          { path: 'document', message: 'Documento já cadastrado' },
+          { path: 'customer.document', message: 'Documento já cadastrado' },
         ]);
       }
-      const id = await insertCustomer(tx, input, auth.account.id);
+      const id = await insertCustomer(tx, input.customer, auth.account.id);
+      const contact = await insertContact(tx, id, input.contact);
       await this.audit.record(tx, {
         actorAccountId: auth.account.id,
         action: 'cliente.criado',
         entityType: 'customer',
         entityId: id,
+        data: { contactId: contact.id },
       });
+      await this.portalAccess.grant(
+        tx,
+        auth,
+        { ...contact, customerId: id, customerName: input.customer.name },
+        credentials,
+        'contact.email',
+      );
       return this.load(tx, id);
     });
   }

@@ -8,6 +8,7 @@ import type { Permission } from '@central/contracts';
 import { ApiException } from '../common/http/api-exception.js';
 import { can } from './auth-context.js';
 import {
+  ALLOWED_BEFORE_PASSWORD_CHANGE,
   ANY_OF_PERMISSIONS,
   type AuthenticatedRequest,
   PUBLIC_ROUTE,
@@ -42,6 +43,15 @@ export class AuthGuard implements CanActivate {
       return true;
     }
     if (!req.auth) throw ApiException.unauthenticated();
+    if (
+      req.auth.account.passwordChangeRequired &&
+      !this.reflector.getAllAndOverride<boolean>(
+        ALLOWED_BEFORE_PASSWORD_CHANGE,
+        targets,
+      )
+    ) {
+      throw ApiException.passwordChangeRequired();
+    }
 
     const required = [
       ...(this.reflector.get<Permission[]>(

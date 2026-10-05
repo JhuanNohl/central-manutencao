@@ -1,4 +1,5 @@
 import {
+  hasPermission,
   permissionsOf,
   type Permission,
   type Role,
@@ -11,6 +12,10 @@ export interface AuthenticatedAccount {
   name: string;
   role: Role;
   emailVerified: boolean;
+  /** Senha provisória ainda não trocada (conta criada pela equipe). */
+  passwordChangeRequired: boolean;
+  /** Versão do termo de garantia aceita pela conta. */
+  acceptedTermsVersion: string | null;
   /** Cliente ao qual a conta de portal está vinculada (nulo para a equipe). */
   customer: { id: string; name: string } | null;
 }
@@ -21,7 +26,7 @@ export interface AuthContext {
 }
 
 export function can(auth: AuthContext, permission: Permission): boolean {
-  return permissionsOf(auth.account.role).includes(permission);
+  return hasPermission(auth.account.role, permission);
 }
 
 export function toSessionAccount(

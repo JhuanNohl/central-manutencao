@@ -1,0 +1,2 @@
+ALTER TABLE "notifications" DROP CONSTRAINT "notifications_template_valid";--> statement-breakpoint
+ALTER TABLE "notifications" ADD CONSTRAINT "notifications_template_valid" CHECK ("notifications"."template" in ('convite', 'acesso_liberado', 'boas_vindas', 'acesso_portal', 'redefinicao_senha', 'confirmacao_email', 'rma_aberto', 'rma_aberto_na_fabrica', 'rma_itens_recebidos', 'rma_etapa_alterada', 'rma_cancelado', 'rma_responsavel', 'rma_mensagem_equipe', 'rma_mensagem_cliente', 'equipe_rma'));

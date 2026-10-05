@@ -21,6 +21,7 @@ import {
   itemAt,
   resetDatabase,
   signIn,
+  TERMS_VERSION,
   type TestAgent,
   type TestContext,
 } from './support.js';
@@ -138,6 +139,7 @@ describe('Envio pelo celular por QR Code', () => {
         .post('/api/portal/rmas')
         .send({
           openingKey: randomUUID(),
+          termsVersion: TERMS_VERSION,
           items: [
             {
               model: 'VR10',

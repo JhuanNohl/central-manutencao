@@ -16,9 +16,11 @@ import {
 import { DATABASE } from '../database/database.module.js';
 import type { Database } from '../database/database.types.js';
 import { accounts } from '../database/schema/index.js';
+import { WarrantyTermsService } from '../legal/warranty-terms.service.js';
+import { EmailLinks } from '../notifications/email-links.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { ensureEmailAvailable } from './account-rules.js';
 import type { AuthContext } from './auth-context.js';
-import { EmailVerificationService } from './email-verification.service.js';
 import { SessionsService, type SignedIn } from './sessions.service.js';
 
 /** Entrada e saída da sessão, e autocadastro de cliente. */
@@ -27,8 +29,10 @@ export class AuthService {
   constructor(
     @Inject(DATABASE) private readonly db: Database,
     private readonly sessions: SessionsService,
-    private readonly emailVerification: EmailVerificationService,
     private readonly audit: AuditService,
+    private readonly notifications: NotificationsService,
+    private readonly links: EmailLinks,
+    private readonly terms: WarrantyTermsService,
   ) {}
 
   async login(input: LoginRequest): Promise<SignedIn> {
@@ -64,9 +68,14 @@ export class AuthService {
     });
   }
 
-  /** Autocadastro: cliente, contato e conta nascem juntos ou não nascem. */
+  /**
+   * Autocadastro: cliente, contato e conta nascem juntos ou não nascem. A
+   * conta já nasce ativa, com o aceite do termo de garantia (02/10/2026).
+   */
   async register(input: RegisterRequest): Promise<SignedIn> {
+    const termsVersion = this.terms.ensureCurrent(input.termsVersion);
     const passwordHash = await hashPassword(input.password);
+    const acceptedAt = new Date();
 
     return this.db.transaction(async (tx) => {
       if (await isDocumentRegistered(tx, input.customer.document)) {
@@ -85,6 +94,9 @@ export class AuthService {
           name: input.contact.name,
           passwordHash,
           role: 'cliente',
+          emailVerifiedAt: acceptedAt,
+          termsVersion,
+          termsAcceptedAt: acceptedAt,
         })
         .returning({ id: accounts.id });
       const customerId = await insertCustomer(tx, input.customer, account.id);
@@ -100,12 +112,19 @@ export class AuthService {
         action: 'conta.autocadastro',
         entityType: 'account',
         entityId: account.id,
-        data: { customerId, kind: input.customer.kind },
+        data: { customerId, kind: input.customer.kind, termsVersion },
       });
-      await this.emailVerification.send(tx, {
-        id: account.id,
-        email: input.email,
-        name: input.contact.name,
+      await this.notifications.enqueue(tx, {
+        template: 'boas_vindas',
+        recipient: input.email,
+        origin: `account:${account.id}`,
+        dedupeKey: `boas_vindas:${account.id}`,
+        payload: {
+          name: input.contact.name,
+          link: this.links.login(),
+          termsVersion,
+          termsAcceptedAtLabel: this.links.expiry(acceptedAt),
+        },
       });
 
       return this.sessions.signIn(tx, account.id);

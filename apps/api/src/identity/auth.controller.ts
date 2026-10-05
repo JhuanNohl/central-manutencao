@@ -9,13 +9,11 @@ import {
 } from '@nestjs/common';
 import {
   changePasswordSchema,
-  emailVerificationConfirmSchema,
   loginRequestSchema,
   passwordResetConfirmSchema,
   passwordResetRequestSchema,
   registerRequestSchema,
   type ChangePasswordRequest,
-  type EmailVerificationConfirm,
   type LoginRequest,
   type MeResponse,
   type PasswordResetConfirm,
@@ -23,11 +21,16 @@ import {
   type RegisterRequest,
 } from '@central/contracts';
 import type { Response } from 'express';
+import { RequireCaptcha } from '../common/captcha/captcha.guard.js';
 import { validate } from '../common/http/zod-validation.pipe.js';
 import { type AuthContext, toSessionAccount } from './auth-context.js';
 import { AuthService } from './auth.service.js';
-import { CurrentAuth, Public, SensitiveRateLimit } from './decorators.js';
-import { EmailVerificationService } from './email-verification.service.js';
+import {
+  AllowedBeforePasswordChange,
+  CurrentAuth,
+  Public,
+  SensitiveRateLimit,
+} from './decorators.js';
 import { PasswordsService } from './passwords.service.js';
 import { SessionCookies } from './session-cookie.js';
 
@@ -36,11 +39,11 @@ export class AuthController {
   constructor(
     private readonly auth: AuthService,
     private readonly passwords: PasswordsService,
-    private readonly emailVerification: EmailVerificationService,
     private readonly cookies: SessionCookies,
   ) {}
 
   @Post('login')
+  @RequireCaptcha()
   @Public()
   @SensitiveRateLimit()
   @HttpCode(HttpStatus.OK)
@@ -52,6 +55,7 @@ export class AuthController {
   }
 
   @Post('register')
+  @RequireCaptcha()
   @Public()
   @SensitiveRateLimit()
   async register(
@@ -62,6 +66,7 @@ export class AuthController {
   }
 
   @Post('logout')
+  @AllowedBeforePasswordChange()
   @HttpCode(HttpStatus.NO_CONTENT)
   async logout(
     @CurrentAuth() auth: AuthContext,
@@ -72,11 +77,13 @@ export class AuthController {
   }
 
   @Get('me')
+  @AllowedBeforePasswordChange()
   me(@CurrentAuth() auth: AuthContext): MeResponse {
     return { account: toSessionAccount(auth.account) };
   }
 
   @Post('password-reset/request')
+  @RequireCaptcha()
   @Public()
   @SensitiveRateLimit()
   @HttpCode(HttpStatus.ACCEPTED)
@@ -100,6 +107,7 @@ export class AuthController {
   }
 
   @Post('password')
+  @AllowedBeforePasswordChange()
   @SensitiveRateLimit()
   @HttpCode(HttpStatus.NO_CONTENT)
   async changePassword(
@@ -107,25 +115,5 @@ export class AuthController {
     @Body(validate(changePasswordSchema)) body: ChangePasswordRequest,
   ): Promise<void> {
     await this.passwords.change(auth, body);
-  }
-
-  @Post('email-verification/confirm')
-  @Public()
-  @SensitiveRateLimit()
-  @HttpCode(HttpStatus.NO_CONTENT)
-  async confirmEmail(
-    @Body(validate(emailVerificationConfirmSchema))
-    body: EmailVerificationConfirm,
-  ): Promise<void> {
-    await this.emailVerification.confirm(body.token);
-  }
-
-  @Post('email-verification/resend')
-  @SensitiveRateLimit()
-  @HttpCode(HttpStatus.ACCEPTED)
-  async resendEmailVerification(
-    @CurrentAuth() auth: AuthContext,
-  ): Promise<void> {
-    await this.emailVerification.resend(auth);
   }
 }

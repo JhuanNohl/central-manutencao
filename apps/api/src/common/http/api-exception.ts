@@ -37,12 +37,26 @@ export class ApiException extends HttpException {
     return new ApiException(HttpStatus.NOT_FOUND, 'NOT_FOUND', message);
   }
 
-  static emailNotVerified(
-    message = 'Confirme seu e-mail para abrir atendimentos.',
+  static captchaFailed(
+    message = 'Não foi possível confirmar que você não é um robô. Refaça a verificação e tente novamente.',
+  ) {
+    return new ApiException(HttpStatus.BAD_REQUEST, 'CAPTCHA_FAILED', message);
+  }
+
+  static passwordChangeRequired(
+    message = 'Troque a senha provisória para continuar.',
   ) {
     return new ApiException(
       HttpStatus.FORBIDDEN,
-      'EMAIL_NOT_VERIFIED',
+      'PASSWORD_CHANGE_REQUIRED',
+      message,
+    );
+  }
+
+  static tooManyRequests(message: string) {
+    return new ApiException(
+      HttpStatus.TOO_MANY_REQUESTS,
+      'TOO_MANY_REQUESTS',
       message,
     );
   }

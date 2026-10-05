@@ -11,6 +11,8 @@ export const PUBLIC_ROUTE = 'central:public';
 export const REQUIRED_PERMISSIONS = 'central:permissions';
 export const ANY_OF_PERMISSIONS = 'central:any-of-permissions';
 export const SENSITIVE_RATE_LIMIT = 'central:sensitive-rate-limit';
+export const ALLOWED_BEFORE_PASSWORD_CHANGE =
+  'central:allowed-before-password-change';
 
 /** Rota acessível sem sessão (a sessão, se houver, ainda é carregada). */
 export const Public = () => SetMetadata(PUBLIC_ROUTE, true);
@@ -25,6 +27,13 @@ export const RequirePermissions = (...permissions: Permission[]) =>
  */
 export const RequireAnyPermission = (...permissions: Permission[]) =>
   SetMetadata(ANY_OF_PERMISSIONS, permissions);
+
+/**
+ * Rota liberada para quem ainda tem senha provisória: consultar a sessão,
+ * trocar a senha e sair. O resto da API espera a troca.
+ */
+export const AllowedBeforePasswordChange = () =>
+  SetMetadata(ALLOWED_BEFORE_PASSWORD_CHANGE, true);
 
 /** Aplica o limite reduzido de tentativas (login, cadastro, links por e-mail). */
 export const SensitiveRateLimit = () => SetMetadata(SENSITIVE_RATE_LIMIT, true);

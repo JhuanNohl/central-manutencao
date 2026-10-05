@@ -1,9 +1,7 @@
 import { eq } from 'drizzle-orm';
-import { customerContacts, invitations } from '../src/database/schema/index.js';
+import { invitations } from '../src/database/schema/index.js';
 import {
-  cnpj,
   createAccount,
-  createCustomer,
   createTestApp,
   resetDatabase,
   signIn,
@@ -55,7 +53,7 @@ describe('Convites', () => {
     const agent = ctx.http();
     const accepted = await agent
       .post('/api/invitations/accept')
-      .send({ token, name: 'Novo Agente', password: 'senha-do-agente' })
+      .send({ token, name: 'Novo Agente', password: 'Senha-do-agente-1' })
       .expect(200);
     expect(accepted.body.account).toMatchObject({
       role: 'agente',
@@ -68,9 +66,49 @@ describe('Convites', () => {
     expect(list.body.items[0].status).toBe('aceito');
   });
 
+  it('o convite diz quem criou o acesso e o perfil; o aceite avisa o acesso liberado', async () => {
+    const { token } = await inviteAgent();
+    const invite = ctx.mail.sent.find(
+      (m) => m.to === 'novo.agente@central.local',
+    );
+    expect(invite?.text).toContain(
+      'criou seu acesso à Central de Manutenção com o perfil Agente de manutenção',
+    );
+
+    ctx.mail.sent = [];
+    await ctx
+      .http()
+      .post('/api/invitations/accept')
+      .send({ token, name: 'Novo Agente', password: 'Senha-do-agente-1' })
+      .expect(200);
+    await ctx.processor.processBatch();
+    expect(ctx.mail.sent).toEqual([
+      expect.objectContaining({
+        to: 'novo.agente@central.local',
+        subject: 'Acesso liberado — Central de Manutenção',
+        text: expect.stringContaining('com o perfil Agente de manutenção'),
+      }),
+    ]);
+  });
+
+  it('o aceite exige senha forte', async () => {
+    const { token } = await inviteAgent();
+    const res = await ctx
+      .http()
+      .post('/api/invitations/accept')
+      .send({ token, name: 'Novo Agente', password: 'senhafraca' })
+      .expect(400);
+    expect(res.body.error.issues).toEqual([
+      {
+        path: 'password',
+        message: expect.stringContaining('uma letra maiúscula, um número'),
+      },
+    ]);
+  });
+
   it('convite é de uso único, inclusive com aceites simultâneos', async () => {
     const { token } = await inviteAgent();
-    const body = { token, name: 'Novo Agente', password: 'senha-do-agente' };
+    const body = { token, name: 'Novo Agente', password: 'Senha-do-agente-1' };
     const results = await Promise.all([
       ctx.http().post('/api/invitations/accept').send(body),
       ctx.http().post('/api/invitations/accept').send(body),
@@ -101,7 +139,11 @@ describe('Convites', () => {
     await ctx
       .http()
       .post('/api/invitations/accept')
-      .send({ token: second.token, name: 'Outro', password: 'senha-do-agente' })
+      .send({
+        token: second.token,
+        name: 'Outro',
+        password: 'Senha-do-agente-1',
+      })
       .expect(400);
   });
 
@@ -142,61 +184,5 @@ describe('Convites', () => {
       .send({ email: 'x@central.local', role: 'administrador' })
       .expect(403);
     expect(res.body.error.code).toBe('FORBIDDEN');
-  });
-
-  it('agente convida contato de cliente; aceite vincula a conta ao cliente', async () => {
-    await createAccount(ctx.db, {
-      email: 'agente@central.local',
-      role: 'agente',
-    });
-    const agent = await signIn(ctx, 'agente@central.local');
-    const { customerId, contactId } = await createCustomer(ctx.db, {
-      name: 'Cliente Convidado',
-      document: cnpj('445566770001'),
-      contactEmail: 'contato@convidado.local',
-    });
-
-    await agent
-      .post(`/api/customers/${customerId}/contacts/${contactId}/invitation`)
-      .expect(201);
-    await ctx.processor.processBatch();
-    const token = ctx.mail.tokenFor('contato@convidado.local');
-    expect(ctx.mail.sent.at(-1)!.text).toContain('Cliente Convidado');
-
-    const accepted = await ctx
-      .http()
-      .post('/api/invitations/accept')
-      .send({ token, name: 'Contato Convidado', password: 'senha-do-contato' })
-      .expect(200);
-    expect(accepted.body.account).toMatchObject({
-      role: 'cliente',
-      customer: { id: customerId, name: 'Cliente Convidado' },
-    });
-
-    const [contact] = await ctx.db
-      .select()
-      .from(customerContacts)
-      .where(eq(customerContacts.id, contactId));
-    expect(contact.accountId).toBe(accepted.body.account.id);
-
-    await agent
-      .post(`/api/customers/${customerId}/contacts/${contactId}/invitation`)
-      .expect(409);
-  });
-
-  it('não convida contato informando cliente diferente do dono', async () => {
-    const a = await createCustomer(ctx.db, {
-      name: 'A',
-      document: cnpj('111111110001'),
-      contactEmail: 'a@a.local',
-    });
-    const b = await createCustomer(ctx.db, {
-      name: 'B',
-      document: cnpj('222222220001'),
-      contactEmail: 'b@b.local',
-    });
-    await admin
-      .post(`/api/customers/${a.customerId}/contacts/${b.contactId}/invitation`)
-      .expect(404);
   });
 });
