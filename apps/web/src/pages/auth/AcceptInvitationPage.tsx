@@ -3,6 +3,7 @@ import {
   ROLE_LABELS,
   type InvitationPreview,
   type MeResponse,
+  INVITATION_TTL_DAYS,
 } from '@central/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router';
@@ -14,6 +15,7 @@ import {
   Loading,
   QueryError,
 } from '../../components/feedback';
+import { NewPasswordField } from '../../components/NewPasswordField';
 import { Field, SubmitButton } from '../../components/ui';
 import { AuthLayout } from '../../layouts/AuthLayout';
 import { formatDateTime } from '../../lib/format';
@@ -61,8 +63,8 @@ export function AcceptInvitationPage() {
       <AuthLayout title="Convite indisponível">
         <QueryError error={preview.error} />
         <p className="muted">
-          Convites valem por 7 dias e podem ser usados uma única vez. Peça um
-          novo convite a quem enviou.
+          Convites valem por {INVITATION_TTL_DAYS} dias e podem ser usados uma
+          única vez. Peça um novo convite a quem enviou.
         </p>
         <div className="auth-links">
           <Link to="/entrar">Ir para o login</Link>
@@ -96,12 +98,9 @@ export function AcceptInvitationPage() {
           defaultValue={invitation.suggestedName ?? ''}
           errors={form.fieldErrors}
         />
-        <Field
+        <NewPasswordField
           label="Crie uma senha"
           name="password"
-          type="password"
-          autoComplete="new-password"
-          hint="Pelo menos 10 caracteres."
           errors={form.fieldErrors}
         />
         <SubmitButton pending={form.pending} block>

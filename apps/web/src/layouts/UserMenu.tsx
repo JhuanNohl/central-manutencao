@@ -13,7 +13,7 @@ function initials(name: string): string {
 }
 
 /** Encerra a sessão e volta à tela de acesso, mesmo se a API falhar. */
-function useLogout() {
+export function useLogout() {
   const setSession = useSetSession();
   const navigate = useNavigate();
   return useMutation({

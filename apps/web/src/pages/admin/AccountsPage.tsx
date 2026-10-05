@@ -103,9 +103,7 @@ export function AccountsPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Agentes"
-      />
+      <PageHeader title="Agentes" />
 
       <section className="panel">
         <div className="panel-header">

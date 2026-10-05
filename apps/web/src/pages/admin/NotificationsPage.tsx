@@ -20,6 +20,9 @@ const REFRESH_MS = 15_000;
 
 const TEMPLATE_LABELS: Record<NotificationTemplate, string> = {
   convite: 'Convite',
+  acesso_liberado: 'Acesso liberado',
+  boas_vindas: 'Boas-vindas',
+  acesso_portal: 'Acesso ao portal',
   redefinicao_senha: 'Redefinição de senha',
   confirmacao_email: 'Confirmação de e-mail',
   rma_aberto: 'Atendimento aberto',
@@ -27,8 +30,10 @@ const TEMPLATE_LABELS: Record<NotificationTemplate, string> = {
   rma_itens_recebidos: 'Equipamentos recebidos',
   rma_etapa_alterada: 'Etapa alterada',
   rma_cancelado: 'Atendimento cancelado',
+  rma_responsavel: 'Responsável definido',
   rma_mensagem_equipe: 'Mensagem da equipe',
   rma_mensagem_cliente: 'Mensagem do cliente',
+  equipe_rma: 'Aviso ao setor',
 };
 
 const STATUS: Record<NotificationStatus, StatusStyle> = {

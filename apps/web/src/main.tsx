@@ -11,7 +11,6 @@ import { AccountsPage } from './pages/admin/AccountsPage';
 import { InvitationsPage } from './pages/admin/InvitationsPage';
 import { NotificationsPage } from './pages/admin/NotificationsPage';
 import { AcceptInvitationPage } from './pages/auth/AcceptInvitationPage';
-import { ConfirmEmailPage } from './pages/auth/ConfirmEmailPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import {
   ForgotPasswordPage,
@@ -69,7 +68,6 @@ const router = createBrowserRouter([
   },
   { path: '/esqueci-senha', element: <ForgotPasswordPage /> },
   { path: '/redefinir-senha', element: <ResetPasswordPage /> },
-  { path: '/confirmar-email', element: <ConfirmEmailPage /> },
   { path: '/convite', element: <AcceptInvitationPage /> },
   // Aberta pelo QR Code no celular, sem login: o token do link basta.
   { path: '/enviar', element: <MobileUploadPage /> },

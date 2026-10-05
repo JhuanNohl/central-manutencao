@@ -2,9 +2,13 @@ import type { Permission } from '@central/contracts';
 import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router';
 import { Alert, Loading, QueryError } from '../components/feedback';
+import { FirstAccessPage } from '../pages/auth/FirstAccessPage';
 import { hasPermission, useSession } from './session';
 
-/** Exige sessão; sem ela, envia ao login e volta depois para a página pedida. */
+/**
+ * Exige sessão; sem ela, envia ao login e volta depois para a página pedida.
+ * Com senha provisória, só a troca de senha aparece (a API também recusa o resto).
+ */
 export function RequireAuth({ children }: { children: ReactNode }) {
   const session = useSession();
   const location = useLocation();
@@ -12,9 +16,14 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   if (session.isError) return <QueryError error={session.error} />;
   if (!session.data) {
     return (
-      <Navigate to="/entrar" replace state={{ from: location.pathname }} />
+      <Navigate
+        to="/entrar"
+        replace
+        state={{ from: location.pathname + location.search }}
+      />
     );
   }
+  if (session.data.passwordChangeRequired) return <FirstAccessPage />;
   return children;
 }
 

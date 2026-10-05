@@ -17,7 +17,6 @@ import { get, toQuery } from '../api/client';
 import { hasPermission, useSession } from '../auth/session';
 import { QueryError } from '../components/feedback';
 import { PageHeader } from '../components/ui';
-import { EmailVerificationNotice } from './AccountPage';
 import {
   NewRmaLink,
   PORTAL_RMAS_PATH,
@@ -116,7 +115,6 @@ export function HomePage() {
           description={account.customer?.name}
           actions={<NewRmaLink />}
         />
-        <EmailVerificationNotice />
         <RecentRmas />
       </div>
     );

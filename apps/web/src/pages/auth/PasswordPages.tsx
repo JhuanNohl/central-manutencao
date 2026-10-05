@@ -1,26 +1,35 @@
 import {
   passwordResetConfirmSchema,
   passwordResetRequestSchema,
+  PASSWORD_RESET_TTL_HOURS,
 } from '@central/contracts';
 import { Link } from 'react-router';
 import { post } from '../../api/client';
+import { useCaptcha } from '../../components/captcha';
 import { Alert, FormAlert } from '../../components/feedback';
+import { NewPasswordField } from '../../components/NewPasswordField';
 import { Field, SubmitButton } from '../../components/ui';
 import { AuthLayout } from '../../layouts/AuthLayout';
 import { raw, text, useSchemaForm } from '../../lib/forms';
 import { useLinkToken } from '../../lib/token';
 
 export function ForgotPasswordPage() {
+  const captcha = useCaptcha();
   const form = useSchemaForm({
     schema: passwordResetRequestSchema,
     read: (data) => ({ email: text(data, 'email') }),
-    submit: (body) => post<void>('/auth/password-reset/request', body),
+    submit: (body) =>
+      post<void>(
+        '/auth/password-reset/request',
+        body,
+        captcha.consumeHeaders(),
+      ),
   });
 
   return (
     <AuthLayout
       title="Redefinir senha"
-      lead="Informe o e-mail da sua conta. Enviaremos um link válido por 1 hora."
+      lead={`Informe o e-mail da sua conta. Enviaremos um link válido por ${PASSWORD_RESET_TTL_HOURS} hora.`}
     >
       {form.done ? (
         <Alert tone="success">
@@ -38,6 +47,7 @@ export function ForgotPasswordPage() {
             autoComplete="email"
             errors={form.fieldErrors}
           />
+          {captcha.widget}
           <SubmitButton pending={form.pending} block>
             Enviar link
           </SubmitButton>
@@ -86,12 +96,9 @@ export function ResetPasswordPage() {
       ) : (
         <form onSubmit={form.onSubmit} noValidate>
           <FormAlert message={form.formError} />
-          <Field
+          <NewPasswordField
             label="Nova senha"
             name="password"
-            type="password"
-            autoComplete="new-password"
-            hint="Pelo menos 10 caracteres."
             errors={form.fieldErrors}
           />
           <SubmitButton pending={form.pending} block>

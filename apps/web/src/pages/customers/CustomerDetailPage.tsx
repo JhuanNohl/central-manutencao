@@ -2,10 +2,10 @@ import {
   contactInputSchema,
   type ContactView,
   type CustomerView,
-  type InvitationView,
 } from '@central/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, CircleCheck, CircleMinus, Send } from 'lucide-react';
+import { ArrowLeft, CircleCheck, CircleMinus, KeyRound } from 'lucide-react';
+import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { get, post } from '../../api/client';
 import { hasPermission, useSession } from '../../auth/session';
@@ -17,6 +17,7 @@ import {
   Loading,
   QueryError,
 } from '../../components/feedback';
+import { PhoneField } from '../../components/masked-fields';
 import { Field, PageHeader, SubmitButton } from '../../components/ui';
 import { formatDateTime, formatDocument } from '../../lib/format';
 import { text, useSchemaForm } from '../../lib/forms';
@@ -27,7 +28,8 @@ const PORTAL_ACCESS: Record<'with' | 'without', StatusStyle> = {
 };
 
 export function CustomerDetailPage() {
-  const { id = '' } = useParams();
+  // O parâmetro entra no caminho da API: codificado, não leva a outra rota.
+  const id = encodeURIComponent(useParams().id ?? '');
   const { data: account } = useSession();
   const client = useQueryClient();
   const key = ['customer', id];
@@ -37,6 +39,8 @@ export function CustomerDetailPage() {
     queryFn: () => get<CustomerView>(`/customers/${id}`),
   });
 
+  // Recria o telefone (campo controlado) quando o formulário é limpo.
+  const [addedContacts, setAddedContacts] = useState(0);
   const addContact = useSchemaForm({
     schema: contactInputSchema,
     read: (data) => ({
@@ -47,13 +51,16 @@ export function CustomerDetailPage() {
     submit: (body) => post<ContactView>(`/customers/${id}/contacts`, body),
     onSuccess: (_, form) => {
       form.reset();
+      setAddedContacts((count) => count + 1);
       void client.invalidateQueries({ queryKey: key });
     },
   });
 
-  const invite = useMutation({
+  /** Cria a conta do contato; a senha provisória vai por e-mail para ele. */
+  const grantAccess = useMutation({
     mutationFn: (contactId: string) =>
-      post<InvitationView>(`/customers/${id}/contacts/${contactId}/invitation`),
+      post<ContactView>(`/customers/${id}/contacts/${contactId}/access`),
+    onSuccess: () => void client.invalidateQueries({ queryKey: key }),
   });
 
   if (query.isPending) return <Loading />;
@@ -89,13 +96,13 @@ export function CustomerDetailPage() {
         <div className="panel-header">
           <h2>Contatos</h2>
         </div>
-        {(invite.isError || invite.isSuccess) && (
+        {(grantAccess.isError || grantAccess.isSuccess) && (
           <div className="panel-body">
-            {invite.isError && <QueryError error={invite.error} />}
-            {invite.isSuccess && (
+            {grantAccess.isError && <QueryError error={grantAccess.error} />}
+            {grantAccess.isSuccess && (
               <Alert tone="success">
-                Convite registrado para {invite.data.email}. O e-mail será
-                enviado em instantes.
+                Acesso criado para {grantAccess.data.email}. A senha provisória
+                vai por e-mail, e a troca é pedida no primeiro acesso.
               </Alert>
             )}
           </div>
@@ -134,11 +141,11 @@ export function CustomerDetailPage() {
                         <button
                           type="button"
                           className="btn btn-secondary btn-sm"
-                          disabled={invite.isPending}
-                          onClick={() => invite.mutate(contact.id)}
+                          disabled={grantAccess.isPending}
+                          onClick={() => grantAccess.mutate(contact.id)}
                         >
-                          <Send size={16} aria-hidden />
-                          Convidar ao portal
+                          <KeyRound size={16} aria-hidden />
+                          Criar acesso ao portal
                         </button>
                       )}
                     </td>
@@ -167,11 +174,10 @@ export function CustomerDetailPage() {
                 inputMode="email"
                 errors={addContact.fieldErrors}
               />
-              <Field
+              <PhoneField
+                key={addedContacts}
                 label="Telefone (opcional)"
                 name="phone"
-                type="tel"
-                inputMode="tel"
                 errors={addContact.fieldErrors}
               />
             </div>

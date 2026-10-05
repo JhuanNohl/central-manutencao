@@ -11,7 +11,11 @@ import {
   CustomerKindField,
   customerKindLabels,
 } from '../../components/CustomerKindField';
+import { useCaptcha } from '../../components/captcha';
 import { FormAlert } from '../../components/feedback';
+import { DocumentField, PhoneField } from '../../components/masked-fields';
+import { NewPasswordField } from '../../components/NewPasswordField';
+import { TermsAcceptance } from '../../components/terms/TermsAcceptance';
 import { Field, SubmitButton } from '../../components/ui';
 import { AuthLayout } from '../../layouts/AuthLayout';
 import { raw, text, useSchemaForm } from '../../lib/forms';
@@ -20,6 +24,8 @@ export function RegisterPage() {
   const setSession = useSetSession();
   const navigate = useNavigate();
   const [kind, setKind] = useState<CustomerKind>('pessoa_juridica');
+  const [termsVersion, setTermsVersion] = useState<string | null>(null);
+  const captcha = useCaptcha();
   const labels = customerKindLabels(kind);
   const { company } = labels;
 
@@ -35,8 +41,10 @@ export function RegisterPage() {
       contact: { name: text(data, 'contactName'), phone: text(data, 'phone') },
       email: text(data, 'email'),
       password: raw(data, 'password'),
+      termsVersion: termsVersion ?? undefined,
     }),
-    submit: (body) => post<MeResponse>('/auth/register', body),
+    submit: (body) =>
+      post<MeResponse>('/auth/register', body, captcha.consumeHeaders()),
     onSuccess: ({ account }) => {
       setSession(account);
       void navigate('/', { replace: true });
@@ -72,7 +80,8 @@ export function RegisterPage() {
               />
             </div>
           )}
-          <Field
+          <DocumentField
+            kind={kind}
             label={labels.document}
             name="document"
             errorPath="customer.document"
@@ -93,13 +102,10 @@ export function RegisterPage() {
               autoComplete="name"
               errors={errors}
             />
-            <Field
+            <PhoneField
               label="Telefone (opcional)"
               name="phone"
               errorPath="contact.phone"
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel"
               errors={errors}
             />
           </div>
@@ -111,16 +117,16 @@ export function RegisterPage() {
             autoComplete="email"
             errors={errors}
           />
-          <Field
-            label="Senha"
-            name="password"
-            type="password"
-            autoComplete="new-password"
-            hint="Pelo menos 10 caracteres. Uma frase fácil de lembrar funciona bem."
-            errors={errors}
-          />
+          <NewPasswordField label="Senha" name="password" errors={errors} />
         </fieldset>
 
+        <TermsAcceptance
+          acceptedVersion={termsVersion}
+          error={errors.termsVersion}
+          onChange={setTermsVersion}
+        />
+
+        {captcha.widget}
         <SubmitButton pending={form.pending} block>
           Criar conta
         </SubmitButton>

@@ -60,11 +60,17 @@ function StaffInvitationForm() {
   return (
     <section className="card">
       <h2>Convidar integrante da equipe</h2>
+      <p className="muted">
+        A pessoa recebe por e-mail o aviso do acesso criado, com o perfil, e
+        define a própria senha pelo link. Ao concluir, recebe a confirmação de
+        acesso liberado.
+      </p>
       <form onSubmit={form.onSubmit} noValidate>
         <FormAlert message={form.formError} />
         {form.done && (
           <Alert tone="success">
-            Convite registrado. O e-mail será enviado em instantes.
+            Convite registrado. O e-mail com o link de acesso será enviado em
+            instantes.
           </Alert>
         )}
         <div className="field-row">
@@ -110,9 +116,7 @@ export function InvitationsPage() {
 
   return (
     <div className="stack">
-      <PageHeader
-        title="Convites"
-      />
+      <PageHeader title="Convites" />
       <StaffInvitationForm />
 
       <section className="panel">

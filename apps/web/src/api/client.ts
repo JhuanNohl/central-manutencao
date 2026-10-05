@@ -5,6 +5,7 @@ import type {
   FilePurpose,
   StoredFileView,
 } from '@central/contracts';
+import { queueUpload } from './upload-queue';
 
 export class ApiError extends Error {
   constructor(
@@ -28,12 +29,18 @@ export function errorMessage(error: unknown): string | null {
 
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
+/** Cabeçalhos extras de uma chamada (ex.: token anti-robô). */
+type RequestHeaders = Record<string, string>;
+
 /** JSON, ou multipart quando o corpo é um FormData (o navegador define o tipo). */
-function requestBody(body: unknown): Pick<RequestInit, 'headers' | 'body'> {
-  if (body === undefined) return {};
-  if (body instanceof FormData) return { body };
+function requestBody(
+  body: unknown,
+  headers: RequestHeaders,
+): Pick<RequestInit, 'headers' | 'body'> {
+  if (body === undefined) return { headers };
+  if (body instanceof FormData) return { headers, body };
   return {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { ...headers, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   };
 }
@@ -46,13 +53,14 @@ export async function api<T>(
   method: Method,
   path: string,
   body?: unknown,
+  headers: RequestHeaders = {},
 ): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`/api${path}`, {
       method,
       credentials: 'same-origin',
-      ...requestBody(body),
+      ...requestBody(body, headers),
     });
   } catch {
     throw new ApiError(
@@ -82,8 +90,11 @@ export async function api<T>(
 }
 
 export const get = <T>(path: string) => api<T>('GET', path);
-export const post = <T>(path: string, body?: unknown) =>
-  api<T>('POST', path, body ?? {});
+export const post = <T>(
+  path: string,
+  body?: unknown,
+  headers?: RequestHeaders,
+) => api<T>('POST', path, body ?? {}, headers);
 export const put = <T>(path: string, body?: unknown) =>
   api<T>('PUT', path, body ?? {});
 export const patch = <T>(path: string, body?: unknown) =>
@@ -97,7 +108,7 @@ export function uploadFile(
   const form = new FormData();
   form.set('purpose', purpose);
   form.set('file', file);
-  return api<StoredFileView>('POST', '/files', form);
+  return queueUpload(() => api<StoredFileView>('POST', '/files', form));
 }
 
 export function toQuery(params: Record<string, string | number | undefined>) {

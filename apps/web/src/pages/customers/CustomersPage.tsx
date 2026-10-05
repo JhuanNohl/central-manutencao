@@ -1,5 +1,5 @@
 import {
-  customerInputSchema,
+  createCustomerSchema,
   type CustomerKind,
   type CustomerSummary,
   type CustomerView,
@@ -14,6 +14,7 @@ import {
   customerKindLabels,
 } from '../../components/CustomerKindField';
 import { FormAlert } from '../../components/feedback';
+import { DocumentField, PhoneField } from '../../components/masked-fields';
 import { SearchInput } from '../../components/filters';
 import { PagedResults } from '../../components/PagedResults';
 import { Field, PageHeader, SubmitButton } from '../../components/ui';
@@ -23,43 +24,102 @@ import { usePagedList } from '../../lib/paged-list';
 
 const PATH = '/customers';
 
+/**
+ * Cadastro pela equipe: o contato principal recebe por e-mail o acesso ao
+ * portal, com senha provisória trocada no primeiro acesso.
+ */
 function NewCustomerForm() {
   const navigate = useNavigate();
   const [kind, setKind] = useState<CustomerKind>('pessoa_juridica');
   const labels = customerKindLabels(kind);
+  const { company } = labels;
   const form = useSchemaForm({
-    schema: customerInputSchema,
+    schema: createCustomerSchema,
     read: (data) => ({
-      kind,
-      name: text(data, 'name'),
-      tradeName: labels.company ? text(data, 'tradeName') : undefined,
-      document: text(data, 'document') ?? '',
+      customer: {
+        kind,
+        name: text(data, 'name'),
+        tradeName: company ? text(data, 'tradeName') : undefined,
+        document: text(data, 'document') ?? '',
+      },
+      contact: {
+        // Pessoa física: o contato principal é o próprio cliente.
+        name: company ? text(data, 'contactName') : text(data, 'name'),
+        email: text(data, 'email'),
+        phone: text(data, 'phone'),
+      },
     }),
     submit: (body) => post<CustomerView>(PATH, body),
     onSuccess: (customer) => void navigate(`/clientes/${customer.id}`),
   });
+  const errors = form.fieldErrors;
 
   return (
     <section className="card">
       <h2>Novo cliente</h2>
       <form onSubmit={form.onSubmit} noValidate>
         <FormAlert message={form.formError} />
-        <CustomerKindField value={kind} onChange={setKind} />
-        <div className="field-row">
-          <Field label={labels.name} name="name" errors={form.fieldErrors} />
-          {labels.company && (
+        <fieldset>
+          <legend>Cliente</legend>
+          <CustomerKindField value={kind} onChange={setKind} />
+          <div className="field-row">
             <Field
-              label="Nome fantasia (opcional)"
-              name="tradeName"
-              errors={form.fieldErrors}
+              label={labels.name}
+              name="name"
+              errorPath="customer.name"
+              errors={errors}
             />
-          )}
-          <Field
-            label={labels.document}
-            name="document"
-            errors={form.fieldErrors}
-          />
-        </div>
+            {company && (
+              <Field
+                label="Nome fantasia (opcional)"
+                name="tradeName"
+                errorPath="customer.tradeName"
+                errors={errors}
+              />
+            )}
+            <DocumentField
+              kind={kind}
+              label={labels.document}
+              name="document"
+              errorPath="customer.document"
+              hint={
+                company ? 'Aceita o CNPJ numérico ou alfanumérico.' : undefined
+              }
+              errors={errors}
+            />
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>Acesso ao portal</legend>
+          <p className="muted">
+            O e-mail recebe o acesso ao portal com uma senha provisória, que o
+            cliente troca no primeiro acesso.
+          </p>
+          <div className="field-row">
+            {company && (
+              <Field
+                label="Nome do contato"
+                name="contactName"
+                errorPath="contact.name"
+                errors={errors}
+              />
+            )}
+            <Field
+              label="E-mail"
+              name="email"
+              errorPath="contact.email"
+              type="email"
+              inputMode="email"
+              errors={errors}
+            />
+            <PhoneField
+              label="Telefone (opcional)"
+              name="phone"
+              errorPath="contact.phone"
+              errors={errors}
+            />
+          </div>
+        </fieldset>
         <div className="actions">
           <SubmitButton pending={form.pending}>Cadastrar cliente</SubmitButton>
         </div>

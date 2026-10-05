@@ -1,44 +1,16 @@
 import { changePasswordSchema, ROLE_LABELS } from '@central/contracts';
-import { useMutation } from '@tanstack/react-query';
+import { useState } from 'react';
 import { post } from '../api/client';
 import { useSession } from '../auth/session';
 import { Alert, FormAlert } from '../components/feedback';
+import { NewPasswordField } from '../components/NewPasswordField';
 import { Field, PageHeader, SubmitButton } from '../components/ui';
 import { raw, useSchemaForm } from '../lib/forms';
 
-export function EmailVerificationNotice() {
-  const { data: account } = useSession();
-  const resend = useMutation({
-    mutationFn: () => post<void>('/auth/email-verification/resend'),
-  });
-  if (!account || account.emailVerified) return null;
-
-  return (
-    <Alert tone="warning">
-      <div className="actions">
-        <span>
-          Confirme seu e-mail pelo link que enviamos para{' '}
-          <strong>{account.email}</strong>.
-        </span>
-        {resend.isSuccess ? (
-          <span>Novo link enviado.</span>
-        ) : (
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            onClick={() => resend.mutate()}
-            disabled={resend.isPending}
-          >
-            Reenviar link
-          </button>
-        )}
-      </div>
-    </Alert>
-  );
-}
-
 export function AccountPage() {
   const { data: account } = useSession();
+  // Recria o campo de senha nova (controlado) quando o formulário é limpo.
+  const [savedCount, setSavedCount] = useState(0);
   const form = useSchemaForm({
     schema: changePasswordSchema,
     read: (data) => ({
@@ -46,14 +18,16 @@ export function AccountPage() {
       newPassword: raw(data, 'newPassword'),
     }),
     submit: (body) => post<void>('/auth/password', body),
-    onSuccess: (_, element) => element.reset(),
+    onSuccess: (_, element) => {
+      element.reset();
+      setSavedCount((count) => count + 1);
+    },
   });
   if (!account) return null;
 
   return (
     <div className="stack">
       <PageHeader title="Minha conta" />
-      <EmailVerificationNotice />
       <div className="grid-2">
         <section className="card">
           <h2>Dados de acesso</h2>
@@ -88,12 +62,10 @@ export function AccountPage() {
               autoComplete="current-password"
               errors={form.fieldErrors}
             />
-            <Field
+            <NewPasswordField
+              key={savedCount}
               label="Nova senha"
               name="newPassword"
-              type="password"
-              autoComplete="new-password"
-              hint="Pelo menos 10 caracteres."
               errors={form.fieldErrors}
             />
             <div className="actions">
