@@ -4,10 +4,13 @@ import {
   emailSchema,
   opaqueTokenSchema,
   paginationQuerySchema,
-  passwordSchema,
   personNameSchema,
   uuidSchema,
 } from './common.js';
+import { passwordSchema } from './passwords.js';
+
+/** Validade do convite, também informada na tela de aceite. */
+export const INVITATION_TTL_DAYS = 7;
 
 export const INVITATION_STATUSES = [
   'pendente',
@@ -24,14 +27,6 @@ export const createStaffInvitationSchema = z.object({
 });
 export type CreateStaffInvitationRequest = z.infer<
   typeof createStaffInvitationSchema
->;
-
-/** Convite de acesso ao portal para um contato já cadastrado de um cliente. */
-export const createContactInvitationSchema = z.object({
-  contactId: uuidSchema,
-});
-export type CreateContactInvitationRequest = z.infer<
-  typeof createContactInvitationSchema
 >;
 
 export const listInvitationsQuerySchema = paginationQuerySchema.extend({

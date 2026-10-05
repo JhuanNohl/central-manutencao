@@ -34,6 +34,9 @@ export const itemSelectionSchema = z
   );
 
 /** Cliente confirma o envio dos itens selecionados; o prazo ainda não começa (RN04). */
+/** Tamanho máximo da transportadora e do rastreio (também no formulário). */
+export const SHIPMENT_TEXT_LIMITS = { carrier: 120, trackingCode: 60 } as const;
+
 export const confirmShipmentSchema = z
   .object({
     itemIds: itemSelectionSchema,
@@ -41,13 +44,13 @@ export const confirmShipmentSchema = z
     carrier: z
       .string()
       .trim()
-      .max(120)
+      .max(SHIPMENT_TEXT_LIMITS.carrier)
       .optional()
       .transform((value) => value || undefined),
     trackingCode: z
       .string()
       .trim()
-      .max(60)
+      .max(SHIPMENT_TEXT_LIMITS.trackingCode)
       .optional()
       .transform((value) => value || undefined),
   })

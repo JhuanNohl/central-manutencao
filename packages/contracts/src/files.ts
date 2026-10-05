@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MAX_ITEMS_PER_RMA, PHOTOS_PER_ITEM } from './rma-opening.js';
 
 /**
  * Finalidade de um arquivo enviado. Define os tipos aceitos, o tamanho e
@@ -76,6 +77,21 @@ export const FILE_POLICIES: Record<FilePurpose, FilePolicy> = {
 };
 
 /** Maior tamanho aceito entre as finalidades (limite do recebimento HTTP). */
+/**
+ * Arquivos enviados e ainda não vinculados a um atendimento, por conta. Cabe
+ * o maior RMA (todas as fotos e o vídeo de cada equipamento, mais a nota e a
+ * declaração); impede encher o disco.
+ */
+export const TEMPORARY_FILES_QUOTA = {
+  files: MAX_ITEMS_PER_RMA * (PHOTOS_PER_ITEM.max + 1) + 2,
+  bytes: 10 * 1024 * MEGABYTE,
+} as const;
+
+/** Tamanho máximo legível de uma finalidade, ex.: "10 MB". */
+export function maxSizeLabel(policy: Pick<FilePolicy, 'maxBytes'>): string {
+  return `${policy.maxBytes / MEGABYTE} MB`;
+}
+
 export const MAX_UPLOAD_BYTES = Math.max(
   ...Object.values(FILE_POLICIES).map((policy) => policy.maxBytes),
 );

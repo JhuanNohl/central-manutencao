@@ -11,15 +11,21 @@ export type NotificationStatus = (typeof NOTIFICATION_STATUSES)[number];
 
 export const NOTIFICATION_TEMPLATES = [
   'convite',
+  'acesso_liberado',
+  'boas_vindas',
+  'acesso_portal',
   'redefinicao_senha',
+  // Sem uso desde 02/10/2026 (a conta nasce ativa); mantido pelos avisos antigos.
   'confirmacao_email',
   'rma_aberto',
   'rma_aberto_na_fabrica',
   'rma_itens_recebidos',
   'rma_etapa_alterada',
   'rma_cancelado',
+  'rma_responsavel',
   'rma_mensagem_equipe',
   'rma_mensagem_cliente',
+  'equipe_rma',
 ] as const;
 export type NotificationTemplate = (typeof NOTIFICATION_TEMPLATES)[number];
 

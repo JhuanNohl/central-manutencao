@@ -10,16 +10,67 @@ export function normalizeDocument(value: string): string {
   return value.replace(/[.\-/\s]/g, '').toUpperCase();
 }
 
+export type DocumentKind = 'cpf' | 'cnpj';
+
+const DOCUMENT_LENGTH: Record<DocumentKind, number> = { cpf: 11, cnpj: 14 };
+const CNPJ_BASE_LENGTH = 12;
+
+/** Tamanho de cada grupo e o separador que vem antes dele. */
+const DOCUMENT_GROUPS: Record<DocumentKind, [number, string][]> = {
+  cpf: [
+    [3, ''],
+    [3, '.'],
+    [3, '.'],
+    [2, '-'],
+  ],
+  cnpj: [
+    [2, ''],
+    [3, '.'],
+    [3, '.'],
+    [4, '/'],
+    [2, '-'],
+  ],
+};
+
+/** Caracteres aceitos, na ordem digitada, até o tamanho do documento. */
+function documentCharacters(value: string, kind: DocumentKind): string {
+  const characters = normalizeDocument(value).replace(/[^0-9A-Z]/g, '');
+  if (kind === 'cpf') {
+    return characters.replace(/\D/g, '').slice(0, DOCUMENT_LENGTH.cpf);
+  }
+  // CNPJ: 12 caracteres alfanuméricos e 2 dígitos verificadores numéricos.
+  const base = characters.slice(0, CNPJ_BASE_LENGTH);
+  const checkDigits = characters
+    .slice(CNPJ_BASE_LENGTH)
+    .replace(/\D/g, '')
+    .slice(0, DOCUMENT_LENGTH.cnpj - CNPJ_BASE_LENGTH);
+  return base + checkDigits;
+}
+
+/**
+ * Máscara progressiva (`xxx.xxx.xxx-xx` ou `xx.xxx.xxx/xxxx-xx`): o separador
+ * só aparece quando já existe o caractere seguinte, para o apagar não travar.
+ */
+export function maskDocument(value: string, kind: DocumentKind): string {
+  const characters = documentCharacters(value, kind);
+  let masked = '';
+  let position = 0;
+  for (const [size, separator] of DOCUMENT_GROUPS[kind]) {
+    const group = characters.slice(position, position + size);
+    if (!group) break;
+    masked += separator + group;
+    position += size;
+  }
+  return masked;
+}
+
 /** CPF (11) ou CNPJ (14, inclusive alfanumérico) com a pontuação usual. */
 export function formatDocument(document: string): string {
-  if (document.length === 11) {
-    return document.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
+  if (document.length === DOCUMENT_LENGTH.cpf) {
+    return maskDocument(document, 'cpf');
   }
-  if (document.length === 14) {
-    return document.replace(
-      /^(\w{2})(\w{3})(\w{3})(\w{4})(\d{2})$/,
-      '$1.$2.$3/$4-$5',
-    );
+  if (document.length === DOCUMENT_LENGTH.cnpj) {
+    return maskDocument(document, 'cnpj');
   }
   return document;
 }

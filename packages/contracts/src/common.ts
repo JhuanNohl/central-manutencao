@@ -9,18 +9,17 @@ export const emailSchema = z
   .max(254, 'E-mail muito longo')
   .pipe(z.email('E-mail inválido'));
 
-/** Política mínima de senha: comprimento, sem regras de composição (NIST 800-63B). */
-export const passwordSchema = z
-  .string()
-  .min(10, 'A senha deve ter pelo menos 10 caracteres')
-  .max(128, 'A senha deve ter no máximo 128 caracteres');
-
 /** Justificativa de uma ação auditada; fica registrada no histórico. */
+export const REASON_LENGTH = { min: 3, max: 500 } as const;
+
 export const reasonSchema = z
   .string()
   .trim()
-  .min(3, 'Informe o motivo')
-  .max(500);
+  .min(
+    REASON_LENGTH.min,
+    `Informe o motivo (mínimo de ${REASON_LENGTH.min} caracteres).`,
+  )
+  .max(REASON_LENGTH.max);
 
 export const personNameSchema = z
   .string()

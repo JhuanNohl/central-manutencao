@@ -5,15 +5,10 @@ import {
   personNameSchema,
 } from './common.js';
 import { isValidCnpj, isValidCpf, normalizeDocument } from './documents.js';
+import { phoneSchema } from './phones.js';
 
 export const CUSTOMER_KINDS = ['pessoa_fisica', 'pessoa_juridica'] as const;
 export type CustomerKind = (typeof CUSTOMER_KINDS)[number];
-
-export const phoneSchema = z
-  .string()
-  .trim()
-  .max(30, 'Telefone muito longo')
-  .regex(/^[0-9()+\-\s]*$/, 'Telefone inválido');
 
 export const customerInputSchema = z
   .object({
@@ -44,6 +39,16 @@ export const contactInputSchema = z.object({
   phone: phoneSchema.optional(),
 });
 export type ContactInput = z.infer<typeof contactInputSchema>;
+
+/**
+ * Cadastro pela equipe: o cliente nasce com o contato principal, que recebe
+ * por e-mail o acesso ao portal com senha provisória.
+ */
+export const createCustomerSchema = z.object({
+  customer: customerInputSchema,
+  contact: contactInputSchema,
+});
+export type CreateCustomerRequest = z.infer<typeof createCustomerSchema>;
 
 export const listCustomersQuerySchema = paginationQuerySchema.extend({
   search: z.string().trim().max(100).optional(),

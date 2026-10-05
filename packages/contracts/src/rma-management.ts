@@ -5,20 +5,17 @@ import { itemSelectionSchema } from './rma-logistics.js';
 import {
   NEXT_STAGES,
   RMA_ITEM_STAGES,
-  RMA_PRIORITIES,
+  SLA_END_STAGE,
   SLA_FINISHED_STAGES,
   type RmaItemStage,
-  type RmaPriority,
-} from './rmas.js';
+} from './rma-stages.js';
+import { RMA_PRIORITIES, type RmaPriority } from './rmas.js';
 
 /**
  * Avanços com operação própria: o envio é declarado pelo cliente e o
  * recebimento é registrado pela equipe. A mudança de etapa não os faz.
  */
 const OWN_OPERATION_STAGES: readonly RmaItemStage[] = ['enviado', 'recebido'];
-
-/** Etapas do despacho: exigem `rma.dispatch` e encerram o prazo (RN08). */
-const DISPATCH_STAGES: readonly RmaItemStage[] = ['devolucao', 'finalizado'];
 
 /** Mudança de etapa pela equipe: só o próximo passo do processo. */
 export function canChangeStage(from: RmaItemStage, to: RmaItemStage): boolean {
@@ -48,7 +45,7 @@ export const VALIDATION_VIDEO_STAGES: readonly RmaItemStage[] = ['comprovacao'];
  * equipamento operando antes de voltar ao cliente (decisão de 30/09/2026).
  */
 export function requiresValidationVideo(to: RmaItemStage): boolean {
-  return to === 'devolucao';
+  return to === SLA_END_STAGE;
 }
 
 /**
@@ -61,7 +58,8 @@ export function isCancellable(items: { stage: RmaItemStage }[]): boolean {
 
 /** Permissão para levar o item a `to`: despacho e recebimento têm a sua. */
 export function stageChangePermission(to: RmaItemStage): Permission {
-  if (DISPATCH_STAGES.includes(to)) return 'rma.dispatch';
+  // Despacho: as etapas que encerram o prazo (RN08).
+  if (SLA_FINISHED_STAGES.includes(to)) return 'rma.dispatch';
   return to === 'recebido' ? 'rma.receive' : 'rma.write';
 }
 

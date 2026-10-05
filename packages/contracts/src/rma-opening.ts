@@ -1,11 +1,15 @@
 import { z } from 'zod';
 import { uuidSchema } from './common.js';
+import { termsVersionSchema } from './legal.js';
 
 /** Base de A4.1: de uma a cinco fotos válidas por equipamento. */
 export const PHOTOS_PER_ITEM = { min: 1, max: 5 } as const;
 
-/** Limite de equipamentos por RMA (P05, proposta de 28/09/2026). */
-export const MAX_ITEMS_PER_RMA = 20;
+/**
+ * Limite de equipamentos por RMA: há chamados com 3 e chamados com 200
+ * (decisão de 05/10/2026, revisa a P05). Cada um segue com as suas fotos.
+ */
+export const MAX_ITEMS_PER_RMA = 200;
 
 const optionalText = (max: number) =>
   z
@@ -15,15 +19,34 @@ const optionalText = (max: number) =>
     .optional()
     .transform((value) => value || undefined);
 
+/** Tamanho máximo dos textos de cada equipamento (também no formulário). */
+export const RMA_ITEM_TEXT_LIMITS = {
+  model: 80,
+  serialNumber: 60,
+  reportedFailure: 2000,
+  notes: 1000,
+} as const;
+
 export const rmaItemInputSchema = z.object({
-  model: z.string().trim().min(1, 'Informe o modelo').max(80),
-  serialNumber: z.string().trim().min(1, 'Informe o número de série').max(60),
+  model: z
+    .string()
+    .trim()
+    .min(1, 'Informe o modelo')
+    .max(RMA_ITEM_TEXT_LIMITS.model),
+  serialNumber: z
+    .string()
+    .trim()
+    .min(1, 'Informe o número de série')
+    .max(RMA_ITEM_TEXT_LIMITS.serialNumber),
   reportedFailure: z
     .string()
     .trim()
     .min(5, 'Descreva a falha com pelo menos 5 caracteres')
-    .max(2000, 'Use no máximo 2000 caracteres'),
-  notes: optionalText(1000),
+    .max(
+      RMA_ITEM_TEXT_LIMITS.reportedFailure,
+      `Use no máximo ${RMA_ITEM_TEXT_LIMITS.reportedFailure} caracteres`,
+    ),
+  notes: optionalText(RMA_ITEM_TEXT_LIMITS.notes),
   warrantyRequested: z.boolean().default(false),
   photoIds: z
     .array(uuidSchema)
@@ -76,9 +99,19 @@ function checkOpening(value: OpeningFields, ctx: z.RefinementCtx): void {
   });
 }
 
-/** Abertura pelo cliente, sempre para o próprio cadastro. */
-export const openOwnRmaSchema = z
+/** Conteúdo comum às duas aberturas: equipamentos e documentação. */
+export const openingContentSchema = z
   .object(openingShape)
+  .superRefine(checkOpening);
+export type OpeningContent = z.infer<typeof openingContentSchema>;
+
+/**
+ * Abertura pelo cliente, sempre para o próprio cadastro. O aceite do termo
+ * só vem quando a conta ainda não aceitou a versão vigente (conta criada
+ * pela equipe ou termo atualizado); a API confere.
+ */
+export const openOwnRmaSchema = z
+  .object({ ...openingShape, termsVersion: termsVersionSchema.optional() })
   .superRefine(checkOpening);
 export type OpenOwnRmaRequest = z.infer<typeof openOwnRmaSchema>;
 

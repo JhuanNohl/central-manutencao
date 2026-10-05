@@ -3,6 +3,7 @@ import {
   formatDocument,
   isValidCnpj,
   isValidCpf,
+  maskDocument,
   normalizeDocument,
 } from './documents.js';
 import { registerRequestSchema } from './index.js';
@@ -26,6 +27,20 @@ describe('documentos', () => {
     expect(formatDocument('11222333000181')).toBe('11.222.333/0001-81');
     expect(formatDocument('12ABC34501DE35')).toBe('12.ABC.345/01DE-35');
     expect(formatDocument('123')).toBe('123');
+  });
+
+  it('mascara enquanto se digita, sem separador sobrando no fim', () => {
+    expect(maskDocument('529', 'cpf')).toBe('529');
+    expect(maskDocument('5299', 'cpf')).toBe('529.9');
+    expect(maskDocument('529.982.247-251', 'cpf')).toBe('529.982.247-25');
+    expect(maskDocument('11222333', 'cnpj')).toBe('11.222.333');
+    expect(maskDocument('112223330001', 'cnpj')).toBe('11.222.333/0001');
+    expect(maskDocument('12abc34501de35', 'cnpj')).toBe('12.ABC.345/01DE-35');
+  });
+
+  it('o CPF ignora letras e os dígitos verificadores do CNPJ são numéricos', () => {
+    expect(maskDocument('52a9', 'cpf')).toBe('529');
+    expect(maskDocument('12ABC34501DEX3', 'cnpj')).toBe('12.ABC.345/01DE-3');
   });
 
   it('valida CPF', () => {

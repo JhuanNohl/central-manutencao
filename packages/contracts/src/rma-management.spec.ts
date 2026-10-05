@@ -14,7 +14,7 @@ import {
   RECEIVABLE_STAGES,
   RMA_ITEM_STAGES,
   SHIPPABLE_STAGES,
-} from './rmas.js';
+} from './rma-stages.js';
 
 describe('fluxo das etapas', () => {
   it('cada etapa leva só à seguinte, sem voltar nem pular', () => {
