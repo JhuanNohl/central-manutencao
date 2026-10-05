@@ -14,16 +14,11 @@ import {
   rmaReceipts,
 } from '../database/schema/index.js';
 import type { AuthContext } from '../identity/auth-context.js';
-import { EmailLinks } from '../notifications/email-links.js';
-import { NotificationsService } from '../notifications/notifications.service.js';
-import { findRequesterContact } from './rma-customer.js';
+import { itemLine } from './rma-presentation.js';
+import { RmaTeamNotices } from './rma-team-notices.js';
 import { ensureAllMoved, touchRma } from './rma-movements.js';
 import { findRma, lockOpenRma, type RmaRow } from './rma-scope.js';
-
-type ReceivedItem = Pick<
-  typeof rmaItems.$inferSelect,
-  'id' | 'position' | 'model' | 'serialNumber'
->;
+import { RmaRequesterNotices } from './rma-requester-notices.js';
 
 /**
  * Recebimento físico registrado pelo agente (RF07), só de itens enviados.
@@ -33,9 +28,9 @@ type ReceivedItem = Pick<
 export class RmaReceiptsService {
   constructor(
     @Inject(DATABASE) private readonly db: Database,
+    private readonly requester: RmaRequesterNotices,
     private readonly audit: AuditService,
-    private readonly notifications: NotificationsService,
-    private readonly links: EmailLinks,
+    private readonly team: RmaTeamNotices,
   ) {}
 
   async register(
@@ -84,7 +79,11 @@ export class RmaReceiptsService {
         entityId: rma.id,
         data: { receiptId: receipt.id, itemIds: request.itemIds },
       });
-      await this.notifyRequester(tx, rma, receipt.id, received);
+      const lines = [...received]
+        .sort((a, b) => a.position - b.position)
+        .map(itemLine);
+      await this.notifyRequester(tx, rma, receipt.id, lines);
+      await this.team.notify(tx, rma, 'recebimento', { items: lines });
 
       return {
         id: receipt.id,
@@ -100,25 +99,14 @@ export class RmaReceiptsService {
     tx: Transaction,
     rma: RmaRow,
     receiptId: string,
-    items: ReceivedItem[],
+    lines: string[],
   ): Promise<void> {
-    const requester = await findRequesterContact(tx, rma);
-    if (!requester) return;
-
-    const lines = [...items]
-      .sort((a, b) => a.position - b.position)
-      .map((item) => `${item.model} (S/N ${item.serialNumber})`);
-    await this.notifications.enqueue(tx, {
-      template: 'rma_itens_recebidos',
-      recipient: requester.email,
-      payload: {
-        name: requester.name,
-        number: String(rma.number),
-        items: lines,
-        link: this.links.portalRma(rma.number),
-      },
-      origin: `rma:${rma.id}`,
-      dedupeKey: `rma_itens_recebidos:${receiptId}`,
-    });
+    await this.requester.notify(
+      tx,
+      rma,
+      'rma_itens_recebidos',
+      { items: lines },
+      `rma_itens_recebidos:${receiptId}`,
+    );
   }
 }

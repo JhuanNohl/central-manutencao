@@ -4,8 +4,7 @@ import { ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
 
 /** Páginas do frontend que recebem um token por e-mail ou por QR Code. */
-export type EmailLinkPage =
-  'convite' | 'redefinir-senha' | 'confirmar-email' | 'enviar';
+export type EmailLinkPage = 'convite' | 'redefinir-senha' | 'enviar';
 
 /** Monta os links e textos de validade usados nos e-mails. */
 @Injectable()
@@ -18,6 +17,11 @@ export class EmailLinks {
    */
   withToken(page: EmailLinkPage, token: string): string {
     return `${this.env.APP_ORIGIN}/${page}#token=${token}`;
+  }
+
+  /** Tela de login, para o primeiro acesso com a senha provisória. */
+  login(): string {
+    return `${this.env.APP_ORIGIN}/entrar`;
   }
 
   /** Detalhe do atendimento no portal do cliente (exige sessão; sem token). */

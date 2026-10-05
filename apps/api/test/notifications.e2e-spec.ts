@@ -42,7 +42,7 @@ describe('Avisos por e-mail (fila durável)', () => {
     expect(await ctx.processor.processBatch()).toBe(1);
 
     expect(ctx.mail.sent).toHaveLength(1);
-    expect(ctx.mail.sent[0].html).toContain('Aceitar convite');
+    expect(ctx.mail.sent[0].html).toContain('Criar minha senha');
     const [row] = await ctx.db.select().from(notifications);
     expect(row).toMatchObject({ status: 'enviada', attempts: 1 });
     expect(JSON.stringify(row.payload)).not.toContain('#token=');

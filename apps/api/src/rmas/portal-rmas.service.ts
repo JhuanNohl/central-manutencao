@@ -17,7 +17,7 @@ import { pageWindow, toPage } from '../common/db/pagination.js';
 import { ApiException } from '../common/http/api-exception.js';
 import { DATABASE } from '../database/database.module.js';
 import type { Database } from '../database/database.types.js';
-import { customerContacts, rmas } from '../database/schema/index.js';
+import { accounts, customerContacts, rmas } from '../database/schema/index.js';
 import type { FileRow } from '../files/files.service.js';
 import type { AuthContext } from '../identity/auth-context.js';
 import { groupBy, itemsOf, loadDetailParts } from './rma-details.js';
@@ -155,12 +155,23 @@ export class PortalRmasService {
     return {
       ...summaryOf(row, parts.items),
       requester: requester ?? null,
+      assignee: await this.assigneeOf(row),
       invoices: parts.invoices,
       documents: parts.documents,
       items: parts.items.map(toPortalItem),
       shipments: parts.shipments.map(toPortalShipment),
       receipts: parts.receipts.map(toPortalReceipt),
     };
+  }
+
+  /** Só o nome de quem cuida do chamado: sem id nem e-mail da conta. */
+  private async assigneeOf(row: RmaRow): Promise<{ name: string } | null> {
+    if (!row.assigneeAccountId) return null;
+    const [assignee] = await this.db
+      .select({ name: accounts.name })
+      .from(accounts)
+      .where(eq(accounts.id, row.assigneeAccountId));
+    return assignee ?? null;
   }
 
   async file(

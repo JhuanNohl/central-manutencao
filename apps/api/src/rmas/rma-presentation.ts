@@ -29,6 +29,14 @@ export function rmaSubject(
   return `Manutenção — ${items.length} equipamentos: ${models.join(', ')}`;
 }
 
+/** Equipamento como aparece nos avisos: "VR10 (S/N 123)". */
+export function itemLine(item: {
+  model: string;
+  serialNumber: string;
+}): string {
+  return `${item.model} (S/N ${item.serialNumber})`;
+}
+
 /** Modelos distintos do chamado, na ordem em que os itens aparecem. */
 export function distinctModels(items: { model: string }[]): string[] {
   return [...new Set(items.map((item) => item.model))];

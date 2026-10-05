@@ -317,7 +317,10 @@ describe('Gestão do chamado pela equipe', () => {
         .from(auditEvents)
         .where(eq(auditEvents.action, 'rma.cancelado'));
       expect(event.reason).toBe('Aberto em duplicidade');
-      expect(await templatesSent()).toEqual(['rma_cancelado']);
+      expect((await templatesSent()).sort()).toEqual([
+        'equipe_rma',
+        'rma_cancelado',
+      ]);
     });
 
     it('bloqueia envio, recebimento e novas mudanças depois do cancelamento', async () => {

@@ -55,12 +55,11 @@ import {
   stageCounts,
 } from './rma-presentation.js';
 import { itemSla, rmaSla } from './sla.js';
+import { HOUR_MS } from '../common/time/durations.js';
 
 const assignee = alias(accounts, 'assignee');
 const openedBy = alias(accounts, 'opened_by');
 const cancelledBy = alias(accounts, 'cancelled_by');
-
-const HOUR_MS = 3_600_000;
 
 /**
  * Vencimento mais próximo entre os itens com prazo em curso: a mesma conta de
@@ -109,7 +108,7 @@ type HeaderRow = Awaited<ReturnType<RmasService['selectHeaders']>>[number];
 
 /**
  * Consulta de RMAs pela equipe. Notas internas são devolvidas aqui porque a
- * rota exige permissão da equipe; a futura visão do cliente não as expõe.
+ * rota exige permissão da equipe; a visão do portal não as expõe.
  */
 @Injectable()
 export class RmasService {

@@ -1,5 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
+  RMA_ITEM_STAGE_LABELS,
+  SHIPMENT_METHOD_RULES,
   SHIPPABLE_STAGES,
   type ConfirmShipmentRequest,
   type ShipmentView,
@@ -15,17 +17,33 @@ import {
 } from '../database/schema/index.js';
 import type { AuthContext } from '../identity/auth-context.js';
 import { ensureAllMoved, touchRma } from './rma-movements.js';
+import { itemLine } from './rma-presentation.js';
+import { RmaRequesterNotices } from './rma-requester-notices.js';
 import { findOwnRma, lockOpenRma } from './rma-scope.js';
+import { RmaTeamNotices } from './rma-team-notices.js';
+
+/** Modalidade, transportadora e rastreio, como o setor precisa para conferir. */
+function shippingLine(request: ConfirmShipmentRequest): string {
+  const method = SHIPMENT_METHOD_RULES[request.method].label;
+  const carrier = request.carrier ? ` (${request.carrier})` : '';
+  const tracking = request.trackingCode
+    ? ` · rastreio ${request.trackingCode}`
+    : '';
+  return `Envio: ${method}${carrier}${tracking}`;
+}
 
 /**
- * Envio à fábrica declarado pelo cliente (RF06). Os itens passam a "em
- * transporte"; o prazo só começa no recebimento físico (RN04, CA06).
+ * Envio à fábrica declarado pelo cliente (RF06). Os itens passam a
+ * "enviado"; o prazo só começa no diagnóstico (RN04, CA06). O cliente recebe a
+ * confirmação e o setor fica sabendo do envio.
  */
 @Injectable()
 export class RmaShipmentsService {
   constructor(
     @Inject(DATABASE) private readonly db: Database,
     private readonly audit: AuditService,
+    private readonly requester: RmaRequesterNotices,
+    private readonly team: RmaTeamNotices,
   ) {}
 
   async confirm(
@@ -46,7 +64,12 @@ export class RmaShipmentsService {
             inArray(rmaItems.stage, [...SHIPPABLE_STAGES]),
           ),
         )
-        .returning({ id: rmaItems.id });
+        .returning({
+          id: rmaItems.id,
+          position: rmaItems.position,
+          model: rmaItems.model,
+          serialNumber: rmaItems.serialNumber,
+        });
       ensureAllMoved(
         request.itemIds,
         new Set(moved.map((item) => item.id)),
@@ -80,6 +103,16 @@ export class RmaShipmentsService {
           method: request.method,
           itemIds: request.itemIds,
         },
+      });
+      const items = [...moved]
+        .sort((a, b) => a.position - b.position)
+        .map(itemLine);
+      await this.requester.notify(tx, rma, 'rma_etapa_alterada', {
+        items: items.map((item) => `${item}: ${RMA_ITEM_STAGE_LABELS.enviado}`),
+      });
+      await this.team.notify(tx, rma, 'envio', {
+        items,
+        shipping: shippingLine(request),
       });
       return {
         id: shipment.id,

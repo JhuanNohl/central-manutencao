@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { FilesModule } from '../files/files.module.js';
+import { LegalModule } from '../legal/legal.module.js';
 import { InvoiceValidationController } from './invoice-validation.controller.js';
 import { InvoiceValidationService } from './invoice-validation.service.js';
 import { PortalRmasController } from './portal-rmas.controller.js';
@@ -10,13 +11,15 @@ import { RmaOpeningService } from './rma-opening.service.js';
 import { RmaReceiptsService } from './rma-receipts.service.js';
 import { RmaShipmentsService } from './rma-shipments.service.js';
 import { RmaStagesService } from './rma-stages.service.js';
+import { RmaRequesterNotices } from './rma-requester-notices.js';
+import { RmaTeamNotices } from './rma-team-notices.js';
 import { RmaValidationVideosService } from './rma-validation-videos.service.js';
 import { RmasController } from './rmas.controller.js';
 import { RmasService } from './rmas.service.js';
 
 /** Atendimentos: RMAs, itens, documentação e notas fiscais. */
 @Module({
-  imports: [FilesModule],
+  imports: [FilesModule, LegalModule],
   controllers: [
     RmasController,
     PortalRmasController,
@@ -32,6 +35,8 @@ import { RmasService } from './rmas.service.js';
     RmaStagesService,
     RmaMessagesService,
     RmaValidationVideosService,
+    RmaRequesterNotices,
+    RmaTeamNotices,
     InvoiceValidationService,
   ],
   exports: [RmaValidationVideosService],

@@ -25,7 +25,6 @@ import {
   type TestContext,
 } from './support.js';
 
-
 describe('Envio à fábrica e recebimento parcial', () => {
   let ctx: TestContext;
   let client: TestAgent;

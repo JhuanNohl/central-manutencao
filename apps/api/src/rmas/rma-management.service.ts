@@ -17,10 +17,9 @@ import { DATABASE } from '../database/database.module.js';
 import type { Database, Executor } from '../database/database.types.js';
 import { accounts, rmaItems, rmas } from '../database/schema/index.js';
 import type { AuthContext } from '../identity/auth-context.js';
-import { EmailLinks } from '../notifications/email-links.js';
-import { NotificationsService } from '../notifications/notifications.service.js';
-import { findRequesterContact } from './rma-customer.js';
 import { findRma, lockOpenRma } from './rma-scope.js';
+import { RmaTeamNotices } from './rma-team-notices.js';
+import { RmaRequesterNotices } from './rma-requester-notices.js';
 
 /** Condições de uma conta que pode assumir chamados. */
 const assignable = and(
@@ -36,9 +35,9 @@ const assignable = and(
 export class RmaManagementService {
   constructor(
     @Inject(DATABASE) private readonly db: Database,
+    private readonly requester: RmaRequesterNotices,
     private readonly audit: AuditService,
-    private readonly notifications: NotificationsService,
-    private readonly links: EmailLinks,
+    private readonly team: RmaTeamNotices,
   ) {}
 
   /** Contas ativas que podem ser responsáveis, para a escolha na tela. */
@@ -84,6 +83,7 @@ export class RmaManagementService {
           after: request.assigneeId,
         },
       });
+      if (assignee) await this.notifyAssignee(tx, current, assignee);
       return { assignee };
     });
   }
@@ -152,26 +152,32 @@ export class RmaManagementService {
         reason: request.reason,
       });
 
-      const requester = await findRequesterContact(tx, current);
-      if (requester) {
-        await this.notifications.enqueue(tx, {
-          template: 'rma_cancelado',
-          recipient: requester.email,
-          payload: {
-            name: requester.name,
-            number: String(current.number),
-            reason: request.reason,
-            link: this.links.portalRma(current.number),
-          },
-          origin: `rma:${rma.id}`,
-          dedupeKey: `rma_cancelado:${rma.id}`,
-        });
-      }
+      await this.requester.notify(
+        tx,
+        current,
+        'rma_cancelado',
+        { reason: request.reason },
+        `rma_cancelado:${rma.id}`,
+      );
+      await this.team.notify(tx, current, 'cancelado', {
+        reason: request.reason,
+      });
       return {
         cancelledAt: cancelledAt.toISOString(),
         reason: request.reason,
         cancelledBy: { id: auth.account.id, name: auth.account.name },
       };
+    });
+  }
+
+  /** O solicitante fica sabendo quem cuida do chamado (decisão de 02/10/2026). */
+  private async notifyAssignee(
+    tx: Executor,
+    rma: { id: string; number: number; requesterContactId: string | null },
+    assignee: AssigneeOption,
+  ): Promise<void> {
+    await this.requester.notify(tx, rma, 'rma_responsavel', {
+      assigneeName: assignee.name,
     });
   }
 

@@ -115,6 +115,8 @@ export class NotificationProcessor
           status: exhausted ? 'falhou' : 'pendente',
           lockedUntil: null,
           lastError: reason.slice(0, 1000),
+          // Sem novas tentativas, a senha provisória e o link deixam o banco.
+          ...(exhausted && { payload: redactPayload(notification.payload) }),
           nextAttemptAt: sql`now() + make_interval(secs => ${backoffSeconds(notification.attempts)})`,
         })
         .where(eq(notifications.id, notification.id));

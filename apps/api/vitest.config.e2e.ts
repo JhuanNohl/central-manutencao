@@ -12,9 +12,12 @@ export const TEST_ENV = {
   SMTP_HOST: 'smtp.invalid',
   SMTP_PORT: '25',
   MAIL_FROM: 'Central de Manutenção <teste@central.local>',
+  MAINTENANCE_INBOX_EMAIL: 'manutencao@central.local',
   NOTIFICATIONS_WORKER_ENABLED: 'false',
   NOTIFICATIONS_MAX_ATTEMPTS: '2',
   FILES_CLEANUP_ENABLED: 'false',
+  // Os testes usam sempre o termo de exemplo versionado, nunca o da empresa.
+  WARRANTY_TERMS_FILE: 'legal/termo-garantia.exemplo.json',
   // CNPJ fictício da fábrica, para exercitar a regra do destinatário.
   INVOICE_RECIPIENT_DOCUMENT: '11444777000161',
 };

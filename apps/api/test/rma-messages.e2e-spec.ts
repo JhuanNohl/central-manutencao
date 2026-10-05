@@ -139,12 +139,14 @@ describe('Conversa do chamado entre cliente e equipe', () => {
     expect(mail?.text).not.toContain('Primeira');
   });
 
-  it('mensagem do cliente avisa o responsável; sem responsável, ninguém', async () => {
+  it('mensagem do cliente vai à caixa do setor, com o responsável identificado', async () => {
     await client
       .post(portalPath())
       .send({ body: 'Alguma novidade?' })
       .expect(201);
-    expect(await noticesOf('rma_mensagem_cliente')).toHaveLength(0);
+    const [unassigned] = await noticesOf('rma_mensagem_cliente');
+    expect(unassigned.recipient).toBe('manutencao@central.local');
+    expect(unassigned.payload).toMatchObject({ assigneeName: null });
 
     await ctx.db
       .update(rmas)
@@ -153,9 +155,10 @@ describe('Conversa do chamado entre cliente e equipe', () => {
     await ctx.db.delete(notifications);
     await client.post(portalPath()).send({ body: 'E agora?' }).expect(201);
     const [notice] = await noticesOf('rma_mensagem_cliente');
-    expect(notice.recipient).toBe('agente@central.local');
+    expect(notice.recipient).toBe('manutencao@central.local');
     expect(notice.payload).toMatchObject({
       customerName: 'Cliente Um',
+      assigneeName: 'Bruno Agente',
       link: expect.stringContaining(`/chamados/${number}`),
     });
   });

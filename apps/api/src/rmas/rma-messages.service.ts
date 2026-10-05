@@ -4,7 +4,7 @@ import type {
   RmaMessageView,
   SendRmaMessageRequest,
 } from '@central/contracts';
-import { and, asc, eq, getTableColumns } from 'drizzle-orm';
+import { asc, eq, getTableColumns } from 'drizzle-orm';
 import { DATABASE } from '../database/database.module.js';
 import type {
   Database,
@@ -13,16 +13,16 @@ import type {
 } from '../database/database.types.js';
 import { accounts, rmaMessages } from '../database/schema/index.js';
 import type { AuthContext } from '../identity/auth-context.js';
-import { EmailLinks } from '../notifications/email-links.js';
-import { NotificationsService } from '../notifications/notifications.service.js';
-import { findRequesterContact } from './rma-customer.js';
 import { findOwnRma, findRma, type RmaRow } from './rma-scope.js';
+import { RmaTeamNotices } from './rma-team-notices.js';
+import { RmaRequesterNotices } from './rma-requester-notices.js';
+import { MINUTE_MS } from '../common/time/durations.js';
 
 /**
  * Uma conversa ativa gera no máximo um e-mail por lado nesta janela: o aviso
  * chama para o sistema, e as mensagens seguintes já aparecem lá.
  */
-const MESSAGE_NOTICE_WINDOW_MS = 30 * 60_000;
+const MESSAGE_NOTICE_WINDOW_MS = 30 * MINUTE_MS;
 
 type MessageRow = typeof rmaMessages.$inferSelect & { authorName: string };
 
@@ -40,8 +40,8 @@ function noticeKey(rmaId: string, side: RmaMessageSide, now: Date): string {
 export class RmaMessagesService {
   constructor(
     @Inject(DATABASE) private readonly db: Database,
-    private readonly notifications: NotificationsService,
-    private readonly links: EmailLinks,
+    private readonly requester: RmaRequesterNotices,
+    private readonly team: RmaTeamNotices,
   ) {}
 
   async listForStaff(
@@ -72,20 +72,13 @@ export class RmaMessagesService {
     const rma = await findRma(this.db, number);
     return this.db.transaction(async (tx) => {
       const row = await this.insert(tx, rma, auth, 'equipe', request.body);
-      const requester = await findRequesterContact(tx, rma);
-      if (requester) {
-        await this.notifications.enqueue(tx, {
-          template: 'rma_mensagem_equipe',
-          recipient: requester.email,
-          payload: {
-            name: requester.name,
-            number: String(rma.number),
-            link: this.links.portalRma(rma.number),
-          },
-          origin: `rma:${rma.id}`,
-          dedupeKey: noticeKey(rma.id, 'equipe', row.createdAt),
-        });
-      }
+      await this.requester.notify(
+        tx,
+        rma,
+        'rma_mensagem_equipe',
+        {},
+        noticeKey(rma.id, 'equipe', row.createdAt),
+      );
       return toView(row, auth, row.authorName);
     });
   }
@@ -98,40 +91,13 @@ export class RmaMessagesService {
     const rma = await findOwnRma(this.db, auth, number);
     return this.db.transaction(async (tx) => {
       const row = await this.insert(tx, rma, auth, 'cliente', request.body);
-      await this.notifyAssignee(tx, rma, auth, row.createdAt);
-      return toView(row, auth, row.authorName);
-    });
-  }
-
-  /** Sem responsável, o chamado já aparece em "Requer atenção" para a equipe. */
-  private async notifyAssignee(
-    tx: Transaction,
-    rma: RmaRow,
-    auth: AuthContext,
-    sentAt: Date,
-  ): Promise<void> {
-    if (!rma.assigneeAccountId) return;
-    const [assignee] = await tx
-      .select({ name: accounts.name, email: accounts.email })
-      .from(accounts)
-      .where(
-        and(
-          eq(accounts.id, rma.assigneeAccountId),
-          eq(accounts.status, 'ativa'),
-        ),
+      // A caixa do setor recebe o aviso, com o responsável identificado.
+      await this.team.customerMessage(
+        tx,
+        rma,
+        noticeKey(rma.id, 'cliente', row.createdAt),
       );
-    if (!assignee) return;
-    await this.notifications.enqueue(tx, {
-      template: 'rma_mensagem_cliente',
-      recipient: assignee.email,
-      payload: {
-        name: assignee.name,
-        number: String(rma.number),
-        customerName: auth.account.customer?.name ?? auth.account.name,
-        link: this.links.staffRma(rma.number),
-      },
-      origin: `rma:${rma.id}`,
-      dedupeKey: noticeKey(rma.id, 'cliente', sentAt),
+      return toView(row, auth, row.authorName);
     });
   }
 
