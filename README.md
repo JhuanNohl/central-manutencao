@@ -6,7 +6,10 @@ Aplicação própria para o cliente solicitar manutenção e acompanhar cada equ
 
 - visão de chamados do agente ([docs/E1-visao-do-agente.md](docs/E1-visao-do-agente.md));
 - abertura com fotos e XML, envio pelo cliente e recebimento parcial com início do prazo ([docs/E1-abertura-envio-recebimento.md](docs/E1-abertura-envio-recebimento.md));
-- perfis, operação do chamado pelo agente e conversa entre cliente e equipe ([docs/E1-perfis-e-conversa.md](docs/E1-perfis-e-conversa.md)).
+- perfis, operação do chamado pelo agente e conversa entre cliente e equipe ([docs/E1-perfis-e-conversa.md](docs/E1-perfis-e-conversa.md));
+- avisos por e-mail para cliente, setor e agente, e acesso ao portal com senha provisória ([docs/E1-avisos-por-email.md](docs/E1-avisos-por-email.md));
+- cadastro de cliente pela equipe, senha forte, máscaras e aceite do termo de garantia ([docs/E1-cadastro-senha-e-termo.md](docs/E1-cadastro-senha-e-termo.md));
+- homologação em contêineres ([docs/homologacao-docker.md](docs/homologacao-docker.md)) e revisão de segurança ([docs/seguranca.md](docs/seguranca.md)).
 
 A condução técnica (etapas, garantia, laudo e pausas) e as devoluções ainda não foram implementadas, então o ciclo completo de manutenção não está pronto para produção.
 
@@ -87,6 +90,9 @@ O repositório traz um símbolo neutro. Para exibir a marca real, coloque os tr�
 | `npm run db:generate` | Gera migration a partir de mudanças em `apps/api/src/database/schema` |
 | `npm run db:migrate` | Aplica as migrations |
 | `npm run db:seed -w @central/api -- --reset` | Apaga os dados e recria os sintéticos (nunca em produção) |
+| `npm run mail:test -w @central/api -- destino@exemplo.com` | Envia um e-mail de teste com a configuração SMTP atual |
+| `npm run homolog:up` | Sobe a homologação interna em contêineres, com as regras de produção ([docs/homologacao-docker.md](docs/homologacao-docker.md)) |
+| `npm run admin:create -w @central/api -- --email … --name …` | Cria o primeiro administrador de um ambiente novo |
 
 ## Convenções
 

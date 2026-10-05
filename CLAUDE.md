@@ -25,12 +25,13 @@ Estas regras valem para todo código novo e para qualquer código tocado. O cód
   - validação e mensagens em `packages/contracts` (inclusive os limites de arquivo em `FILE_POLICIES`);
   - regras do XML da NF-e em `RULES` (`rmas/invoice-xml.ts`), com versão em `INVOICE_RULES_VERSION`;
   - matriz de permissões em `authorization.ts`;
+  - política de senha em `PASSWORD_REQUIREMENTS` (`passwords.ts`) e formato de telefone em `phones.ts`;
   - gravação de cliente e contato em `customers/customer-records.ts`;
   - links de e-mail em `EmailLinks`;
   - cookie de sessão em `SessionCookies`.
 - Utilitários existentes devem ser reutilizados antes de criar outro:
-  - **API:** `pageWindow`/`toPage` (paginação), `containsPattern` (busca), `reference` (referência de LEFT JOIN), `validate()` (entrada), `AuditService.record`, `NotificationsService.enqueue`, `claimTemporaryFiles` (vínculo de arquivos na transação), `findOwnRma`/`findRma` (escopo do RMA), `ensureAllMoved`/`touchRma` (movimentação de itens), `loadDetailParts` (detalhe do RMA), `itemSla` (prazo) e `fileResponse` (download);
-  - **Web:** `usePagedList` + `PagedResults` (listagens), `useSchemaForm` (formulários), `FilterTabs` e `SearchInput` (filtros), `Badge` com `StatusStyle` (situações), `Alert`/`FormAlert`/`QueryError` (mensagens), `errorMessage` e `uploadFile` (`api/client.ts`), `CustomerKindField`, `BrandLogo`, `StageSummary`, `ItemSla`, `ItemsSelectionDialog` (seleção de itens para uma movimentação) e `STAGE_STYLES`/`PRIORITY_STYLES`/`WARRANTY_STYLES`/`SLA_STYLES`/`INVOICE_VALIDATION_STYLES` (`pages/rmas/rma-styles.ts`), além dos campos de `components/ui.tsx` (`Field`, `TextAreaField`, `SelectField`).
+  - **API:** `@RequireCaptcha()` (Turnstile nas rotas públicas), `@UploadLimits()` (rotas de envio), `RmaNumberPipe` (número do chamado na URL), `RmaRequesterNotices`/`RmaTeamNotices` (avisos do chamado), `pageWindow`/`toPage` (paginação), `containsPattern` (busca), `reference` (referência de LEFT JOIN), `validate()` (entrada), `AuditService.record`, `NotificationsService.enqueue`, `claimTemporaryFiles` (vínculo de arquivos na transação), `findOwnRma`/`findRma` (escopo do RMA), `ensureAllMoved`/`touchRma` (movimentação de itens), `loadDetailParts` (detalhe do RMA), `itemSla` (prazo) e `fileResponse` (download);
+  - **Web:** `usePagedList` + `PagedResults` (listagens), `useSchemaForm` (formulários), `FilterTabs` e `SearchInput` (filtros), `Badge` com `StatusStyle` (situações), `Alert`/`FormAlert`/`QueryError` (mensagens), `errorMessage` e `uploadFile` (`api/client.ts`), `CustomerKindField`, `PhoneField`/`DocumentField` (máscaras), `NewPasswordField` (senha nova com índice de força), `useCaptcha` (Turnstile), `useModalDialog` (`<dialog>` nativo), `BrandLogo`, `StageSummary`, `ItemSla`, `ItemsSelectionDialog` (seleção de itens para uma movimentação) e `STAGE_STYLES`/`PRIORITY_STYLES`/`WARRANTY_STYLES`/`SLA_STYLES`/`INVOICE_VALIDATION_STYLES` (`pages/rmas/rma-styles.ts`), além dos campos de `components/ui.tsx` (`Field`, `TextAreaField`, `SelectField`).
 
 ## Design system (web)
 

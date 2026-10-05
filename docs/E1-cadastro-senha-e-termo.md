@@ -1,0 +1,69 @@
+# E1 — Cadastro pela equipe, senha forte, máscaras e aceite do termo
+
+Complementa [E1-avisos-por-email.md](E1-avisos-por-email.md). Esta parte trata de quem é cadastrado pela equipe, da política de senha, das máscaras de telefone e de documento e do aceite do termo de garantia na abertura do atendimento.
+
+## Decisões registradas em 02/10/2026
+
+| Assunto                        | Decisão                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cliente cadastrado pela equipe | O formulário "Novo cliente" pede também o **contato principal**: nome (na pessoa jurídica), e-mail e telefone. Cliente, contato e conta gravam na mesma transação, e o contato recebe o e-mail `acesso_portal` com a senha provisória. O e-mail deixa claro que o cadastro foi feito internamente. Na pessoa física, o contato é o próprio cliente.                                                                                                                                         |
+| Integrante da equipe           | O convite continua sendo um link pessoal, e a pessoa cria a própria senha. O e-mail informa quem criou o acesso e com qual perfil. Ao aceitar, a pessoa recebe o aviso `acesso_liberado`. Uma senha provisória por e-mail foi descartada para a equipe: o link evita que a senha passe pela caixa de e-mail.                                                                                                                                                                                |
+| Senha                          | Pelo menos **8 caracteres**, com **letra maiúscula**, **número** e **caractere especial** (espaço não conta). Vale para o autocadastro, o aceite de convite, a redefinição, a troca e o primeiro acesso. A regra anterior (10 caracteres, sem composição) foi substituída.                                                                                                                                                                                                                  |
+| Índice de força                | `fraca` (faltam dois ou mais requisitos), `mediana` (falta um) e `forte` (todos cumpridos). Só a senha forte é aceita. A tela mostra o índice e a lista de requisitos marcados, com ícone e texto, não só com cor.                                                                                                                                                                                                                                                                          |
+| Telefone                       | Sempre no formato `+55 (DD) 9 XXXX-XXXX` (celular) ou `+55 (DD) XXXX-XXXX` (fixo). A API grava nesse formato, mesmo que receba o número de outra forma.                                                                                                                                                                                                                                                                                                                                     |
+| CPF e CNPJ                     | Máscara `xxx.xxx.xxx-xx` e `xx.xxx.xxx/xxxx-xx` enquanto se digita. O CNPJ aceita letras nas 12 primeiras posições (formato alfanumérico); os 2 dígitos verificadores são numéricos. O banco continua guardando só os caracteres, sem pontuação.                                                                                                                                                                                                                                            |
+| Termo de garantia              | O cliente aceita o termo **no autocadastro**. A tela mostra o resumo das condições, a informação destacada sobre cobranças e a caixa "Li e concordo". A primeira marcação abre o texto integral, e o botão "Li e concordo com o termo" só é liberado quando a leitura chega ao fim. Na abertura de atendimento, o termo só aparece quando a conta ainda não aceitou a versão vigente, como no caso da conta criada pela equipe ou de um termo atualizado. A equipe não aceita pelo cliente. |
+| Registro do aceite             | A conta guarda o último aceite: versão (`accounts.terms_version`) e momento (`terms_accepted_at`). Cada RMA aberto pelo cliente copia o aceite que valeu na abertura, e quem aceitou é a conta que abriu (`opened_by_account_id`). A versão também entra no histórico (`conta.autocadastro`, `rma.aberto`) e nos e-mails de boas-vindas e de abertura. Se o termo mudar enquanto o cliente preenche o formulário, o envio é recusado e o aceite precisa ser refeito.                        |
+| Conta ativa no cadastro        | O autocadastro **não pede mais a confirmação do e-mail** (substitui a P02 de 28/09/2026). A conta nasce ativa, o aceite do termo cumpre a finalidade do cadastro, e o e-mail de boas-vindas só informa o acesso e a versão aceita. As contas que aguardavam o link foram ativadas (migration `0014`). A conta criada pela equipe continua pendente até a troca da senha provisória.                                                                                                         |
+
+## Onde fica o texto do termo
+
+O termo é um documento da empresa e **não é versionado** neste repositório público.
+
+| Arquivo                                      | Uso                                                                                                                                |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api/legal/termo-garantia.json`         | Termo real, só na máquina local e no servidor (ignorado pelo git). Caminho configurável em `WARRANTY_TERMS_FILE`.                  |
+| `apps/api/legal/termo-garantia.exemplo.json` | Modelo neutro e versionado. Mostra o formato do arquivo e é usado nos testes e em desenvolvimento, quando o termo real não existe. |
+
+Em produção, a API não inicia sem o termo real. O formato é validado na inicialização por `warrantyTermsSchema` (`packages/contracts/src/legal.ts`):
+
+- `version`, `title` e `issuer`;
+- `intro`, `summary` (o resumo antes do aceite) e `highlight` (cobranças);
+- `sections`, com blocos `paragraph`, `subtitle` e `list`;
+- `closing`, opcional.
+
+Para publicar uma nova versão, troque o arquivo e mude `version`. Os aceites antigos continuam registrados com a versão que valia na época.
+
+## O que foi entregue
+
+| Parte                                    | Onde                                                                                                                                                                                                                                                                                         |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cadastro de cliente com contato e acesso | `POST /api/customers` com `{ customer, contact }` (`createCustomerSchema`), `customers.service.ts` e `PortalAccessService.grant`                                                                                                                                                             |
+| Aviso de acesso liberado                 | modelo `acesso_liberado`, migration `0011_aviso_de_acesso_liberado`                                                                                                                                                                                                                          |
+| Política e força da senha                | `packages/contracts/src/passwords.ts`, `components/NewPasswordField.tsx`                                                                                                                                                                                                                     |
+| Máscaras                                 | `phones.ts` e `maskDocument` (`documents.ts`) nos contratos, e `PhoneField` e `DocumentField` em `components/masked-fields.tsx`                                                                                                                                                              |
+| Termo e aceite                           | `GET /api/legal/warranty-terms` (público), `legal/warranty-terms.service.ts`, colunas da conta e do RMA (migrations `0012_aceite_do_termo`, `0013_conta_ativa_e_aceite_no_cadastro` e `0014_contas_aguardando_confirmacao_ativas`), `TermsAcceptance` e `TermsDialog` em `components/terms/` |
+
+Testes:
+
+- contratos: `passwords.spec.ts`, `phones.spec.ts`, `documents.spec.ts` e `rma-opening.spec.ts`;
+- API: `test/portal-access.e2e-spec.ts` (cadastro de cliente), `test/invitations.e2e-spec.ts` (avisos e senha forte), `test/auth.e2e-spec.ts` (aceite no autocadastro) e `test/rma-opening.e2e-spec.ts` (aceite na abertura).
+
+## Observações
+
+- As contas sintéticas do `db:seed` continuam com a senha de desenvolvimento do README. O login não aplica a política, só a criação e a troca de senha.
+- Telefones gravados antes desta entrega ficam como estavam. O formato novo vale a partir do próximo cadastro ou alteração.
+
+## Chamados grandes: até 200 equipamentos (05/10/2026)
+
+Há chamados com 3 equipamentos e chamados com 200. O limite por RMA passou de 20 para **200** (`MAX_ITEMS_PER_RMA`), e cada equipamento continua com o padrão de sempre: de 1 a 5 fotos, vídeo opcional da falha, modelo, número de série e descrição.
+
+| Parte           | O que muda                                                                                                                                                                                           |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Formulário      | Campo "Quantidade" para incluir vários equipamentos de uma vez e contador "N de 200". Cada equipamento é memorizado: editar um não redesenha os outros 199.                                          |
+| Envio das fotos | Fila no navegador, 3 envios por vez, com nova tentativa automática quando a API pede para esperar (429).                                                                                             |
+| Limites da API  | Corpo JSON de até 1 MB (a abertura com 200 equipamentos fica perto de 700 KB); cota de temporários derivada do maior chamado (`TEMPORARY_FILES_QUOTA`); envio de arquivos com 300 por minuto por IP. |
+| Movimentações   | Seleção de até 200 itens no envio, no recebimento e na mudança de etapa, com "Selecionar todos os disponíveis" e a lista rolando dentro do diálogo.                                                  |
+| E-mails         | A lista de equipamentos mostra os 30 primeiros e informa quantos faltam; a linha do envio (modalidade e rastreio) vem à parte e não é cortada.                                                       |
+
+Testes: `rma-opening.spec.ts` (200 aceitos, 201 recusados), `test/rma-opening.e2e-spec.ts` (abertura real com 200 equipamentos, cada um com a sua foto) e `templates.spec.ts` (corte da lista no e-mail).
