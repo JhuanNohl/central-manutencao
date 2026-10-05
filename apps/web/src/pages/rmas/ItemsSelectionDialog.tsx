@@ -22,6 +22,17 @@ export interface SelectableItem {
 const itemLabel = (item: SelectableItem) =>
   `${item.position}. ${item.model} (S/N ${item.serialNumber})`;
 
+/** Até alguns itens, a lista por nome; acima disso, só a contagem. */
+const MAX_NAMED_IN_SUMMARY = 5;
+
+function selectionSummary(labels: string[]): string {
+  if (labels.length === 0) return 'Nenhum equipamento selecionado.';
+  if (labels.length > MAX_NAMED_IN_SUMMARY) {
+    return `Será registrado para ${labels.length} equipamentos.`;
+  }
+  return `Será registrado para: ${labels.join('; ')}.`;
+}
+
 /**
  * Seleção de equipamentos para uma movimentação (envio, recebimento, etapa).
  * Mostra a relação exata que será gravada antes da confirmação (5.5).
@@ -66,6 +77,16 @@ export function ItemsSelectionDialog(props: {
     props.onSelectionChange?.([...next]);
   }
 
+  const available = props.items.filter((item) => !item.disabledReason);
+  const allSelected =
+    available.length > 0 && available.every((item) => selected.has(item.id));
+
+  function toggleAll(checked: boolean) {
+    const next = new Set(checked ? available.map((item) => item.id) : []);
+    setSelected(next);
+    props.onSelectionChange?.([...next]);
+  }
+
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const chosen = props.items.filter((item) => selected.has(item.id));
@@ -94,6 +115,16 @@ export function ItemsSelectionDialog(props: {
           <p className="muted">{props.description}</p>
           <fieldset>
             <legend>Equipamentos</legend>
+            {available.length > 1 && (
+              <label className="check select-all">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={(e) => toggleAll(e.target.checked)}
+                />
+                Selecionar todos os disponíveis ({available.length})
+              </label>
+            )}
             <div className="check-list">
               {props.items.map((item) => (
                 <label
@@ -121,9 +152,7 @@ export function ItemsSelectionDialog(props: {
           </fieldset>
           {props.children}
           <div className="selection-summary" aria-live="polite">
-            {chosen.length === 0
-              ? 'Nenhum equipamento selecionado.'
-              : `Será registrado para: ${chosen.map(itemLabel).join('; ')}.`}
+            {selectionSummary(chosen.map(itemLabel))}
           </div>
           <FormAlert message={localError ?? props.error} />
           <div className="actions">

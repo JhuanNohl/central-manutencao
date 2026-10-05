@@ -1,6 +1,7 @@
 import { isVideoFile, type StoredFileView } from '@central/contracts';
 import { ChevronLeft, ChevronRight, ExternalLink, X } from 'lucide-react';
-import { useEffect, useId, useRef, type KeyboardEvent } from 'react';
+import { useId, type KeyboardEvent } from 'react';
+import { useModalDialog } from '../../components/use-modal-dialog';
 
 export interface MediaEntry {
   file: StoredFileView;
@@ -20,16 +21,9 @@ export function MediaViewer(props: {
   fileUrl: (fileId: string) => string;
   onChange: (index: number | null) => void;
 }) {
-  const ref = useRef<HTMLDialogElement>(null);
   const id = useId();
   const open = props.index !== null;
-
-  useEffect(() => {
-    const dialog = ref.current;
-    if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
-    if (!open && dialog.open) dialog.close();
-  }, [open]);
+  const ref = useModalDialog(open);
 
   const count = props.media.length;
   const index = props.index ?? 0;

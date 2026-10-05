@@ -3,7 +3,8 @@ import {
   PHOTOS_PER_ITEM,
   type StoredFileView,
   type FilePurpose,
-  type OpenOwnRmaRequest,
+  type OpeningContent,
+  maxSizeLabel,
 } from '@central/contracts';
 import { ApiError, errorMessage, uploadFile } from '../../../api/client';
 
@@ -71,8 +72,6 @@ export function moveItem(
   return next;
 }
 
-const MEGABYTE = 1024 * 1024;
-
 /** Conferência imediata de extensão e tamanho; o servidor confere o conteúdo. */
 export function precheckFile(purpose: FilePurpose, file: File): string | null {
   const policy = FILE_POLICIES[purpose];
@@ -81,7 +80,7 @@ export function precheckFile(purpose: FilePurpose, file: File): string | null {
     return `Envie um arquivo ${policy.extensions.join(', ')}.`;
   }
   if (file.size > policy.maxBytes) {
-    return `O arquivo passa de ${policy.maxBytes / MEGABYTE} MB.`;
+    return `O arquivo passa de ${maxSizeLabel(policy)}.`;
   }
   return null;
 }
@@ -190,7 +189,7 @@ const sentId = (slot: UploadSlot | null) =>
   slot?.status === 'enviado' ? slot.fileId : undefined;
 
 /** Corpo da abertura no formato do contrato; só arquivos já enviados entram. */
-export function toOpeningInput(draft: OpeningDraft): OpenOwnRmaRequest {
+export function toOpeningInput(draft: OpeningDraft): OpeningContent {
   return {
     openingKey: draft.openingKey,
     items: draft.items.map((item) => ({

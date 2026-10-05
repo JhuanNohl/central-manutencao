@@ -1,14 +1,13 @@
 import {
-  MAX_ITEMS_PER_RMA,
-  openOwnRmaSchema,
-  type StoredFileView,
+  openingContentSchema,
+  type OpeningContent,
   type OpenOwnRmaRequest,
   type OpenRmaResponse,
 } from '@central/contracts';
 import { useMutation } from '@tanstack/react-query';
-import { ArrowLeft, Plus } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import {
-  useEffect,
+  useCallback,
   useRef,
   useState,
   type FormEvent,
@@ -16,36 +15,26 @@ import {
 } from 'react';
 import { ApiError, errorMessage } from '../../../api/client';
 import { FormAlert } from '../../../components/feedback';
+import { TermsAcceptance } from '../../../components/terms/TermsAcceptance';
 import { SubmitButton } from '../../../components/ui';
 import {
   issuesToErrors,
   zodErrors,
   type FieldErrors,
 } from '../../../lib/forms';
+import { AddItemsControl } from './AddItemsControl';
 import { DocumentsFields } from './DocumentsFields';
-import {
-  allSlots,
-  emptyItem,
-  moveItem,
-  newDraft,
-  revokePreview,
-  startUpload,
-  toOpeningInput,
-  withReceivedFiles,
-  withSlot,
-  type DraftItem,
-  type UploadSlot,
-} from './draft';
+import { allSlots, toOpeningInput } from './draft';
 import { useInvoiceValidation } from './invoice-validation';
 import { ItemFields } from './ItemFields';
 import { OpeningReview } from './OpeningReview';
+import { useOpeningDraft } from './use-opening-draft';
 
-type DocumentKind = 'invoiceXml' | 'declaration';
+/** Conteúdo do formulário e, no portal, a versão do termo aceita. */
+export type OpeningSubmission = OpeningContent &
+  Partial<Pick<OpenOwnRmaRequest, 'termsVersion'>>;
 
-const DOCUMENT_PURPOSE = {
-  invoiceXml: 'nota_xml',
-  declaration: 'declaracao',
-} as const;
+const TERMS_REQUIRED = 'Leia e aceite o termo de garantia';
 
 /**
  * Abertura de RMA com vários equipamentos, fotos e documentação (RF03–RF05).
@@ -59,15 +48,22 @@ export function RmaOpeningForm(props: {
   blockedReason?: string | null;
   /** Cliente e solicitante exibidos na revisão (equipe). */
   customerSummary?: ReactNode;
-  submit: (input: OpenOwnRmaRequest) => Promise<OpenRmaResponse>;
+  /**
+   * Portal, quando a conta ainda não aceitou a versão vigente do termo. A
+   * equipe nunca aceita pelo cliente.
+   */
+  requireTerms?: boolean;
+  submit: (input: OpeningSubmission) => Promise<OpenRmaResponse>;
   onOpened: (number: number) => void;
 }) {
-  const [draft, setDraft] = useState(newDraft);
-  const [ready, setReady] = useState<OpenOwnRmaRequest | null>(null);
+  const [ready, setReady] = useState<OpeningSubmission | null>(null);
+  const [termsVersion, setTermsVersion] = useState<string | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const top = useRef<HTMLDivElement>(null);
-  const latest = useRef(draft);
+  // Os erros são indexados pela posição: deixam de valer ao mudar a lista.
+  const clearErrors = useCallback(() => setErrors({}), []);
+  const { draft, actions } = useOpeningDraft(clearErrors);
 
   const xml = draft.invoiceXml;
   const xmlFileId = xml?.status === 'enviado' ? xml.fileId : undefined;
@@ -81,92 +77,19 @@ export function RmaOpeningForm(props: {
     mutationFn: props.submit,
     onSuccess: (result) => props.onOpened(result.number),
     onError: (error) => {
-      setErrors(error instanceof ApiError ? issuesToErrors(error.issues) : {});
+      const issues =
+        error instanceof ApiError ? issuesToErrors(error.issues) : {};
+      // Termo atualizado depois da leitura: o aceite precisa ser refeito.
+      if (issues.termsVersion) setTermsVersion(null);
+      setErrors(issues);
       setFormError(errorMessage(error));
       showStage(null);
     },
   });
 
-  // Miniaturas locais são liberadas ao sair da página.
-  useEffect(() => {
-    latest.current = draft;
-  }, [draft]);
-  useEffect(() => () => allSlots(latest.current).forEach(revokePreview), []);
-
-  function showStage(next: OpenOwnRmaRequest | null) {
+  function showStage(next: OpeningSubmission | null) {
     setReady(next);
     top.current?.scrollIntoView({ block: 'start' });
-  }
-
-  const replaceSlot = (slot: UploadSlot) =>
-    setDraft((current) => withSlot(current, slot));
-
-  function updateItem(key: string, change: Partial<DraftItem>) {
-    setDraft((current) => ({
-      ...current,
-      items: current.items.map((item) =>
-        item.key === key ? { ...item, ...change } : item,
-      ),
-    }));
-  }
-
-  function addPhotos(key: string, files: File[]) {
-    const slots = files.map((file) =>
-      startUpload('foto_item', file, replaceSlot),
-    );
-    setDraft((current) => ({
-      ...current,
-      items: current.items.map((item) =>
-        item.key === key
-          ? { ...item, photos: [...item.photos, ...slots] }
-          : item,
-      ),
-    }));
-  }
-
-  function removePhoto(key: string, slotKey: string) {
-    const item = draft.items.find((current) => current.key === key);
-    revokePreview(item?.photos.find((photo) => photo.key === slotKey));
-    updateItem(key, {
-      photos: item?.photos.filter((photo) => photo.key !== slotKey) ?? [],
-    });
-  }
-
-  function selectVideo(key: string, file: File) {
-    updateItem(key, { video: startUpload('video_item', file, replaceSlot) });
-  }
-
-  /** O limite vale também aqui: fotos além de cinco ficam de fora. */
-  function receiveFiles(key: string, files: StoredFileView[]) {
-    setDraft((current) => ({
-      ...current,
-      items: current.items.map((item) =>
-        item.key === key ? withReceivedFiles(item, files) : item,
-      ),
-    }));
-  }
-
-  function removeItem(key: string) {
-    draft.items.find((item) => item.key === key)?.photos.forEach(revokePreview);
-    // Os erros são indexados pela posição: deixam de valer ao mudar a lista.
-    setErrors({});
-    setDraft((current) => ({
-      ...current,
-      items: current.items.filter((item) => item.key !== key),
-    }));
-  }
-
-  function move(index: number, offset: -1 | 1) {
-    setErrors({});
-    setDraft((current) => ({
-      ...current,
-      items: moveItem(current.items, index, offset),
-    }));
-  }
-
-  function selectDocument(kind: DocumentKind, file: File) {
-    const slot = startUpload(DOCUMENT_PURPOSE[kind], file, replaceSlot);
-    setDraft((current) => ({ ...current, [kind]: slot }));
   }
 
   /** O que ainda impede a revisão, fora das regras do contrato. */
@@ -195,23 +118,37 @@ export function RmaOpeningForm(props: {
       return;
     }
     const problem = reviewBlocker();
-    const parsed = openOwnRmaSchema.safeParse(toOpeningInput(draft));
-    setErrors(parsed.success ? {} : zodErrors(parsed.error));
-    if (problem || !parsed.success) {
+    const parsed = openingContentSchema.safeParse(toOpeningInput(draft));
+    const missingTerms = props.requireTerms && !termsVersion;
+    setErrors({
+      ...(parsed.success ? {} : zodErrors(parsed.error)),
+      ...(missingTerms && { termsVersion: TERMS_REQUIRED }),
+    });
+    if (problem || !parsed.success || missingTerms) {
       setFormError(problem ?? 'Confira os campos destacados.');
       top.current?.scrollIntoView({ block: 'start' });
       return;
     }
     setFormError(null);
-    showStage(parsed.data);
+    showStage({
+      ...parsed.data,
+      ...(props.requireTerms && termsVersion ? { termsVersion } : {}),
+    });
   }
 
   return (
     <div ref={top} className="stack">
       <FormAlert message={formError} />
-      <form onSubmit={onSubmit} noValidate className="opening-form">
+      <form onSubmit={onSubmit} noValidate>
         {ready ? (
-          <OpeningReview draft={draft} customer={props.customerSummary} />
+          <>
+            <OpeningReview draft={draft} customer={props.customerSummary} />
+            {ready.termsVersion && (
+              <p className="muted">
+                Termo de garantia aceito (versão {ready.termsVersion}).
+              </p>
+            )}
+          </>
         ) : (
           <>
             {draft.items.map((item, index) => (
@@ -221,42 +158,29 @@ export function RmaOpeningForm(props: {
                 index={index}
                 total={draft.items.length}
                 errors={errors}
-                onChange={(change) => updateItem(item.key, change)}
-                onAddPhotos={(files) => addPhotos(item.key, files)}
-                onRemovePhoto={(slotKey) => removePhoto(item.key, slotKey)}
-                onSelectVideo={(file) => selectVideo(item.key, file)}
-                onRemoveVideo={() => updateItem(item.key, { video: null })}
-                onReceiveFiles={(files) => receiveFiles(item.key, files)}
-                onMove={(offset) => move(index, offset)}
-                onRemove={() => removeItem(item.key)}
+                actions={actions}
               />
             ))}
             {errors.items && <span className="error">{errors.items}</span>}
-            {draft.items.length < MAX_ITEMS_PER_RMA && (
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() =>
-                  setDraft((current) => ({
-                    ...current,
-                    items: [...current.items, emptyItem()],
-                  }))
-                }
-              >
-                <Plus size={18} aria-hidden />
-                Adicionar equipamento
-              </button>
-            )}
+            <AddItemsControl
+              current={draft.items.length}
+              onAdd={actions.addItems}
+            />
             <DocumentsFields
               invoiceXml={draft.invoiceXml}
               declaration={draft.declaration}
               invoiceCheck={invoiceCheck}
               errors={errors}
-              onSelect={selectDocument}
-              onRemove={(kind) =>
-                setDraft((current) => ({ ...current, [kind]: null }))
-              }
+              onSelect={actions.selectDocument}
+              onRemove={actions.removeDocument}
             />
+            {props.requireTerms && (
+              <TermsAcceptance
+                acceptedVersion={termsVersion}
+                error={errors.termsVersion}
+                onChange={setTermsVersion}
+              />
+            )}
           </>
         )}
         <div className="actions">

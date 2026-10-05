@@ -39,6 +39,11 @@
   --header-text: #f4f5f5;
   --header-muted: #aeb6ba;
   --header-border: #474d52;
+  --header-hover: rgb(255 255 255 / 10%);
+  --avatar-bg: #4a5156;
+  --avatar-text: #ffffff;
+  /* Espaço do logo e das ações ao lado do título centrado na barra. */
+  --topbar-reserve: 480px;
 
   --focus: #3b7a18;
   --overlay: rgb(0 0 0 / 45%);
@@ -174,13 +179,14 @@ svg {
 .topbar-brand img {
   height: 32px;
   width: auto;
+  max-width: 100%;
 }
 
 /* Centrado na barra inteira, não no espaço entre o logo e as ações. */
 .topbar-title {
   position: absolute;
   left: 50%;
-  max-width: calc(100% - 480px);
+  max-width: calc(100% - var(--topbar-reserve));
   transform: translateX(-50%);
   font-size: 18px;
   font-weight: 500;
@@ -203,7 +209,7 @@ svg {
 }
 
 .topbar-icon-button:hover {
-  background: rgb(255 255 255 / 10%);
+  background: var(--header-hover);
 }
 
 .menu-toggle {
@@ -244,7 +250,7 @@ svg {
 }
 
 .user-menu-button:hover {
-  background: rgb(255 255 255 / 10%);
+  background: var(--header-hover);
 }
 
 .avatar {
@@ -254,8 +260,8 @@ svg {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: #4a5156;
-  color: #ffffff;
+  background: var(--avatar-bg);
+  color: var(--avatar-text);
   font-size: 14px;
   font-weight: 600;
 }
@@ -269,7 +275,6 @@ svg {
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
   padding: 8px 0;
 }
 
@@ -310,12 +315,15 @@ svg {
   display: grid;
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   min-height: calc(100vh - var(--header-height));
+  /* No celular, a barra do navegador entra e sai: altura visível de fato. */
+  min-height: calc(100dvh - var(--header-height));
 }
 
 .sidebar {
   position: sticky;
   top: var(--header-height);
   height: calc(100vh - var(--header-height));
+  height: calc(100dvh - var(--header-height));
   overflow-y: auto;
   background: var(--surface-muted);
   border-right: 1px solid var(--border);
@@ -384,10 +392,15 @@ svg {
     left: 0;
     width: min(280px, 85vw);
     transform: translateX(-100%);
-    transition: transform 0.2s ease;
+    /* Fechado, também sai da ordem do Tab e do leitor de tela. */
+    visibility: hidden;
+    transition:
+      transform 0.2s ease,
+      visibility 0.2s;
   }
   .sidebar.open {
     transform: none;
+    visibility: visible;
   }
   .sidebar-backdrop.open {
     display: block;
@@ -412,8 +425,13 @@ svg {
   margin-bottom: 24px;
 }
 
+.page-header > div {
+  min-width: 0;
+}
+
 .page-header h1 {
   font-size: 32px;
+  overflow-wrap: anywhere;
 }
 
 .page-header p {
@@ -425,10 +443,6 @@ svg {
   .page-header h1 {
     font-size: 26px;
   }
-}
-
-.section-title {
-  font-size: 20px;
 }
 
 .stack {
@@ -637,8 +651,19 @@ a.tile:hover {
   font-size: 14px;
 }
 
-.auth-links a {
+.auth-links a,
+.auth-links .link-button {
   text-decoration: underline;
+}
+
+/* Ação com aparência de link (ex.: "Sair" no primeiro acesso). */
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--brand-strong);
+  font: inherit;
+  cursor: pointer;
 }
 
 /* ---------- Formulários ---------- */
@@ -770,6 +795,63 @@ td .actions {
   align-items: center;
 }
 
+/* Senha nova: índice de força e requisitos (a cor nunca é o único sinal). */
+.new-password {
+  display: grid;
+  gap: 8px;
+}
+
+.password-strength {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.strength-bar {
+  display: grid;
+  grid-template-columns: repeat(3, 40px);
+  gap: 4px;
+}
+
+.strength-bar span {
+  height: 6px;
+  border-radius: var(--radius);
+  background: var(--border);
+}
+
+.strength-fraca .strength-bar .filled {
+  background: var(--danger);
+}
+
+.strength-mediana .strength-bar .filled {
+  background: var(--warning-accent);
+}
+
+.strength-forte .strength-bar .filled {
+  background: var(--brand);
+}
+
+.password-rules {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.password-rules li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.password-rules li.met {
+  color: var(--brand-strong);
+}
+
 /* ---------- Botões ---------- */
 
 .btn {
@@ -831,6 +913,9 @@ td .actions {
 
 .btn-block {
   width: 100%;
+  /* Ocupa a largura toda: o texto quebra em vez de vazar no celular. */
+  white-space: normal;
+  text-align: center;
 }
 
 /* ---------- Abas de filtro ---------- */
@@ -1084,7 +1169,7 @@ td .badge {
 
 dl.details {
   display: grid;
-  grid-template-columns: max-content 1fr;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
   gap: 8px 24px;
   margin: 0;
 }
@@ -1134,7 +1219,23 @@ dl.details dd {
 .grid-3 {
   display: grid;
   gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+}
+
+/* Cards em grade: os detalhes se ajustam à largura do card, não da janela. */
+.grid-2 > *,
+.grid-3 > * {
+  container-type: inline-size;
+}
+
+@container (max-width: 360px) {
+  dl.details {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 2px;
+  }
+  dl.details dd + dt {
+    margin-top: 10px;
+  }
 }
 
 .strong {
@@ -1290,6 +1391,11 @@ th.col-wide {
   gap: 8px 12px;
 }
 
+.document-row > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .issue-list {
   margin: 0;
   padding-left: 20px;
@@ -1308,6 +1414,11 @@ th.col-wide {
 .timeline li {
   display: flex;
   gap: 12px;
+}
+
+.timeline li > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .timeline li > svg {
@@ -1686,6 +1797,8 @@ a.shortcut:hover > svg {
 }
 
 .details .toolbar-select {
+  min-width: 0;
+  width: 100%;
   max-width: 100%;
 }
 
@@ -1786,6 +1899,11 @@ a.shortcut:hover > svg {
   margin-bottom: 16px;
 }
 
+.media-viewer-header > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .media-viewer-header h2 {
   margin: 0;
 }
@@ -1884,4 +2002,162 @@ a.shortcut:hover > svg {
   display: block;
   width: min(260px, 100%);
   height: auto;
+}
+
+/* ---------- Termo de garantia ---------- */
+
+.terms-acceptance .check {
+  align-items: flex-start;
+}
+
+/* Na tela de acesso os campos têm 48px; a caixa de marcação, não. */
+.terms-acceptance .check input {
+  min-height: auto;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.terms-summary {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.terms-dialog {
+  width: min(760px, calc(100vw - 32px));
+}
+
+.terms-body {
+  max-height: min(60vh, 560px);
+  overflow-y: auto;
+  margin: 16px 0;
+  padding: 16px 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-muted);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.terms-body h3 {
+  margin: 20px 0 8px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.terms-body h3:first-child {
+  margin-top: 0;
+}
+
+.terms-body h4 {
+  margin: 12px 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.terms-body p {
+  margin: 0 0 8px;
+}
+
+.terms-body ul {
+  margin: 0 0 8px;
+  padding-left: 20px;
+}
+
+.terms-highlight {
+  margin: 12px 0;
+  padding: 12px 16px;
+  border-left: 4px solid var(--warning-accent);
+  border-radius: var(--radius);
+  background: var(--warning-soft);
+}
+
+.terms-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.terms-status.read {
+  color: var(--brand-strong);
+}
+
+/* ---------- Ajustes para telas estreitas ---------- */
+
+/* Células com texto livre (erro do envio, laudo) não alargam a tabela. */
+td .sub {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 600px) {
+  .dialog {
+    padding: 16px;
+  }
+  /* Arquivo na largura toda; as setas ficam embaixo, uma em cada canto. */
+  .media-stage {
+    grid-template-columns: 1fr 1fr;
+  }
+  .media-content {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+  .media-nav:first-child {
+    grid-column: 1;
+  }
+  .media-nav:last-child {
+    grid-column: 2;
+    justify-self: end;
+  }
+  /* Abas em uma linha só, roláveis, em vez de três linhas empilhadas. */
+  .tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+  .tab {
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 400px) {
+  .user-menu-button svg {
+    display: none;
+  }
+}
+
+/* ---------- Chamados com muitos equipamentos ---------- */
+
+.add-items {
+  display: grid;
+  gap: 8px;
+}
+
+.add-items-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.add-items-count input {
+  width: 110px;
+}
+
+.add-items .muted {
+  margin: 0;
+}
+
+/* Centenas de itens: a lista rola dentro do diálogo, com os botões à vista. */
+.dialog .check-list {
+  max-height: min(50vh, 420px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.select-all {
+  margin-bottom: 8px;
+  font-weight: 500;
 }

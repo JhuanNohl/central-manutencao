@@ -1,4 +1,9 @@
-import type { RmaDetail, RmaItemView } from '@central/contracts';
+import {
+  type RmaDetail,
+  type RmaItemView,
+  FILE_POLICIES,
+  maxSizeLabel,
+} from '@central/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Lock, Wrench } from 'lucide-react';
 import { useState } from 'react';
@@ -43,7 +48,8 @@ function matches(item: RmaItemView, term: string): boolean {
 }
 
 export function RmaDetailPage() {
-  const { number = '' } = useParams();
+  // O parâmetro entra no caminho da API: codificado, não leva a outra rota.
+  const number = encodeURIComponent(useParams().number ?? '');
   const { data: account } = useSession();
   const query = useQuery({
     queryKey: ['/rmas', number],
@@ -98,7 +104,7 @@ export function RmaDetailPage() {
         items={rma.items}
         fileUrl={fileUrl}
         canAttach={canOperate}
-        description="Na etapa Comprovação, anexe o vídeo do equipamento funcionando (MP4, MOV ou WebM de até 100 MB). Ele é exigido para a devolução e fica visível ao cliente."
+        description={`Na etapa Comprovação, anexe o vídeo do equipamento funcionando (MP4, MOV ou WebM de até ${maxSizeLabel(FILE_POLICIES.video_validacao)}). Ele é exigido para a devolução e fica visível ao cliente.`}
         emptyMessage="Nenhum equipamento na etapa Comprovação."
       />
       <div className="grid-2">

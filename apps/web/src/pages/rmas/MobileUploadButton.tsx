@@ -11,6 +11,7 @@ import { api, errorMessage, get, post } from '../../api/client';
 import { Alert, FormAlert } from '../../components/feedback';
 import { QrCode } from '../../components/QrCode';
 import { formatDateTime } from '../../lib/format';
+import { useModalDialog } from '../../components/use-modal-dialog';
 
 const SESSIONS_PATH = '/upload-sessions';
 
@@ -32,9 +33,9 @@ export function MobileUploadButton(props: {
   doneMessage: string;
   onFiles: (files: StoredFileView[]) => void;
 }) {
-  const ref = useRef<HTMLDialogElement>(null);
   const id = useId();
   const [open, setOpen] = useState(false);
+  const ref = useModalDialog(open);
   const seen = useRef(new Set<string>());
   const { onFiles } = props;
 
@@ -51,13 +52,6 @@ export function MobileUploadButton(props: {
         ? false
         : SESSION_REFRESH_MS,
   });
-
-  useEffect(() => {
-    const dialog = ref.current;
-    if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
-    if (!open && dialog.open) dialog.close();
-  }, [open]);
 
   // Cada arquivo é repassado uma vez, mesmo com consultas repetidas.
   useEffect(() => {

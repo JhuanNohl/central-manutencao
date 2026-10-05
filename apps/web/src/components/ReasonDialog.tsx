@@ -1,12 +1,7 @@
-import {
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type FormEvent,
-  type ReactNode,
-} from 'react';
+import { REASON_LENGTH, reasonSchema } from '@central/contracts';
+import { useId, useState, type FormEvent, type ReactNode } from 'react';
 import { FormAlert } from './feedback';
+import { useModalDialog } from './use-modal-dialog';
 
 /**
  * Confirmação com justificativa obrigatória, para ações auditadas
@@ -26,27 +21,20 @@ export function ReasonDialog(props: {
   onConfirm: (reason: string, data: FormData) => void;
   onClose: () => void;
 }) {
-  const ref = useRef<HTMLDialogElement>(null);
+  const ref = useModalDialog(props.open);
   const id = useId();
   const [localError, setLocalError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const dialog = ref.current;
-    if (!dialog) return;
-    if (props.open && !dialog.open) dialog.showModal();
-    if (!props.open && dialog.open) dialog.close();
-  }, [props.open]);
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    const reason = String(data.get('reason') ?? '').trim();
-    if (reason.length < 3) {
-      setLocalError('Informe o motivo (mínimo de 3 caracteres).');
+    const reason = reasonSchema.safeParse(data.get('reason') ?? '');
+    if (!reason.success) {
+      setLocalError(reason.error.issues[0].message);
       return;
     }
     setLocalError(null);
-    props.onConfirm(reason, data);
+    props.onConfirm(reason.data, data);
   }
 
   const error = localError ?? props.error;
@@ -70,7 +58,7 @@ export function ReasonDialog(props: {
               id={`${id}-reason`}
               name="reason"
               rows={3}
-              maxLength={500}
+              maxLength={REASON_LENGTH.max}
             />
           </div>
           <FormAlert message={error ?? null} />

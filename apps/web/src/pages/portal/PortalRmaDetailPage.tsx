@@ -22,7 +22,8 @@ import { PORTAL_RMAS_PATH } from './MyRmasPage';
 
 /** Detalhe do atendimento no portal: etapa e prazo de cada equipamento. */
 export function PortalRmaDetailPage() {
-  const { number = '' } = useParams();
+  // O parâmetro entra no caminho da API: codificado, não leva a outra rota.
+  const number = encodeURIComponent(useParams().number ?? '');
   const { data: account } = useSession();
   const query = useQuery({
     queryKey: [PORTAL_RMAS_PATH, number],
@@ -68,6 +69,8 @@ export function PortalRmaDetailPage() {
             <dd>{formatDateTime(rma.updatedAt)}</dd>
             <dt>Solicitante</dt>
             <dd>{rma.requester?.name ?? '—'}</dd>
+            <dt>Responsável</dt>
+            <dd>{rma.assignee?.name ?? 'A definir'}</dd>
           </dl>
         </section>
         <RmaDocuments

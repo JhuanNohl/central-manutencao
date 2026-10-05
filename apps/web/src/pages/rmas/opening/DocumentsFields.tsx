@@ -2,6 +2,7 @@ import {
   FILE_POLICIES,
   type FilePurpose,
   type InvoiceValidationView,
+  maxSizeLabel,
 } from '@central/contracts';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { FileUp, LoaderCircle, RefreshCw, X } from 'lucide-react';
@@ -61,8 +62,7 @@ function DocumentSlot(props: {
       )}
       {props.children}
       <span id={`${id}-hint`} className="hint">
-        {policy.extensions.join(', ')} de até {policy.maxBytes / (1024 * 1024)}{' '}
-        MB.
+        {policy.extensions.join(', ')} de até {maxSizeLabel(policy)}.
       </span>
       {props.error && <span className="error">{props.error}</span>}
     </div>

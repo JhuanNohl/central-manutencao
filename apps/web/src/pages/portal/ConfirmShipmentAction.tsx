@@ -6,6 +6,7 @@ import {
   type ConfirmShipmentRequest,
   type PortalRmaDetail,
   type ShipmentView,
+  SHIPMENT_TEXT_LIMITS,
 } from '@central/contracts';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Truck } from 'lucide-react';
@@ -92,13 +93,13 @@ export function ConfirmShipmentAction({ rma }: { rma: PortalRmaDetail }) {
           label="Transportadora (obrigatória para transportadora)"
           name="carrier"
           errors={errors}
-          maxLength={120}
+          maxLength={SHIPMENT_TEXT_LIMITS.carrier}
         />
         <Field
           label="Código de rastreio (opcional)"
           name="trackingCode"
           errors={errors}
-          maxLength={60}
+          maxLength={SHIPMENT_TEXT_LIMITS.trackingCode}
         />
       </ItemsSelectionDialog>
     </>

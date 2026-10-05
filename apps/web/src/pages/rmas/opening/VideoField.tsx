@@ -1,4 +1,4 @@
-import { FILE_POLICIES } from '@central/contracts';
+import { FILE_POLICIES, maxSizeLabel } from '@central/contracts';
 import { Video, X } from 'lucide-react';
 import { useId } from 'react';
 import type { UploadSlot } from './draft';
@@ -50,8 +50,8 @@ export function VideoField(props: {
         </label>
       )}
       <span id={`${id}-hint`} className="hint">
-        MP4, MOV ou WebM de até {POLICY.maxBytes / (1024 * 1024)} MB. Um vídeo
-        curto mostrando a falha acontecendo ajuda no diagnóstico.
+        MP4, MOV ou WebM de até {maxSizeLabel(POLICY)}. Um vídeo curto mostrando
+        a falha acontecendo ajuda no diagnóstico.
       </span>
       {props.error && <span className="error">{props.error}</span>}
     </div>

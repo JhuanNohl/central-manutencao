@@ -1,28 +1,29 @@
-import { PHOTOS_PER_ITEM, type StoredFileView } from '@central/contracts';
+import { PHOTOS_PER_ITEM, RMA_ITEM_TEXT_LIMITS } from '@central/contracts';
 import { ArrowDown, ArrowUp, Trash2 } from 'lucide-react';
+import { memo } from 'react';
 import { Field, TextAreaField } from '../../../components/ui';
 import type { FieldErrors } from '../../../lib/forms';
 import { MobileUploadButton } from '../MobileUploadButton';
 import type { DraftItem } from './draft';
+import type { OpeningActions } from './use-opening-draft';
 import { PhotoField } from './PhotoField';
 import { VideoField } from './VideoField';
 
-/** Um equipamento do formulário de abertura, com as ações de ordem e remoção. */
-export function ItemFields(props: {
+/**
+ * Um equipamento do formulário de abertura, com as ações de ordem e remoção.
+ * Memorizado: com centenas de equipamentos, só o item alterado é redesenhado
+ * (as ações são estáveis e cada item mantém a referência enquanto não muda).
+ */
+export const ItemFields = memo(function ItemFields(props: {
   item: DraftItem;
   index: number;
   total: number;
   errors: FieldErrors;
-  onChange: (change: Partial<DraftItem>) => void;
-  onAddPhotos: (files: File[]) => void;
-  onRemovePhoto: (slotKey: string) => void;
-  onSelectVideo: (file: File) => void;
-  onRemoveVideo: () => void;
-  onReceiveFiles: (files: StoredFileView[]) => void;
-  onMove: (offset: -1 | 1) => void;
-  onRemove: () => void;
+  actions: OpeningActions;
 }) {
-  const { item, index } = props;
+  const { item, index, actions } = props;
+  const change = (values: Partial<DraftItem>) =>
+    actions.updateItem(item.key, values);
   const path = (field: string) => `items.${index}.${field}`;
   const label = `equipamento ${index + 1}`;
   const photoLimit = PHOTOS_PER_ITEM.max - item.photos.length;
@@ -36,7 +37,7 @@ export function ItemFields(props: {
           className="icon-button"
           aria-label={`Mover ${label} para cima`}
           disabled={index === 0}
-          onClick={() => props.onMove(-1)}
+          onClick={() => actions.move(index, -1)}
         >
           <ArrowUp size={18} aria-hidden />
         </button>
@@ -45,7 +46,7 @@ export function ItemFields(props: {
           className="icon-button"
           aria-label={`Mover ${label} para baixo`}
           disabled={index === props.total - 1}
-          onClick={() => props.onMove(1)}
+          onClick={() => actions.move(index, 1)}
         >
           <ArrowDown size={18} aria-hidden />
         </button>
@@ -54,7 +55,7 @@ export function ItemFields(props: {
           className="icon-button"
           aria-label={`Remover ${label}`}
           disabled={props.total === 1}
-          onClick={props.onRemove}
+          onClick={() => actions.removeItem(item.key)}
         >
           <Trash2 size={18} aria-hidden />
         </button>
@@ -64,45 +65,43 @@ export function ItemFields(props: {
           label="Modelo"
           name={path('model')}
           value={item.model}
-          onChange={(model) => props.onChange({ model })}
+          onChange={(model) => change({ model })}
           errors={props.errors}
-          maxLength={80}
+          maxLength={RMA_ITEM_TEXT_LIMITS.model}
           placeholder="Ex.: SpeedFace V5L"
         />
         <Field
           label="Número de série"
           name={path('serialNumber')}
           value={item.serialNumber}
-          onChange={(serialNumber) => props.onChange({ serialNumber })}
+          onChange={(serialNumber) => change({ serialNumber })}
           errors={props.errors}
-          maxLength={60}
+          maxLength={RMA_ITEM_TEXT_LIMITS.serialNumber}
         />
       </div>
       <TextAreaField
         label="Falha apresentada"
         name={path('reportedFailure')}
         value={item.reportedFailure}
-        onChange={(reportedFailure) => props.onChange({ reportedFailure })}
+        onChange={(reportedFailure) => change({ reportedFailure })}
         errors={props.errors}
-        maxLength={2000}
+        maxLength={RMA_ITEM_TEXT_LIMITS.reportedFailure}
         hint="Descreva o que acontece e desde quando."
       />
       <TextAreaField
         label="Observações (opcional)"
         name={path('notes')}
         value={item.notes}
-        onChange={(notes) => props.onChange({ notes })}
+        onChange={(notes) => change({ notes })}
         errors={props.errors}
         rows={2}
-        maxLength={1000}
+        maxLength={RMA_ITEM_TEXT_LIMITS.notes}
       />
       <label className="check">
         <input
           type="checkbox"
           checked={item.warrantyRequested}
-          onChange={(e) =>
-            props.onChange({ warrantyRequested: e.target.checked })
-          }
+          onChange={(e) => change({ warrantyRequested: e.target.checked })}
         />
         Solicitar análise de garantia
       </label>
@@ -110,15 +109,15 @@ export function ItemFields(props: {
         itemLabel={label}
         photos={item.photos}
         error={props.errors[path('photoIds')]}
-        onAdd={props.onAddPhotos}
-        onRemove={props.onRemovePhoto}
+        onAdd={(files) => actions.addPhotos(item.key, files)}
+        onRemove={(slotKey) => actions.removePhoto(item.key, slotKey)}
       />
       <VideoField
         itemLabel={label}
         video={item.video}
         error={props.errors[path('videoId')]}
-        onSelect={props.onSelectVideo}
-        onRemove={props.onRemoveVideo}
+        onSelect={(file) => actions.selectVideo(item.key, file)}
+        onRemove={() => change({ video: null })}
       />
       {photoLimit + videoLimit > 0 && (
         <div className="field">
@@ -133,7 +132,7 @@ export function ItemFields(props: {
               photoLimit,
               videoLimit,
             }}
-            onFiles={props.onReceiveFiles}
+            onFiles={(files) => actions.receiveFiles(item.key, files)}
           />
           <span className="hint">
             Use a câmera do celular pelo QR Code, sem login.
@@ -142,4 +141,4 @@ export function ItemFields(props: {
       )}
     </fieldset>
   );
-}
+});

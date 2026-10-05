@@ -1,4 +1,8 @@
-import { FILE_POLICIES, PHOTOS_PER_ITEM } from '@central/contracts';
+import {
+  FILE_POLICIES,
+  PHOTOS_PER_ITEM,
+  maxSizeLabel,
+} from '@central/contracts';
 import { ImagePlus, X } from 'lucide-react';
 import { useId } from 'react';
 import type { UploadSlot } from './draft';
@@ -65,8 +69,8 @@ export function PhotoField(props: {
         </label>
       )}
       <span id={`${id}-hint`} className="hint">
-        JPG, PNG ou WebP de até {POLICY.maxBytes / (1024 * 1024)} MB. Mostre o
-        equipamento, a etiqueta com o número de série e o defeito, se visível.
+        JPG, PNG ou WebP de até {maxSizeLabel(POLICY)}. Mostre o equipamento, a
+        etiqueta com o número de série e o defeito, se visível.
       </span>
       {props.error && (
         <span id={`${id}-error`} className="error">
