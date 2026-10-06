@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type {
+  DocumentationPendingReason,
   ItemSlaView,
   ListRmasQuery,
   Page,
@@ -7,24 +8,9 @@ import type {
   RmaItemStage,
   RmaSummary,
 } from '@central/contracts';
-import { SLA_DUE_SOON_HOURS, SLA_FINISHED_STAGES } from '@central/contracts';
-import {
-  and,
-  asc,
-  count,
-  desc,
-  eq,
-  exists,
-  ilike,
-  isNull,
-  notInArray,
-  or,
-  sql,
-  type SQL,
-} from 'drizzle-orm';
+import { asc, count, desc, eq, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { pageWindow, toPage } from '../common/db/pagination.js';
-import { containsPattern } from '../common/db/search.js';
 import { ApiException } from '../common/http/api-exception.js';
 import { reference } from '../common/mapping.js';
 import { DATABASE } from '../database/database.module.js';
@@ -33,8 +19,6 @@ import {
   accounts,
   customerContacts,
   customers,
-  rmaInvoices,
-  rmaItems,
   rmas,
 } from '../database/schema/index.js';
 import type { FileRow } from '../files/files.service.js';
@@ -47,6 +31,9 @@ import {
   toInvoice,
   type ItemRow,
 } from './rma-details.js';
+import { documentationPendingOf } from './rma-documentation-state.js';
+import { nextDueAt, rmaListFilter } from './rma-filters.js';
+import { legacyNumbersOf } from './rma-legacy.js';
 import { findRmaFile } from './rma-media.js';
 import {
   cancellationOf,
@@ -55,22 +42,10 @@ import {
   stageCounts,
 } from './rma-presentation.js';
 import { itemSla, rmaSla } from './sla.js';
-import { HOUR_MS } from '../common/time/durations.js';
 
 const assignee = alias(accounts, 'assignee');
 const openedBy = alias(accounts, 'opened_by');
 const cancelledBy = alias(accounts, 'cancelled_by');
-
-/**
- * Vencimento mais próximo entre os itens com prazo em curso: a mesma conta de
- * `itemSla` e o mesmo recorte de `rmaSla`.
- */
-const nextDueAt = sql`(
-  select min(${rmaItems.slaStartedAt} + ${rmaItems.slaHours} * interval '1 hour')
-  from ${rmaItems}
-  where ${rmaItems.rmaId} = ${rmas.id}
-    and ${notInArray(rmaItems.stage, [...SLA_FINISHED_STAGES])}
-)`;
 
 /** Colunas comuns à lista e ao detalhe. */
 const headerColumns = {
@@ -106,6 +81,12 @@ function withSla(items: ItemRow[] = [], now: Date) {
 
 type HeaderRow = Awaited<ReturnType<RmasService['selectHeaders']>>[number];
 
+/** Dados que vêm de fora do cabeçalho: legado e pendência de documentação. */
+interface RmaRecordState {
+  legacyNumber: string | null;
+  documentationPending: DocumentationPendingReason | null;
+}
+
 /**
  * Consulta de RMAs pela equipe. Notas internas são devolvidas aqui porque a
  * rota exige permissão da equipe; a visão do portal não as expõe.
@@ -119,13 +100,7 @@ export class RmasService {
     query: ListRmasQuery,
   ): Promise<Page<RmaSummary>> {
     const now = new Date();
-    const where = and(
-      this.searchFilter(query.search),
-      query.stage ? this.hasItemIn(eq(rmaItems.stage, query.stage)) : undefined,
-      query.priority ? eq(rmas.priority, query.priority) : undefined,
-      this.assigneeFilter(auth, query.assignee),
-      query.attention ? this.attentionFilter(now) : undefined,
-    );
+    const where = rmaListFilter(this.db, auth, query, now);
     const { limit, offset } = pageWindow(query);
 
     const headers = await this.selectHeaders()
@@ -149,11 +124,17 @@ export class RmasService {
       : [[], []];
     const itemsByRma = groupBy(items, (item) => item.rmaId);
     const invoicesByRma = groupBy(invoices, (invoice) => invoice.rmaId);
+    const states = await this.recordStatesOf(headers);
 
     return toPage(query, Promise.resolve(headers), total, (row) => {
       const firstInvoice = invoicesByRma.get(row.id)?.[0];
       return {
-        ...this.toSummaryBase(row, withSla(itemsByRma.get(row.id), now), now),
+        ...this.toSummaryBase(
+          row,
+          withSla(itemsByRma.get(row.id), now),
+          now,
+          states.get(row.id),
+        ),
         requester: row.requesterName
           ? { name: row.requesterName, email: row.requesterEmail ?? '' }
           : null,
@@ -166,8 +147,9 @@ export class RmasService {
     const now = new Date();
     const row = await this.findHeader(number);
     const parts = await loadDetailParts(this.db, row.id, now);
+    const states = await this.recordStatesOf([row]);
     return {
-      ...this.toSummaryBase(row, parts.items, now),
+      ...this.toSummaryBase(row, parts.items, now, states.get(row.id)),
       requester: row.requesterName
         ? {
             name: row.requesterName,
@@ -210,6 +192,25 @@ export class RmasService {
       .$dynamic();
   }
 
+  private async recordStatesOf(
+    rows: { id: string; closedAt: Date | null }[],
+  ): Promise<Map<string, RmaRecordState>> {
+    const ids = rows.map((row) => row.id);
+    const [legacy, pending] = await Promise.all([
+      legacyNumbersOf(this.db, ids),
+      documentationPendingOf(this.db, rows),
+    ]);
+    return new Map(
+      ids.map((id) => [
+        id,
+        {
+          legacyNumber: legacy.get(id) ?? null,
+          documentationPending: pending.get(id) ?? null,
+        },
+      ]),
+    );
+  }
+
   private toSummaryBase(
     row: HeaderRow,
     items: {
@@ -219,6 +220,7 @@ export class RmasService {
       sla: ItemSlaView;
     }[],
     now: Date,
+    state: RmaRecordState | undefined,
   ) {
     return {
       number: row.number,
@@ -237,64 +239,8 @@ export class RmasService {
       stages: stageCounts(items.map((item) => item.stage)),
       sla: rmaSla(items, now),
       cancellation: cancellationOf(row),
+      legacyNumber: state?.legacyNumber ?? null,
+      documentationPending: state?.documentationPending ?? null,
     };
-  }
-
-  /** Nº do chamado, cliente, documento, modelo, nº de série ou nº da NF. */
-  private searchFilter(search: string | undefined): SQL | undefined {
-    const term = containsPattern(search);
-    if (!term) return undefined;
-    return or(
-      ilike(sql`${rmas.number}::text`, term),
-      ilike(customers.name, term),
-      ilike(customers.document, term),
-      this.hasItemIn(
-        or(ilike(rmaItems.model, term), ilike(rmaItems.serialNumber, term)),
-      ),
-      exists(
-        this.db
-          .select({ one: sql`1` })
-          .from(rmaInvoices)
-          .where(
-            and(
-              eq(rmaInvoices.rmaId, rmas.id),
-              or(
-                ilike(rmaInvoices.number, term),
-                ilike(rmaInvoices.issuerName, term),
-              ),
-            ),
-          ),
-      ),
-    );
-  }
-
-  private hasItemIn(condition: SQL | undefined): SQL {
-    return exists(
-      this.db
-        .select({ one: sql`1` })
-        .from(rmaItems)
-        .where(and(eq(rmaItems.rmaId, rmas.id), condition)),
-    );
-  }
-
-  /** Aberto e com prazo vencido, perto do fim ou sem responsável. */
-  private attentionFilter(now: Date): SQL | undefined {
-    const dueSoonLimit = new Date(now.getTime() + SLA_DUE_SOON_HOURS * HOUR_MS);
-    return and(
-      isNull(rmas.closedAt),
-      or(
-        isNull(rmas.assigneeAccountId),
-        sql`${nextDueAt} <= ${dueSoonLimit.toISOString()}::timestamptz`,
-      ),
-    );
-  }
-
-  private assigneeFilter(
-    auth: AuthContext,
-    filter: ListRmasQuery['assignee'],
-  ): SQL | undefined {
-    if (filter === 'meus') return eq(rmas.assigneeAccountId, auth.account.id);
-    if (filter === 'sem_responsavel') return isNull(rmas.assigneeAccountId);
-    return undefined;
   }
 }

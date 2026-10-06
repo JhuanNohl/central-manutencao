@@ -27,7 +27,13 @@ interface FileClaim {
   ids: string[];
 }
 
-function documentClaims(request: OpeningRequest): FileClaim[] {
+/** XML da nota e/ou declaração de conteúdo de um RMA. */
+export interface RmaDocumentFiles {
+  invoiceXmlFileId?: string;
+  declarationFileId?: string;
+}
+
+function documentClaims(request: RmaDocumentFiles): FileClaim[] {
   const claims: FileClaim[] = [];
   if (request.invoiceXmlFileId) {
     claims.push({
@@ -48,7 +54,7 @@ function documentClaims(request: OpeningRequest): FileClaim[] {
 
 /** Documentos anexados, registrados no histórico da abertura. */
 export function openingDocumentPurposes(
-  request: OpeningRequest,
+  request: RmaDocumentFiles,
 ): FilePurpose[] {
   return documentClaims(request).map((claim) => claim.purpose);
 }
@@ -80,13 +86,13 @@ function openingFileClaims(request: OpeningRequest): FileClaim[] {
  * Vincula os arquivos de cada campo; se algum não puder ser vinculado, a
  * transação inteira é desfeita e os arquivos continuam temporários.
  */
-export async function claimOpeningFiles(
+async function claimFiles(
   tx: Transaction,
   accountId: string,
-  request: OpeningRequest,
+  claims: FileClaim[],
 ): Promise<void> {
   const issues: FieldIssue[] = [];
-  for (const claim of openingFileClaims(request)) {
+  for (const claim of claims) {
     const claimed = await claimTemporaryFiles(
       tx,
       accountId,
@@ -105,11 +111,29 @@ export async function claimOpeningFiles(
   }
 }
 
+/** Fotos, vídeos e documentos da abertura. */
+export function claimOpeningFiles(
+  tx: Transaction,
+  accountId: string,
+  request: OpeningRequest,
+): Promise<void> {
+  return claimFiles(tx, accountId, openingFileClaims(request));
+}
+
+/** Só a documentação, enviada depois da abertura. */
+export function claimDocumentFiles(
+  tx: Transaction,
+  accountId: string,
+  documents: RmaDocumentFiles,
+): Promise<void> {
+  return claimFiles(tx, accountId, documentClaims(documents));
+}
+
 /** Declaração e XML do RMA; o XML aceito também registra a nota fiscal. */
-export async function insertOpeningDocuments(
+export async function insertRmaDocuments(
   tx: Transaction,
   rmaId: string,
-  request: OpeningRequest,
+  request: RmaDocumentFiles,
   invoice: InvoiceValidation | null,
 ): Promise<void> {
   if (request.declarationFileId) {

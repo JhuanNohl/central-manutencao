@@ -3,6 +3,8 @@ import {
   Controller,
   Get,
   Headers,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Post,
@@ -18,6 +20,8 @@ import {
   type ListOwnRmasQuery,
   type OpenOwnRmaRequest,
   type SendRmaMessageRequest,
+  sendRmaDocumentsSchema,
+  type SendRmaDocumentsRequest,
 } from '@central/contracts';
 import type { Response } from 'express';
 import { validate } from '../common/http/zod-validation.pipe.js';
@@ -30,6 +34,7 @@ import { PortalRmasService } from './portal-rmas.service.js';
 import { RmaMessagesService } from './rma-messages.service.js';
 import { RmaOpeningService } from './rma-opening.service.js';
 import { RmaShipmentsService } from './rma-shipments.service.js';
+import { RmaDocumentsService } from './rma-documents.service.js';
 
 /** Atendimentos do próprio cliente, no portal. */
 @Controller('portal/rmas')
@@ -41,6 +46,7 @@ export class PortalRmasController {
     private readonly shipments: RmaShipmentsService,
     private readonly messages: RmaMessagesService,
     private readonly files: FilesService,
+    private readonly documents: RmaDocumentsService,
   ) {}
 
   @Get()
@@ -85,6 +91,21 @@ export class PortalRmasController {
     @Param('number', RmaNumberPipe) number: number,
   ) {
     return this.messages.listForCustomer(auth, number);
+  }
+
+  /**
+   * Documentação pendente enviada depois da abertura (nota com divergências
+   * ou sem documento, como nos chamados do sistema anterior).
+   */
+  @Post(':number/documents')
+  @RequirePermissions('rma.own.create')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  sendDocuments(
+    @CurrentAuth() auth: AuthContext,
+    @Param('number', RmaNumberPipe) number: number,
+    @Body(validate(sendRmaDocumentsSchema)) body: SendRmaDocumentsRequest,
+  ) {
+    return this.documents.sendAsCustomer(auth, number, body);
   }
 
   @Post(':number/messages')

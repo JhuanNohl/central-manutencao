@@ -5,6 +5,7 @@ export const TEAM_RMA_EVENTS = [
   'recebimento',
   'etapa',
   'cancelado',
+  'documentacao',
 ] as const;
 export type TeamRmaEvent = (typeof TEAM_RMA_EVENTS)[number];
 
@@ -31,5 +32,10 @@ export const TEAM_EVENT_COPY: Record<
   cancelado: {
     subject: 'Chamado cancelado',
     intro: (customer) => `O chamado de ${customer} foi cancelado.`,
+  },
+  documentacao: {
+    subject: 'Documentação enviada',
+    intro: (customer) =>
+      `Chegou a documentação pendente do chamado de ${customer}:`,
   },
 };

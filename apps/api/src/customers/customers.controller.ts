@@ -5,6 +5,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Put,
   Query,
 } from '@nestjs/common';
 import {
@@ -14,18 +15,22 @@ import {
   type ContactInput,
   type CreateCustomerRequest,
   type ListCustomersQuery,
+  updateCustomerNotesSchema,
+  type UpdateCustomerNotesRequest,
 } from '@central/contracts';
 import { validate } from '../common/http/zod-validation.pipe.js';
 import type { AuthContext } from '../identity/auth-context.js';
 import { CurrentAuth, RequirePermissions } from '../identity/decorators.js';
 import { PortalAccessService } from '../identity/portal-access.service.js';
 import { CustomersService } from './customers.service.js';
+import { CustomerNotesService } from './customer-notes.service.js';
 
 @Controller('customers')
 export class CustomersController {
   constructor(
     private readonly customers: CustomersService,
     private readonly portalAccess: PortalAccessService,
+    private readonly customerNotes: CustomerNotesService,
   ) {}
 
   @Get()
@@ -72,5 +77,22 @@ export class CustomersController {
     @Param('contactId', ParseUUIDPipe) contactId: string,
   ) {
     return this.portalAccess.grantForContact(auth, id, contactId);
+  }
+
+  /** Observações internas do cliente; só a equipe as vê. */
+  @Get(':id/notes')
+  @RequirePermissions('customers.read')
+  notes(@Param('id', ParseUUIDPipe) id: string) {
+    return this.customerNotes.get(id);
+  }
+
+  @Put(':id/notes')
+  @RequirePermissions('customers.write')
+  updateNotes(
+    @CurrentAuth() auth: AuthContext,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(validate(updateCustomerNotesSchema)) body: UpdateCustomerNotesRequest,
+  ) {
+    return this.customerNotes.update(auth, id, body);
   }
 }

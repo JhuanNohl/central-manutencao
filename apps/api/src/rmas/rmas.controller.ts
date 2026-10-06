@@ -3,6 +3,8 @@ import {
   Controller,
   Get,
   Headers,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -30,6 +32,8 @@ import {
   type OpenRmaForCustomerRequest,
   type RegisterReceiptRequest,
   type SendRmaMessageRequest,
+  sendRmaDocumentsSchema,
+  type SendRmaDocumentsRequest,
 } from '@central/contracts';
 import type { Response } from 'express';
 import { validate } from '../common/http/zod-validation.pipe.js';
@@ -45,6 +49,7 @@ import { RmaStagesService } from './rma-stages.service.js';
 import { RmaValidationVideosService } from './rma-validation-videos.service.js';
 import { RmaNumberPipe } from './rma-number.pipe.js';
 import { RmasService } from './rmas.service.js';
+import { RmaDocumentsService } from './rma-documents.service.js';
 
 /** Chamados na visão da equipe. */
 @Controller('rmas')
@@ -57,6 +62,7 @@ export class RmasController {
     private readonly management: RmaManagementService,
     private readonly stages: RmaStagesService,
     private readonly messages: RmaMessagesService,
+    private readonly documents: RmaDocumentsService,
     private readonly validationVideos: RmaValidationVideosService,
     private readonly files: FilesService,
   ) {}
@@ -165,6 +171,21 @@ export class RmasController {
     @Param('number', RmaNumberPipe) number: number,
   ) {
     return this.messages.listForStaff(auth, number);
+  }
+
+  /**
+   * Documentação pendente enviada depois da abertura (nota com divergências
+   * ou sem documento, como nos chamados do sistema anterior).
+   */
+  @Post(':number/documents')
+  @RequirePermissions('rma.write')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  sendDocuments(
+    @CurrentAuth() auth: AuthContext,
+    @Param('number', RmaNumberPipe) number: number,
+    @Body(validate(sendRmaDocumentsSchema)) body: SendRmaDocumentsRequest,
+  ) {
+    return this.documents.sendAsStaff(auth, number, body);
   }
 
   @Post(':number/messages')

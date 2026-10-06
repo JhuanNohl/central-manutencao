@@ -21,6 +21,8 @@ import { accounts, customerContacts, rmas } from '../database/schema/index.js';
 import type { FileRow } from '../files/files.service.js';
 import type { AuthContext } from '../identity/auth-context.js';
 import { groupBy, itemsOf, loadDetailParts } from './rma-details.js';
+import { documentationPendingOf } from './rma-documentation-state.js';
+import { legacyNumbersOf } from './rma-legacy.js';
 import { findRmaFile } from './rma-media.js';
 import { cancellationOf, rmaSubject, stageCounts } from './rma-presentation.js';
 import { findOwnRma, ownCustomerId, type RmaRow } from './rma-scope.js';
@@ -90,6 +92,7 @@ function summaryOf(
     serialNumber: string;
     stage: RmaItemStage;
   }[],
+  state: Pick<PortalRmaSummary, 'legacyNumber' | 'documentationPending'>,
 ): PortalRmaSummary {
   return {
     number: row.number,
@@ -99,6 +102,7 @@ function summaryOf(
     itemCount: items.length,
     stages: stageCounts(items.map((item) => item.stage)),
     cancellation: portalCancellation(row),
+    ...state,
   };
 }
 
@@ -131,11 +135,12 @@ export class PortalRmasService {
         )
       : [];
     const itemsByRma = groupBy(items, (item) => item.rmaId);
+    const states = await this.recordStatesOf(rows);
     return toPage(
       query,
       Promise.resolve(rows),
       this.db.select({ total: count() }).from(rmas).where(where),
-      (row) => summaryOf(row, itemsByRma.get(row.id) ?? []),
+      (row) => summaryOf(row, itemsByRma.get(row.id) ?? [], states(row.id)),
     );
   }
 
@@ -152,8 +157,9 @@ export class PortalRmasService {
           .where(eq(customerContacts.id, row.requesterContactId))
       : [];
     const parts = await loadDetailParts(this.db, row.id);
+    const states = await this.recordStatesOf([row]);
     return {
-      ...summaryOf(row, parts.items),
+      ...summaryOf(row, parts.items, states(row.id)),
       requester: requester ?? null,
       assignee: await this.assigneeOf(row),
       invoices: parts.invoices,
@@ -162,6 +168,21 @@ export class PortalRmasService {
       shipments: parts.shipments.map(toPortalShipment),
       receipts: parts.receipts.map(toPortalReceipt),
     };
+  }
+
+  /** Nº no sistema anterior e pendência de documentação, por RMA. */
+  private async recordStatesOf(rows: RmaRow[]) {
+    const [legacy, pending] = await Promise.all([
+      legacyNumbersOf(
+        this.db,
+        rows.map((row) => row.id),
+      ),
+      documentationPendingOf(this.db, rows),
+    ]);
+    return (id: string) => ({
+      legacyNumber: legacy.get(id) ?? null,
+      documentationPending: pending.get(id) ?? null,
+    });
   }
 
   /** Só o nome de quem cuida do chamado: sem id nem e-mail da conta. */

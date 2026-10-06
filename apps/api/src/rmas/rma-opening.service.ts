@@ -8,14 +8,12 @@ import {
 } from '@central/contracts';
 import { and, eq } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service.js';
-import { ApiException } from '../common/http/api-exception.js';
 import { isUniqueViolation } from '../common/db/errors.js';
 import { ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
 import { DATABASE } from '../database/database.module.js';
 import type { Database, Transaction } from '../database/database.types.js';
 import { rmaItemPhotos, rmaItems, rmas } from '../database/schema/index.js';
-import { UNAVAILABLE_FILE } from '../files/file-links.js';
 import { FilesService } from '../files/files.service.js';
 import type { AuthContext } from '../identity/auth-context.js';
 import {
@@ -25,7 +23,6 @@ import {
 import { WarrantyTermsService } from '../legal/warranty-terms.service.js';
 import { EmailLinks } from '../notifications/email-links.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
-import { isInvoiceAccepted } from './invoice-xml.js';
 import { InvoiceValidationService } from './invoice-validation.service.js';
 import {
   resolveRequester,
@@ -36,7 +33,7 @@ import {
 import { recordReceipt } from './rma-movements.js';
 import {
   claimOpeningFiles,
-  insertOpeningDocuments,
+  insertRmaDocuments,
   openingDocumentPurposes,
   type OpeningRequest,
 } from './rma-opening-documents.js';
@@ -109,7 +106,11 @@ export class RmaOpeningService {
         request.requesterContactId,
       ),
       invoice: request.invoiceXmlFileId
-        ? await this.checkInvoice(auth, request.invoiceXmlFileId, customer)
+        ? await this.invoices.acceptForRma(
+            auth.account.id,
+            request.invoiceXmlFileId,
+            customer.document,
+          )
         : null,
       terms,
     };
@@ -140,38 +141,6 @@ export class RmaOpeningService {
         ),
       );
     return row;
-  }
-
-  /** Revalida o arquivo efetivamente enviado, não uma resposta anterior (A4.2). */
-  private async checkInvoice(
-    auth: AuthContext,
-    fileId: string,
-    customer: RmaCustomer,
-  ): Promise<InvoiceValidation> {
-    const content = await this.files
-      .readOwnTemporary(auth.account.id, fileId, 'nota_xml')
-      .then(({ content }) => content)
-      .catch((error: unknown) => {
-        if (error instanceof ApiException && error.code === 'NOT_FOUND') {
-          throw ApiException.validation([
-            { path: 'invoiceXmlFileId', message: UNAVAILABLE_FILE },
-          ]);
-        }
-        throw error;
-      });
-    const validation = this.invoices.validate(content, customer.document);
-    if (!isInvoiceAccepted(validation)) {
-      throw ApiException.validation(
-        validation.issues
-          .filter((issue) => issue.blocking)
-          .map((issue) => ({
-            path: 'invoiceXmlFileId',
-            message: issue.message,
-          })),
-        'O XML da nota tem divergências.',
-      );
-    }
-    return validation;
   }
 
   private async insert(
@@ -239,7 +208,7 @@ export class RmaOpeningService {
       })),
     );
     await tx.insert(rmaItemPhotos).values(photos);
-    await insertOpeningDocuments(tx, rma.id, request, invoice);
+    await insertRmaDocuments(tx, rma.id, request, invoice);
 
     await this.audit.record(tx, {
       actorAccountId: auth.account.id,

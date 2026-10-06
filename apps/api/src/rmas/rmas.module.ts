@@ -16,17 +16,23 @@ import { RmaTeamNotices } from './rma-team-notices.js';
 import { RmaValidationVideosService } from './rma-validation-videos.service.js';
 import { RmasController } from './rmas.controller.js';
 import { RmasService } from './rmas.service.js';
+import { RmaDocumentsService } from './rma-documents.service.js';
+import { RmaInternalNotesController } from './rma-internal-notes.controller.js';
+import { RmaInternalNotesService } from './rma-internal-notes.service.js';
 
 /** Atendimentos: RMAs, itens, documentação e notas fiscais. */
 @Module({
   imports: [FilesModule, LegalModule],
   controllers: [
     RmasController,
+    RmaInternalNotesController,
     PortalRmasController,
     InvoiceValidationController,
   ],
   providers: [
     RmasService,
+    RmaDocumentsService,
+    RmaInternalNotesService,
     PortalRmasService,
     RmaOpeningService,
     RmaShipmentsService,
