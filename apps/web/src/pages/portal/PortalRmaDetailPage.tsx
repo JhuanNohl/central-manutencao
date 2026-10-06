@@ -19,6 +19,8 @@ import { StageSummary } from '../rmas/StageSummary';
 import { ValidationVideosCard } from '../rmas/ValidationVideosCard';
 import { ConfirmShipmentAction } from './ConfirmShipmentAction';
 import { PORTAL_RMAS_PATH } from './MyRmasPage';
+import { RmaDescription } from '../rmas/RmaDescription';
+import { SendDocumentsAction } from '../rmas/SendDocumentsAction';
 
 /** Detalhe do atendimento no portal: etapa e prazo de cada equipamento. */
 export function PortalRmaDetailPage() {
@@ -40,7 +42,7 @@ export function PortalRmaDetailPage() {
     <div className="stack">
       <PageHeader
         title={`Atendimento ${rmaLabel(rma.number)}`}
-        description={rma.subject}
+        description={<RmaDescription rma={rma} />}
         actions={
           <>
             {!rma.cancellation && hasPermission(account, 'rma.own.ship') && (
@@ -77,6 +79,17 @@ export function PortalRmaDetailPage() {
           documents={rma.documents}
           invoices={rma.invoices}
           fileUrl={fileUrl}
+          pending={rma.documentationPending}
+          action={
+            rma.documentationPending &&
+            hasPermission(account, 'rma.own.create') && (
+              <SendDocumentsAction
+                path={`${PORTAL_RMAS_PATH}/${rma.number}/documents`}
+                pending={rma.documentationPending}
+                onSent={() => void query.refetch()}
+              />
+            )
+          }
         />
         <RmaMovements
           shipments={rma.shipments}

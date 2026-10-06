@@ -11,6 +11,8 @@ import {
   type RmaSlaStatus,
   type SlaStatus,
   type WarrantyStatus,
+  DOCUMENTATION_PENDING_LABELS,
+  type DocumentationPendingReason,
 } from '@central/contracts';
 import {
   AlarmClock,
@@ -38,6 +40,7 @@ import {
   Video,
   Wrench,
   type LucideIcon,
+  History,
 } from 'lucide-react';
 import type { BadgeTone, StatusStyle } from '../../components/Badge';
 
@@ -135,6 +138,28 @@ export const INVOICE_VALIDATION_STYLES: Record<
     FileX,
   ),
 };
+
+/** Documentação que falta ou veio com erro (comum nos chamados importados). */
+export const DOCUMENTATION_PENDING_STYLES: Record<
+  DocumentationPendingReason,
+  StatusStyle
+> = {
+  sem_documentacao: style(
+    DOCUMENTATION_PENDING_LABELS.sem_documentacao,
+    'warning',
+    FileX,
+  ),
+  nf_com_divergencias: style(
+    DOCUMENTATION_PENDING_LABELS.nf_com_divergencias,
+    'warning',
+    FileWarning,
+  ),
+};
+
+/** Chamado vindo do sistema anterior, com o número que as pessoas conhecem. */
+export function legacyStyle(legacyNumber: string): StatusStyle {
+  return style(`Sistema anterior · nº ${legacyNumber}`, 'neutral', History);
+}
 
 /** Chamado encerrado sem reparo; as etapas dos itens ficam como estavam. */
 export const CANCELLED_STYLE: StatusStyle = style('Cancelado', 'neutral', Ban);

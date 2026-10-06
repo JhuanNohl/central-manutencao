@@ -37,6 +37,9 @@ import {
   rmaLabel,
 } from './rma-styles';
 import { StageSummary } from './StageSummary';
+import { RmaInternalNotes } from './RmaInternalNotes';
+import { SendDocumentsAction } from './SendDocumentsAction';
+import { RmaDescription } from './RmaDescription';
 
 function matches(item: RmaItemView, term: string): boolean {
   const needle = term.trim().toLowerCase();
@@ -67,7 +70,7 @@ export function RmaDetailPage() {
     <div className="stack">
       <PageHeader
         title={`Chamado ${rmaLabel(rma.number)}`}
-        description={rma.subject}
+        description={<RmaDescription rma={rma} />}
         actions={
           <>
             {open && hasPermission(account, 'rma.receive') && (
@@ -95,6 +98,17 @@ export function RmaDetailPage() {
           documents={rma.documents}
           invoices={rma.invoices}
           fileUrl={fileUrl}
+          pending={rma.documentationPending}
+          action={
+            canOperate &&
+            rma.documentationPending && (
+              <SendDocumentsAction
+                path={`/rmas/${rma.number}/documents`}
+                pending={rma.documentationPending}
+                onSent={() => void query.refetch()}
+              />
+            )
+          }
         />
       </div>
 
@@ -121,6 +135,10 @@ export function RmaDetailPage() {
           items={rma.items}
         />
       </div>
+      <RmaInternalNotes
+        number={rma.number}
+        canAdd={hasPermission(account, 'rma.write')}
+      />
     </div>
   );
 }

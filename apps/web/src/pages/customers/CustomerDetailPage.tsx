@@ -21,6 +21,7 @@ import { PhoneField } from '../../components/masked-fields';
 import { Field, PageHeader, SubmitButton } from '../../components/ui';
 import { formatDateTime, formatDocument } from '../../lib/format';
 import { text, useSchemaForm } from '../../lib/forms';
+import { CustomerNotes } from './CustomerNotes';
 
 const PORTAL_ACCESS: Record<'with' | 'without', StatusStyle> = {
   with: { label: 'Com acesso', tone: 'success', icon: CircleCheck },
@@ -159,6 +160,11 @@ export function CustomerDetailPage() {
           )}
         </div>
       </section>
+
+      <CustomerNotes
+        customerId={customer.id}
+        canEdit={hasPermission(account, 'customers.write')}
+      />
 
       {hasPermission(account, 'customers.write') && (
         <section className="card">

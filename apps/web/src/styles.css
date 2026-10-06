@@ -2161,3 +2161,18 @@ td .sub {
   margin-bottom: 8px;
   font-weight: 500;
 }
+
+/* ---------- Dados do sistema anterior ---------- */
+
+.page-header-badge {
+  display: inline-block;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.document-pending {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}

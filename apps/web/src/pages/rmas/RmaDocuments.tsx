@@ -1,12 +1,17 @@
-import type {
-  RmaDocumentKind,
-  RmaDocumentView,
-  RmaInvoiceView,
+import {
+  type RmaDocumentKind,
+  type RmaDocumentView,
+  type RmaInvoiceView,
+  DocumentationPendingReason,
 } from '@central/contracts';
 import { Download } from 'lucide-react';
 import { Badge } from '../../components/Badge';
 import { formatDocument } from '../../lib/format';
-import { INVOICE_VALIDATION_STYLES } from './rma-styles';
+import {
+  DOCUMENTATION_PENDING_STYLES,
+  INVOICE_VALIDATION_STYLES,
+} from './rma-styles';
+import type { ReactNode } from 'react';
 
 const DOCUMENT_LABELS: Record<RmaDocumentKind, string> = {
   nota_xml: 'XML da nota fiscal',
@@ -18,10 +23,19 @@ export function RmaDocuments(props: {
   documents: RmaDocumentView[];
   invoices: RmaInvoiceView[];
   fileUrl: (fileId: string) => string;
+  pending: DocumentationPendingReason | null;
+  /** Envio da documentação pendente, quando quem vê pode enviar. */
+  action?: ReactNode;
 }) {
   return (
     <section className="card">
       <h2>Documentação</h2>
+      {props.pending && (
+        <div className="card-section document-pending">
+          <Badge status={DOCUMENTATION_PENDING_STYLES[props.pending]} />
+          {props.action}
+        </div>
+      )}
       {props.documents.length === 0 && props.invoices.length === 0 && (
         <p className="muted">Nenhum documento anexado.</p>
       )}

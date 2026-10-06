@@ -64,6 +64,9 @@ export function PortalRmasTable({ rmas }: { rmas: PortalRmaSummary[] }) {
               <Link to={`/atendimentos/${rma.number}`} className="strong">
                 {rmaLabel(rma.number)}
               </Link>
+              {rma.legacyNumber && (
+                <span className="sub">nº anterior {rma.legacyNumber}</span>
+              )}
             </td>
             <td>
               <Link to={`/atendimentos/${rma.number}`}>{rma.subject}</Link>

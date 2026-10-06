@@ -5,6 +5,7 @@ import { Badge } from '../../components/Badge';
 import { formatDateTime } from '../../lib/format';
 import {
   CANCELLED_STYLE,
+  DOCUMENTATION_PENDING_STYLES,
   PRIORITY_STYLES,
   RMA_SLA_STYLES,
   rmaLabel,
@@ -35,6 +36,11 @@ export function RmaCard({ rma }: { rma: RmaSummary }) {
         </h2>
         <div className="badges">
           {rma.cancellation && <Badge status={CANCELLED_STYLE} />}
+          {rma.documentationPending && (
+            <Badge
+              status={DOCUMENTATION_PENDING_STYLES[rma.documentationPending]}
+            />
+          )}
           {sla && <Badge status={sla} />}
           <Badge status={PRIORITY_STYLES[rma.priority]} />
         </div>
@@ -44,6 +50,9 @@ export function RmaCard({ rma }: { rma: RmaSummary }) {
         <span className="muted"> · {equipmentCount(rma.itemCount)}</span>
         {rma.invoice && (
           <span className="muted"> · NF {rma.invoice.number}</span>
+        )}
+        {rma.legacyNumber && (
+          <span className="muted"> · nº anterior {rma.legacyNumber}</span>
         )}
       </p>
       <StageSummary stages={rma.stages} itemCount={rma.itemCount} />

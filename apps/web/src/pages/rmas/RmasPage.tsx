@@ -36,6 +36,7 @@ type Filters = {
   priority: RmaPriority | '';
   assignee: '' | 'meus' | 'sem_responsavel';
   attention: '' | 'true';
+  documentationPending: '' | 'true';
 };
 
 export function NewStaffRmaLink() {
@@ -57,6 +58,7 @@ export function RmasPage() {
     priority: '',
     assignee: '',
     attention: params.has(ATTENTION_PARAM) ? 'true' : '',
+    documentationPending: '',
   });
 
   return (
@@ -112,6 +114,18 @@ export function RmasPage() {
             }
           />
           Requer atenção
+        </label>
+        <label className="check toolbar-check">
+          <input
+            type="checkbox"
+            checked={list.filters.documentationPending === 'true'}
+            onChange={(e) =>
+              list.setFilter({
+                documentationPending: e.target.checked ? 'true' : '',
+              })
+            }
+          />
+          Documentação pendente
         </label>
       </div>
 
