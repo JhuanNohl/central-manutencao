@@ -1,9 +1,14 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
-import type { LoginRequest, RegisterRequest } from '@central/contracts';
+import {
+  passwordSchema,
+  type LoginRequest,
+  type RegisterRequest,
+} from '@central/contracts';
 import { eq, sql } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service.js';
 import {
   hashPassword,
+  isLegacyHash,
   simulatePasswordCheck,
   verifyPassword,
 } from '../common/crypto/passwords.js';
@@ -59,11 +64,24 @@ export class AuthService {
       );
     }
 
+    const upgrade = isLegacyHash(account.passwordHash)
+      ? await legacyPasswordUpgrade(input.password)
+      : null;
+
     return this.db.transaction(async (tx) => {
       await tx
         .update(accounts)
-        .set({ lastLoginAt: sql`now()` })
+        .set({ lastLoginAt: sql`now()`, ...upgrade })
         .where(eq(accounts.id, account.id));
+      if (upgrade) {
+        await this.audit.record(tx, {
+          actorAccountId: account.id,
+          action: 'conta.senha_do_sistema_anterior_convertida',
+          entityType: 'account',
+          entityId: account.id,
+          data: { passwordChangeRequired: upgrade.passwordChangeRequired },
+        });
+      }
       return this.sessions.signIn(tx, account.id);
     });
   }
@@ -134,6 +152,18 @@ export class AuthService {
   async logout(auth: AuthContext): Promise<void> {
     await this.sessions.revoke(auth.sessionId);
   }
+}
+
+/**
+ * Conta importada do sistema anterior: a senha que acabou de ser conferida é
+ * gravada com Argon2id. Se não atende à política atual, a troca passa a ser
+ * obrigatória no próximo passo (tela de primeiro acesso).
+ */
+async function legacyPasswordUpgrade(password: string) {
+  return {
+    passwordHash: await hashPassword(password),
+    passwordChangeRequired: !passwordSchema.safeParse(password).success,
+  };
 }
 
 function invalidCredentials(): ApiException {

@@ -1,5 +1,6 @@
 import { randomInt } from 'node:crypto';
 import argon2 from 'argon2';
+import bcrypt from 'bcryptjs';
 
 // Argon2id com parâmetros recomendados pela OWASP (19 MiB, 2 iterações).
 const OPTIONS = {
@@ -13,11 +14,29 @@ export function hashPassword(password: string): Promise<string> {
   return argon2.hash(password, OPTIONS);
 }
 
+/**
+ * Hash bcrypt do sistema anterior (osTicket: `$2a$`, `$2b$` ou `$2y$`),
+ * importado como está. Serve só para entrar: no primeiro acesso a senha é
+ * gravada de novo com Argon2id (`AuthService.login`).
+ */
+const LEGACY_BCRYPT_HASH = /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/;
+
+export function isLegacyHash(hash: string): boolean {
+  return LEGACY_BCRYPT_HASH.test(hash);
+}
+
 export async function verifyPassword(
   hash: string,
   password: string,
 ): Promise<boolean> {
   try {
+    if (isLegacyHash(hash)) {
+      // `$2y$` (PHP) é o mesmo algoritmo do `$2b$`.
+      return await bcrypt.compare(
+        password,
+        hash.replace(/^\$2y\$/, () => '$2b$'),
+      );
+    }
     return await argon2.verify(hash, password);
   } catch {
     return false;
