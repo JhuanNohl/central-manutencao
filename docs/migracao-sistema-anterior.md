@@ -58,7 +58,7 @@ Cada agente entra com o próprio e-mail. A caixa do setor nunca é login: `accou
 | `ost_user_account.passwd`                           | `accounts.password_hash` como está (`role = 'cliente'`, `email_verified_at` = `registered`)                                               |
 | `ost_organization` (nome, site, endereço, telefone) | Acrescentados ao `customer_notes.body` do cliente vinculado                                                                               |
 
-Sem CPF/CNPJ válido não há como criar o cliente (o documento é obrigatório e único). Antes da importação, gere a lista desses cadastros (ver [Cadastros que travam a importação](#cadastros-que-travam-a-importação)). A data de nascimento **não** é migrada: o sistema não a usa, e a LGPD pede só o dado necessário.
+Só migram os cadastros válidos. O usuário sem CPF/CNPJ válido ou sem e-mail válido (o documento é obrigatório e único, e o e-mail é o login) **não é importado**, e os tickets dele também ficam de fora: são cadastros que já não estão em uso. O importador registra cada um no relatório da migração; a lista prévia sai do script em [Cadastros que travam a importação](#cadastros-que-travam-a-importação). A data de nascimento **não** é migrada: o sistema não a usa, e a LGPD pede só o dado necessário.
 
 `legacy_records`: `('ost_user', id) → customer_contact` e `account`; o cliente com `('cpf_cnpj', documento) → customer`.
 
@@ -159,7 +159,7 @@ O corpo vem em HTML: converta para texto (quebras de linha preservadas, sem tags
 
 ## Cadastros que travam a importação
 
-O script [scripts/migracao/extrair-cadastros.sh](../scripts/migracao/extrair-cadastros.sh) roda no servidor do legado, só lê o banco e gera duas planilhas CSV que o Excel abre direto:
+O script [scripts/migracao/extrair-cadastros.sh](../scripts/migracao/extrair-cadastros.sh) roda no servidor do legado, só lê o banco e gera duas planilhas CSV que o Excel abre direto. A primeira é a lista do que **não** será migrado, para conferir antes da importação:
 
 - `cadastros-bloqueados-<data>.csv`: um usuário por linha, com nome, e-mail, CPF/CNPJ informado, quantidade de tickets, se tem conta no portal e o motivo: sem CPF/CNPJ, dígitos verificadores inválidos (inclusive CNPJ alfanumérico), sem e-mail, e-mail inválido ou igual ao de um agente. Os de mais tickets vêm primeiro.
 - `documentos-repetidos-<data>.csv`: CPF/CNPJ usados por mais de um usuário. Não trava: vira um cliente com vários contatos.
@@ -226,11 +226,11 @@ As planilhas têm dados reais de clientes: só o seu usuário consegue lê-las n
 | Tickets iniciais sem NF ou inconsistentes | Importados como estão; a nota guardada fora do sistema é anexada na migração quando houver |
 | E-mail dos agentes                        | Login com o e-mail próprio; avisos ao setor na caixa de `MAINTENANCE_INBOX_EMAIL`          |
 | Anexos da conversa                        | Recuperados por um script à parte, fora desta importação                                   |
-| Usuários sem CPF/CNPJ válido              | Dados solicitados aos clientes antes da importação                                         |
+| Usuários sem CPF/CNPJ ou e-mail válido    | Não migram, nem os tickets deles; são cadastros fora de uso                                |
 
 ## Depois da importação
 
-1. Conferir as quantidades por tabela contra o legado (tickets, equipamentos, fotos, documentos, mensagens, notas).
+1. Conferir as quantidades por tabela contra o legado (tickets, equipamentos, fotos, documentos, mensagens, notas), descontando os cadastros que não migram e os tickets deles.
 2. Na fila, filtrar **Documentação pendente**: devem aparecer os chamados que no legado estavam "NF com erro" ou "sem NF".
 3. Buscar alguns números antigos na fila e abrir no portal com uma conta de cliente.
 4. Entrar com uma conta importada (senha antiga) e confirmar a conversão.
