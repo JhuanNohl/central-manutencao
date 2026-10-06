@@ -33,16 +33,18 @@ Para cada registro criado, uma linha em `legacy_records`. Antes de criar, o impo
 
 ### Equipe: `ost_staff` → `accounts`
 
-| Origem                   | Destino                                                                         |
-| ------------------------ | ------------------------------------------------------------------------------- |
-| `firstname` + `lastname` | `name`                                                                          |
-| `email`                  | `email` (minúsculo; obrigatório; sem e-mail, a conta fica para cadastro manual) |
-| `isadmin = 1`            | `role = 'administrador'`; senão `'agente'`                                      |
-| `isactive = 0`           | `status = 'desativada'` e `disabled_at` = data da importação                    |
-| `passwd` (bcrypt)        | `password_hash` como está; outro formato → ver "Senhas"                         |
-| `created`, `lastlogin`   | `created_at`, `last_login_at`                                                   |
+| Origem                   | Destino                                                            |
+| ------------------------ | ------------------------------------------------------------------ |
+| `firstname` + `lastname` | `name`                                                             |
+| `email`                  | `email`: o e-mail **próprio** do agente, que é o login (minúsculo) |
+| `isadmin = 1`            | `role = 'administrador'`; senão `'agente'`                         |
+| `isactive = 0`           | `status = 'desativada'` e `disabled_at` = data da importação       |
+| `passwd` (bcrypt)        | `password_hash` como está; outro formato → ver "Senhas"            |
+| `created`, `lastlogin`   | `created_at`, `last_login_at`                                      |
 
 `legacy_records`: `('ost_staff', staff_id) → account`.
+
+Cada agente entra com o próprio e-mail. A caixa do setor nunca é login: `accounts.email` é único e uma conta compartilhada apagaria quem fez cada ação no histórico. Quando o `ost_staff` traz a caixa do setor ou vem sem e-mail, a aplicação de migração usa o e-mail próprio do agente, de uma lista de-para mantida fora deste repositório. Todos os avisos à equipe vão para a caixa do setor (`MAINTENANCE_INBOX_EMAIL`); o e-mail próprio do agente serve só para entrar e recuperar a senha.
 
 ### Clientes: `ost_user` + formulário → `customers`, `customer_contacts`, `accounts`
 
@@ -56,7 +58,7 @@ Para cada registro criado, uma linha em `legacy_records`. Antes de criar, o impo
 | `ost_user_account.passwd`                           | `accounts.password_hash` como está (`role = 'cliente'`, `email_verified_at` = `registered`)                                               |
 | `ost_organization` (nome, site, endereço, telefone) | Acrescentados ao `customer_notes.body` do cliente vinculado                                                                               |
 
-Sem CPF/CNPJ não há como criar o cliente (o documento é obrigatório e único): esses usuários vão para uma lista de pendências da migração. A data de nascimento **não** é migrada: o sistema não a usa, e a LGPD pede só o dado necessário.
+Sem CPF/CNPJ válido não há como criar o cliente (o documento é obrigatório e único). Antes da importação, gere a lista desses cadastros (ver [Cadastros que travam a importação](#cadastros-que-travam-a-importação)). A data de nascimento **não** é migrada: o sistema não a usa, e a LGPD pede só o dado necessário.
 
 `legacy_records`: `('ost_user', id) → customer_contact` e `account`; o cliente com `('cpf_cnpj', documento) → customer`.
 
@@ -75,16 +77,16 @@ Um arquivo do legado usado por vários equipamentos precisa de **uma cópia por 
 
 ### Tickets: `ost_ticket` → `rmas`
 
-| Origem                                  | Destino                                                                     |
-| --------------------------------------- | --------------------------------------------------------------------------- |
-| `number`                                | `legacy_records.reference`; o `rmas.number` segue a numeração deste sistema |
-| `user_id`                               | `customer_id` e `requester_contact_id` (pelo de-para do usuário)            |
-| `user_id` (conta)                       | `opened_by_account_id`                                                      |
-| `staff_id` (0 = nenhum)                 | `assignee_account_id`                                                       |
-| `__cdata.priority`                      | `priority`: baixa/normal → `normal`, alta → `alta`, emergência → `urgente`  |
-| `created`, `updated`/`lastupdate`       | `created_at`, `updated_at`                                                  |
-| `closed` (situação "Resolvido")         | `closed_at`                                                                 |
-| `__cdata.subject` e campo `observacoes` | Primeira mensagem da conversa, do lado do cliente, na data de abertura      |
+| Origem                                  | Destino                                                                                              |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `number`                                | `legacy_records.reference`; o `rmas.number` segue a numeração deste sistema                          |
+| `user_id`                               | `customer_id` e `requester_contact_id` (pelo de-para do usuário)                                     |
+| `user_id` (conta)                       | `opened_by_account_id`                                                                               |
+| `staff_id` (0 = nenhum)                 | `assignee_account_id`                                                                                |
+| `__cdata.priority`                      | `priority`: baixa/normal → `normal`, alta → `alta`, emergência → `urgente` (não há prioridade baixa) |
+| `created`, `updated`/`lastupdate`       | `created_at`, `updated_at`                                                                           |
+| `closed` (situação "Resolvido")         | `closed_at`                                                                                          |
+| `__cdata.subject` e campo `observacoes` | Primeira mensagem da conversa, do lado do cliente, na data de abertura                               |
 
 A situação do ticket (Solicitado, Enviado, Recebido, Resolvido) não é migrada como campo: aqui ela é a contagem das etapas dos itens (A5.1).
 
@@ -128,7 +130,9 @@ A **pendência** do equipamento não tem campo: ela é recalculada pelos documen
 | `nf_numero`, `nf_razao_social` | `rma_invoices.number`, `issuer_name` (`issuer_document` = documento do cliente), `document_id` = o XML                      |
 | `kind = 'dc'`                  | `rma_documents.kind = 'declaracao'`                                                                                         |
 
-Um RMA tem no máximo um documento de cada tipo: com mais de um, importe o mais recente. NF que não é XML (PDF ou imagem) não entra como `nota_xml`: registre só os dados da nota em `rma_invoices` (sem `document_id`) e o arquivo fica na lista de pendências. Depois da importação, a pendência é resolvida pela ação **Enviar documentação**, pelo cliente ou pela equipe.
+Um RMA tem no máximo um documento de cada tipo: com mais de um, importe o mais recente. NF que não é XML (PDF ou imagem) não entra como `nota_xml`: registre só os dados da nota em `rma_invoices` (sem `document_id`).
+
+Os primeiros tickets do legado foram abertos antes de a nota ser obrigatória e podem vir sem NF ou com dados inconsistentes. Eles são importados como estão, sem bloquear a migração. Quando a nota existe fora do sistema, a aplicação de migração pode anexá-la nesse momento: o XML entra como `nota_xml`, validado pelas regras atuais. Chamado encerrado nunca aparece como pendente; o que continuar aberto sem nota mostra **Documentação pendente** até alguém usar **Enviar documentação**.
 
 ### Envio e recebimento
 
@@ -153,6 +157,50 @@ O corpo vem em HTML: converta para texto (quebras de linha preservadas, sem tags
 
 `ost_zk_equipment_event` → `audit_events` com `action = 'rma.etapa_alterada'`, `entity_type = 'rma'`, `actor_account_id` = agente, `occurred_at` = `created` e `data` no mesmo formato da troca de etapa deste sistema, `{ "stage": <etapa nova>, "before": { "<id do item>": <etapa anterior> } }`, acrescido de `"legado": true` e da observação do evento (etapas já convertidas). `ost_thread_event` pode entrar como `action = 'legado.<evento>'`, só para consulta.
 
+## Cadastros que travam a importação
+
+O script [scripts/migracao/extrair-cadastros.sh](../scripts/migracao/extrair-cadastros.sh) roda no servidor do legado, só lê o banco e gera duas planilhas CSV que o Excel abre direto:
+
+- `cadastros-bloqueados-<data>.csv`: um usuário por linha, com nome, e-mail, CPF/CNPJ informado, quantidade de tickets, se tem conta no portal e o motivo: sem CPF/CNPJ, dígitos verificadores inválidos (inclusive CNPJ alfanumérico), sem e-mail, e-mail inválido ou igual ao de um agente. Os de mais tickets vêm primeiro.
+- `documentos-repetidos-<data>.csv`: CPF/CNPJ usados por mais de um usuário. Não trava: vira um cliente com vários contatos.
+
+Ele encontra sozinho o contêiner do MariaDB e usa as credenciais que o próprio contêiner já tem, sem pedir senha.
+
+1. Copie a pasta `scripts/migracao` (os três arquivos) para o servidor, pela pasta Samba do projeto.
+2. No MobaXterm, abra a sessão SSH do servidor e entre na pasta:
+
+   ```bash
+   cd <pasta do projeto no servidor>/scripts/migracao
+   ```
+
+3. Rode o script com `sudo`:
+
+   ```bash
+   sudo bash extrair-cadastros.sh
+   ```
+
+   Se aparecer "Há mais de um contêiner de banco em execução", escolha o do legado pela lista e informe com `-c`:
+
+   ```bash
+   sudo bash extrair-cadastros.sh -c <nome do contêiner>
+   ```
+
+4. Baixe as planilhas pelo painel SFTP do MobaXterm, na pasta `migracao-legado` da sua pasta pessoal (o script mostra o caminho completo).
+5. Depois de baixar, apague as planilhas do servidor:
+
+   ```bash
+   rm -r ~/migracao-legado
+   ```
+
+As planilhas têm dados reais de clientes: só o seu usuário consegue lê-las no servidor, e elas nunca entram neste repositório.
+
+| Situação                                            | O que fazer                                                                                                      |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Erro `$'\r': command not found`                     | O arquivo ganhou quebra de linha do Windows na cópia. Corrija com `sed -i 's/\r$//' extrair-cadastros.sh`        |
+| "sem acesso ao Docker"                              | Faltou o `sudo` no comando                                                                                       |
+| MariaDB instalado direto no servidor, sem contêiner | O script usa o root pelo socket. Se pedir senha, rode com `-u <usuário do banco>` e digite a senha quando pedida |
+| Banco com outro nome                                | Informe com `-b <nome do banco>`                                                                                 |
+
 ## Senhas
 
 - **bcrypt** (`$2a$`, `$2b$`, `$2y$`): importe o hash como está. O primeiro login confere com bcrypt, grava a senha com Argon2id e, se ela não atende à política atual (8 caracteres, maiúscula, número e especial), leva para a tela de troca obrigatória.
@@ -160,13 +208,25 @@ O corpo vem em HTML: converta para texto (quebras de linha preservadas, sem tags
 
 ## Fica de fora
 
-| Dado                                             | Motivo                                      |
-| ------------------------------------------------ | ------------------------------------------- |
-| Data de nascimento                               | Não usada; minimização exigida pela LGPD    |
-| IP, origem do ticket (Web/E-mail), fuso e idioma | Sem uso neste sistema                       |
-| Departamentos, tópicos, SLA e status do osTicket | Substituídos pelas regras deste sistema     |
-| Assinatura, telefones e permissões dos agentes   | Sem uso; os papéis vêm de `isadmin`         |
-| Anexos da conversa                               | Sem destino nesta versão (decisão pendente) |
+| Dado                                             | Motivo                                             |
+| ------------------------------------------------ | -------------------------------------------------- |
+| Data de nascimento                               | Não usada; minimização exigida pela LGPD           |
+| IP, origem do ticket (Web/E-mail), fuso e idioma | Sem uso neste sistema                              |
+| Departamentos, tópicos, SLA e status do osTicket | Substituídos pelas regras deste sistema            |
+| Assinatura, telefones e permissões dos agentes   | Sem uso; os papéis vêm de `isadmin`                |
+| Funções específicas do osTicket                  | Este sistema substitui o fluxo; só os dados migram |
+| Anexos da conversa                               | Recuperados por um script à parte                  |
+
+## Decisões (06/10/2026)
+
+| Assunto                                   | Decisão                                                                                    |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Funções específicas do legado             | Não migram; só os dados                                                                    |
+| Prioridade baixa                          | Vira `normal`; o sistema segue com normal, alta e urgente                                  |
+| Tickets iniciais sem NF ou inconsistentes | Importados como estão; a nota guardada fora do sistema é anexada na migração quando houver |
+| E-mail dos agentes                        | Login com o e-mail próprio; avisos ao setor na caixa de `MAINTENANCE_INBOX_EMAIL`          |
+| Anexos da conversa                        | Recuperados por um script à parte, fora desta importação                                   |
+| Usuários sem CPF/CNPJ válido              | Dados solicitados aos clientes antes da importação                                         |
 
 ## Depois da importação
 
