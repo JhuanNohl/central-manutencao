@@ -24,3 +24,7 @@ apps/api/legal/termo-garantia.json
 # Configuração local da homologação em contêineres (senhas).
 docker/*.env
 /caddy-homologacao.crt
+
+# Planilhas da migração: têm dados reais de clientes
+scripts/migracao/*.csv
+migracao-legado/
