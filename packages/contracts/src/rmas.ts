@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { paginationQuerySchema } from './common.js';
+import type { DocumentationPendingReason } from './rma-documentation.js';
 import type { StoredFileView } from './files.js';
 import type { InvoiceValidation } from './invoice-validation.js';
 import type {
@@ -49,6 +50,8 @@ export const listRmasQuerySchema = paginationQuerySchema.extend({
    * ou sem responsável. Ordena pelo vencimento mais próximo.
    */
   attention: z.stringbool().optional(),
+  /** Só chamados abertos com a documentação pendente. */
+  documentationPending: z.stringbool().optional(),
 });
 export type ListRmasQuery = z.infer<typeof listRmasQuerySchema>;
 
@@ -97,6 +100,9 @@ export interface RmaSummary {
   /** Prazo do item que vence primeiro; nulo antes do primeiro recebimento. */
   sla: RmaSlaView | null;
   cancellation: RmaCancellationView | null;
+  /** Nº do ticket no sistema anterior, para os chamados importados. */
+  legacyNumber: string | null;
+  documentationPending: DocumentationPendingReason | null;
 }
 
 /**
@@ -217,6 +223,9 @@ export interface PortalRmaSummary {
   itemCount: number;
   stages: RmaStageCount[];
   cancellation: PortalRmaCancellationView | null;
+  /** Nº do atendimento no sistema anterior, que o cliente conhece. */
+  legacyNumber: string | null;
+  documentationPending: DocumentationPendingReason | null;
 }
 
 export interface PortalRmaDetail extends PortalRmaSummary {
