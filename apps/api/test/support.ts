@@ -140,7 +140,7 @@ export async function createTestApp(
 
 export async function resetDatabase(db: Database): Promise<void> {
   await db.execute(sql`truncate table
-    rma_invoices, rma_items, rmas,
+    rma_invoices, rma_items, rmas, legacy_records,
     audit_events, notifications, sessions, account_tokens, invitations,
     customer_contacts, customers, accounts restart identity cascade`);
 }
