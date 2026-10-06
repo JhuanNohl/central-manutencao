@@ -9,7 +9,8 @@ Aplicação própria para o cliente solicitar manutenção e acompanhar cada equ
 - perfis, operação do chamado pelo agente e conversa entre cliente e equipe ([docs/E1-perfis-e-conversa.md](docs/E1-perfis-e-conversa.md));
 - avisos por e-mail para cliente, setor e agente, e acesso ao portal com senha provisória ([docs/E1-avisos-por-email.md](docs/E1-avisos-por-email.md));
 - cadastro de cliente pela equipe, senha forte, máscaras e aceite do termo de garantia ([docs/E1-cadastro-senha-e-termo.md](docs/E1-cadastro-senha-e-termo.md));
-- homologação em contêineres ([docs/homologacao-docker.md](docs/homologacao-docker.md)) e revisão de segurança ([docs/seguranca.md](docs/seguranca.md)).
+- homologação em contêineres ([docs/homologacao-docker.md](docs/homologacao-docker.md)) e revisão de segurança ([docs/seguranca.md](docs/seguranca.md));
+- preparação para a migração do sistema anterior ([docs/migracao-sistema-anterior.md](docs/migracao-sistema-anterior.md)).
 
 A condução técnica (etapas, garantia, laudo e pausas) e as devoluções ainda não foram implementadas, então o ciclo completo de manutenção não está pronto para produção.
 
