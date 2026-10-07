@@ -40,6 +40,30 @@ describe('renderNotification', () => {
     expect(message.text).toContain('Motivo: Aberto em duplicidade');
   });
 
+  it('no cancelamento com equipamentos na fábrica, informa a devolução', () => {
+    const message = renderNotification('rma_cancelado', {
+      name: 'Ana',
+      number: '100006',
+      reason: 'Cliente desistiu',
+      returning: ['SpeedFace V5L (S/N A1)'],
+      link: 'http://localhost:5173/atendimentos/100006',
+    });
+    expect(message.text).toContain('entram em processo de devolução');
+    expect(message.text).toContain('SpeedFace V5L (S/N A1)');
+    expect(message.text).toContain('conversa do atendimento');
+  });
+
+  it('no cancelamento sem equipamentos na fábrica, não fala em devolução', () => {
+    const message = renderNotification('rma_cancelado', {
+      name: 'Ana',
+      number: '100006',
+      reason: 'Aberto em duplicidade',
+      returning: [],
+      link: 'http://localhost:5173/atendimentos/100006',
+    });
+    expect(message.text).not.toContain('devolução');
+  });
+
   it('avisa a mensagem do cliente ao responsável, com o link do painel', () => {
     const message = renderNotification('rma_mensagem_cliente', {
       name: 'Bruno',

@@ -3,6 +3,7 @@ import {
   ASSIGNABLE_ROLES,
   canChangeStage,
   isCancellable,
+  itemsToReturn,
   requiresValidationVideo,
   stageChangePermission,
   stagesChangeableTo,
@@ -94,6 +95,16 @@ describe('mudança de etapa pela equipe', () => {
     expect(
       isCancellable([{ stage: 'em_manutencao' }, { stage: 'devolucao' }]),
     ).toBe(false);
+  });
+
+  it('no cancelamento, devolve só o que já chegou à fábrica', () => {
+    const items = [
+      { id: 'a', stage: 'aguardando_envio' as const },
+      { id: 'b', stage: 'enviado' as const },
+      { id: 'c', stage: 'recebido' as const },
+      { id: 'd', stage: 'aguardando_aprovacao' as const },
+    ];
+    expect(itemsToReturn(items).map((item) => item.id)).toEqual(['c', 'd']);
   });
 
   it('só quem opera chamados pode ser responsável', () => {

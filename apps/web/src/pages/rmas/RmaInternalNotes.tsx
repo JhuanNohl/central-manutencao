@@ -16,8 +16,11 @@ import { raw, useSchemaForm } from '../../lib/forms';
  * Anotações internas do chamado, só da equipe (RN11): ficam fora da conversa
  * com o cliente. Recebem também as notas internas do sistema anterior.
  */
+export const internalNotesPath = (number: number) =>
+  `/rmas/${number}/internal-notes`;
+
 export function RmaInternalNotes(props: { number: number; canAdd: boolean }) {
-  const path = `/rmas/${props.number}/internal-notes`;
+  const path = internalNotesPath(props.number);
   const client = useQueryClient();
   const [body, setBody] = useState('');
   const query = useQuery({

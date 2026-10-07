@@ -1,4 +1,4 @@
-import type { PortalRmaDetail } from '@central/contracts';
+import { itemsToReturn, type PortalRmaDetail } from '@central/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Wrench } from 'lucide-react';
 import { Link, useParams } from 'react-router';
@@ -56,7 +56,10 @@ export function PortalRmaDetailPage() {
         }
       />
       {rma.cancellation && (
-        <CancellationNotice cancellation={rma.cancellation} />
+        <CancellationNotice
+          cancellation={rma.cancellation}
+          returning={itemsToReturn(rma.items).length > 0}
+        />
       )}
       <div className="grid-3">
         <section className="card">
@@ -173,6 +176,7 @@ export function PortalRmaDetailPage() {
         path={`${PORTAL_RMAS_PATH}/${rma.number}/messages`}
         title="Conversa com a equipe"
         canSend={hasPermission(account, 'rma.own.message')}
+        highlighted={rma.cancellation !== null}
         hint="Use para combinar detalhes do atendimento. A equipe responsável recebe um aviso por e-mail."
         emptyMessage="Nenhuma mensagem ainda. Escreva se precisar combinar algum detalhe com a equipe."
       />

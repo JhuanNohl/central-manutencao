@@ -4,21 +4,21 @@ Quarta entrega da E1: define quem recebe cada aviso, cria o acesso ao portal com
 
 ## Quem recebe o quê
 
-| Evento                                         | Cliente (solicitante)                                               | Caixa do setor                      | Modelo                                              |
-| ---------------------------------------------- | ------------------------------------------------------------------- | ----------------------------------- | --------------------------------------------------- |
-| Cliente cria a conta                           | Boas-vindas, com a versão do termo aceita (sem link de confirmação) | —                                   | `boas_vindas`                                       |
-| Equipe cadastra o cliente ou cria o acesso     | E-mail de acesso e senha provisória                                 | —                                   | `acesso_portal`                                     |
-| Administrador convida integrante da equipe     | Quem criou o acesso, o perfil e o link                              | —                                   | `convite`                                           |
-| Integrante aceita o convite                    | Acesso liberado, com o perfil                                       | —                                   | `acesso_liberado`                                   |
-| Cliente abre o chamado                         | Confirmação com o número e o link                                   | Novo chamado                        | `rma_aberto`, `equipe_rma` (`aberto`)               |
-| Equipe abre o chamado (equipamento na fábrica) | Confirmação com o fim do prazo                                      | —                                   | `rma_aberto_na_fabrica`                             |
-| Agente assume ou recebe o chamado              | Nome do responsável                                                 | —                                   | `rma_responsavel`                                   |
-| Cliente informa o envio                        | Confirmação ("Enviado")                                             | Envio, com modalidade e rastreio    | `rma_etapa_alterada`, `equipe_rma` (`envio`)        |
-| Equipe registra o recebimento                  | Equipamentos recebidos                                              | Recebimento                         | `rma_itens_recebidos`, `equipe_rma` (`recebimento`) |
-| Mudança de etapa                               | Etapa nova (no diagnóstico, com o fim do prazo)                     | Etapa alterada                      | `rma_etapa_alterada`, `equipe_rma` (`etapa`)        |
-| Cancelamento                                   | Motivo                                                              | Cancelamento, com o motivo          | `rma_cancelado`, `equipe_rma` (`cancelado`)         |
-| Mensagem da equipe                             | Aviso de mensagem nova                                              | —                                   | `rma_mensagem_equipe`                               |
-| Mensagem do cliente                            | —                                                                   | Aviso, com o responsável do chamado | `rma_mensagem_cliente`                              |
+| Evento                                         | Cliente (solicitante)                                                    | Caixa do setor                      | Modelo                                              |
+| ---------------------------------------------- | ------------------------------------------------------------------------ | ----------------------------------- | --------------------------------------------------- |
+| Cliente cria a conta                           | Boas-vindas, com a versão do termo aceita (sem link de confirmação)      | —                                   | `boas_vindas`                                       |
+| Equipe cadastra o cliente ou cria o acesso     | E-mail de acesso e senha provisória                                      | —                                   | `acesso_portal`                                     |
+| Administrador convida integrante da equipe     | Quem criou o acesso, o perfil e o link                                   | —                                   | `convite`                                           |
+| Integrante aceita o convite                    | Acesso liberado, com o perfil                                            | —                                   | `acesso_liberado`                                   |
+| Cliente abre o chamado                         | Confirmação com o número e o link                                        | Novo chamado                        | `rma_aberto`, `equipe_rma` (`aberto`)               |
+| Equipe abre o chamado (equipamento na fábrica) | Confirmação com o fim do prazo                                           | —                                   | `rma_aberto_na_fabrica`                             |
+| Agente assume ou recebe o chamado              | Nome do responsável                                                      | —                                   | `rma_responsavel`                                   |
+| Cliente informa o envio                        | Confirmação ("Enviado")                                                  | Envio, com modalidade e rastreio    | `rma_etapa_alterada`, `equipe_rma` (`envio`)        |
+| Equipe registra o recebimento                  | Equipamentos recebidos                                                   | Recebimento                         | `rma_itens_recebidos`, `equipe_rma` (`recebimento`) |
+| Mudança de etapa                               | Etapa nova (no diagnóstico, com o fim do prazo)                          | Etapa alterada                      | `rma_etapa_alterada`, `equipe_rma` (`etapa`)        |
+| Cancelamento                                   | Motivo e, com equipamentos na fábrica, a lista do que entra em devolução | Cancelamento, com o motivo          | `rma_cancelado`, `equipe_rma` (`cancelado`)         |
+| Mensagem da equipe                             | Aviso de mensagem nova                                                   | —                                   | `rma_mensagem_equipe`                               |
+| Mensagem do cliente                            | —                                                                        | Aviso, com o responsável do chamado | `rma_mensagem_cliente`                              |
 
 - Todo aviso ao setor traz o cliente, o **responsável** (ou "sem responsável") e o link do chamado no painel.
 - Os avisos de mensagem não repetem o texto da conversa, que é lido no sistema. Cada lado recebe no máximo um aviso por chamado a cada 30 minutos de conversa.

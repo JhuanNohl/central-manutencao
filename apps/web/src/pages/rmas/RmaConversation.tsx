@@ -13,6 +13,9 @@ import { SubmitButton, TextAreaField } from '../../components/ui';
 import { formatDateTime } from '../../lib/format';
 import { raw, useSchemaForm } from '../../lib/forms';
 
+/** Âncora da conversa, para os avisos da tela apontarem para ela. */
+export const CONVERSATION_ANCHOR = 'conversa';
+
 /** A conversa é consultada de novo enquanto a tela está aberta. */
 const MESSAGES_REFRESH_MS = 20_000;
 
@@ -54,6 +57,7 @@ function MessageList({ messages }: { messages: RmaMessageView[] }) {
 /**
  * Conversa do chamado entre o cliente e a equipe, para combinar detalhes do
  * atendimento. Cada lado recebe um aviso por e-mail e lê a mensagem aqui.
+ * Fica em destaque no chamado cancelado, onde se combina a devolução.
  */
 export function RmaConversation(props: {
   /** Rota da API da conversa (equipe ou portal). */
@@ -62,6 +66,7 @@ export function RmaConversation(props: {
   canSend: boolean;
   hint: string;
   emptyMessage: string;
+  highlighted?: boolean;
 }) {
   const client = useQueryClient();
   const [body, setBody] = useState('');
@@ -81,7 +86,10 @@ export function RmaConversation(props: {
   });
 
   return (
-    <section className="card conversation">
+    <section
+      id={CONVERSATION_ANCHOR}
+      className={`card conversation${props.highlighted ? ' conversation-highlighted' : ''}`}
+    >
       <h2>
         <MessagesSquare size={20} aria-hidden className="inline-icon" />
         {props.title}

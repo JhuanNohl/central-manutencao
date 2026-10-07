@@ -2,6 +2,7 @@ import type {
   AssigneeOption,
   PortalRmaDetail,
   RmaDetail,
+  RmaInternalNoteView,
 } from '@central/contracts';
 import { eq } from 'drizzle-orm';
 import { ENV } from '../src/config/config.module.js';
@@ -355,6 +356,61 @@ describe('Gestão do chamado pela equipe', () => {
         .from(rmas)
         .where(eq(rmas.number, number));
       expect(row.cancelledByAccountId).toBe(agentId);
+    });
+
+    it('com equipamentos na fábrica: nota de devolução, lista no e-mail e conversa aberta', async () => {
+      ({ number, itemIds } = await createRma([
+        'em_diagnostico',
+        'aguardando_envio',
+      ]));
+      await cancel(agent, 'Cliente desistiu da manutenção').expect(201);
+
+      const [note] = (
+        await agent.get(`/api/rmas/${number}/internal-notes`).expect(200)
+      ).body as RmaInternalNoteView[];
+      expect(note.authorName).toBe('Bruno Agente');
+      expect(note.body.split('\n')).toEqual([
+        'Em processo de devolução: chamado cancelado com equipamentos na fábrica.',
+        'Motivo: Cliente desistiu da manutenção',
+        'A devolver ao cliente:',
+        '- Modelo 1 (S/N SIM-1)',
+      ]);
+
+      const [notice] = await ctx.db
+        .select()
+        .from(notifications)
+        .where(eq(notifications.template, 'rma_cancelado'));
+      expect(notice.payload).toMatchObject({
+        returning: ['Modelo 1 (S/N SIM-1)'],
+      });
+      const [event] = await ctx.db
+        .select()
+        .from(auditEvents)
+        .where(eq(auditEvents.action, 'rma.cancelado'));
+      expect(event.data).toEqual({ itemsToReturn: [itemIds[0]] });
+
+      // A devolução é combinada pela conversa, que segue aberta aos dois lados.
+      await client
+        .post(`/api/portal/rmas/${number}/messages`)
+        .send({ body: 'Podem devolver pela mesma transportadora.' })
+        .expect(201);
+      await agent
+        .post(`/api/rmas/${number}/messages`)
+        .send({ body: 'Combinado, enviamos amanhã.' })
+        .expect(201);
+    });
+
+    it('sem equipamentos na fábrica, a nota registra que não há devolução', async () => {
+      await cancel(agent).expect(201);
+      const [note] = (
+        await agent.get(`/api/rmas/${number}/internal-notes`).expect(200)
+      ).body as RmaInternalNoteView[];
+      expect(note.body).toContain('não há devolução');
+      const [notice] = await ctx.db
+        .select()
+        .from(notifications)
+        .where(eq(notifications.template, 'rma_cancelado'));
+      expect(notice.payload).toMatchObject({ returning: [] });
     });
 
     it('recusa depois do despacho de algum equipamento', async () => {

@@ -161,8 +161,11 @@ export function legacyStyle(legacyNumber: string): StatusStyle {
   return style(`Sistema anterior · nº ${legacyNumber}`, 'neutral', History);
 }
 
-/** Chamado encerrado sem reparo; as etapas dos itens ficam como estavam. */
-export const CANCELLED_STYLE: StatusStyle = style('Cancelado', 'neutral', Ban);
+/**
+ * Chamado encerrado sem reparo; as etapas dos itens ficam como estavam. Em
+ * destaque na fila, porque o que está na fábrica volta ao cliente.
+ */
+export const CANCELLED_STYLE: StatusStyle = style('Cancelado', 'danger', Ban);
 
 /** Número público no formato exibido ao usuário. */
 export function rmaLabel(number: number): string {

@@ -1810,6 +1810,12 @@ a.shortcut:hover > svg {
   gap: 8px;
 }
 
+/* Chamado cancelado: a devolução é combinada aqui. */
+.conversation-highlighted {
+  border-left: 4px solid var(--warning-accent);
+  scroll-margin-top: 16px;
+}
+
 .message-list {
   display: grid;
   gap: 12px;

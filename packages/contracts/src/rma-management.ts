@@ -4,7 +4,9 @@ import { reasonSchema, uuidSchema } from './common.js';
 import { itemSelectionSchema } from './rma-logistics.js';
 import {
   NEXT_STAGES,
+  RECEIVABLE_STAGES,
   RMA_ITEM_STAGES,
+  SHIPPABLE_STAGES,
   SLA_END_STAGE,
   SLA_FINISHED_STAGES,
   type RmaItemStage,
@@ -54,6 +56,22 @@ export function requiresValidationVideo(to: RmaItemStage): boolean {
  */
 export function isCancellable(items: { stage: RmaItemStage }[]): boolean {
   return !items.some((item) => SLA_FINISHED_STAGES.includes(item.stage));
+}
+
+/** Etapas em que o item ainda está com o cliente ou a caminho da fábrica. */
+const BEFORE_RECEIPT_STAGES: readonly RmaItemStage[] = [
+  ...SHIPPABLE_STAGES,
+  ...RECEIVABLE_STAGES,
+];
+
+/**
+ * Itens que já chegaram à fábrica: no cancelamento, entram em processo de
+ * devolução ao cliente (decisão de 07/10/2026).
+ */
+export function itemsToReturn<Item extends { stage: RmaItemStage }>(
+  items: Item[],
+): Item[] {
+  return items.filter((item) => !BEFORE_RECEIPT_STAGES.includes(item.stage));
 }
 
 /** Permissão para levar o item a `to`: despacho e recebimento têm a sua. */

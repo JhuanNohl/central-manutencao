@@ -6,12 +6,31 @@ import type {
 import { asc, eq } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service.js';
 import { DATABASE } from '../database/database.module.js';
-import type { Database } from '../database/database.types.js';
+import type { Database, Executor } from '../database/database.types.js';
 import { rmaInternalNotes } from '../database/schema/index.js';
 import type { AuthContext } from '../identity/auth-context.js';
 import { findRma } from './rma-scope.js';
 
 type NoteRow = typeof rmaInternalNotes.$inferSelect;
+
+/** Grava a nota na transação de quem chama (nota manual ou de uma operação). */
+export async function insertRmaInternalNote(
+  db: Executor,
+  rmaId: string,
+  author: { id: string; name: string },
+  body: string,
+): Promise<NoteRow> {
+  const [row] = await db
+    .insert(rmaInternalNotes)
+    .values({
+      rmaId,
+      authorAccountId: author.id,
+      authorName: author.name,
+      body,
+    })
+    .returning();
+  return row;
+}
 
 function toView(row: NoteRow): RmaInternalNoteView {
   return {
@@ -51,15 +70,12 @@ export class RmaInternalNotesService {
   ): Promise<RmaInternalNoteView> {
     const rma = await findRma(this.db, number);
     return this.db.transaction(async (tx) => {
-      const [row] = await tx
-        .insert(rmaInternalNotes)
-        .values({
-          rmaId: rma.id,
-          authorAccountId: auth.account.id,
-          authorName: auth.account.name,
-          body: request.body,
-        })
-        .returning();
+      const row = await insertRmaInternalNote(
+        tx,
+        rma.id,
+        auth.account,
+        request.body,
+      );
       await this.audit.record(tx, {
         actorAccountId: auth.account.id,
         action: 'rma.nota_interna_adicionada',

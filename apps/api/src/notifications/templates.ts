@@ -35,7 +35,6 @@ function optional(
   return typeof value === 'string' && value !== '' ? value : fallback;
 }
 
-/** Lista de linhas do payload (ex.: equipamentos recebidos). */
 /**
  * Equipamentos listados no corpo do e-mail. Um chamado pode ter 200: a lista
  * para nos primeiros e indica quantos faltam, que ficam no atendimento.
@@ -52,6 +51,22 @@ function lines(payload: Record<string, unknown>, key: string): string[] {
   return [
     ...value.slice(0, MAX_LISTED_ITEMS),
     `… e mais ${hidden} ${hidden === 1 ? 'equipamento' : 'equipamentos'}; a lista completa está no atendimento.`,
+  ];
+}
+
+/**
+ * Cancelamento com equipamentos na fábrica: o cliente fica sabendo o que
+ * volta e onde combinar a devolução. Avisos enfileirados antes desta regra
+ * não trazem a lista.
+ */
+function returnNotice(payload: Record<string, unknown>): string[] {
+  if (payload.returning === undefined) return [];
+  const returning = lines(payload, 'returning');
+  if (returning.length === 0) return [];
+  return [
+    'Os equipamentos abaixo já estavam na fábrica e entram em processo de devolução:',
+    ...returning,
+    'Combine os detalhes da devolução pela conversa do atendimento.',
   ];
 }
 
@@ -217,6 +232,7 @@ export function renderNotification(
           `Olá, ${str(payload, 'name')}.`,
           `O atendimento #${str(payload, 'number')} foi cancelado pela equipe de manutenção.`,
           `Motivo: ${str(payload, 'reason')}`,
+          ...returnNotice(payload),
           'Se ainda precisar do reparo, abra um novo atendimento pelo portal.',
         ],
         { label: 'Ver atendimento', link: str(payload, 'link') },

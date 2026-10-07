@@ -2,6 +2,7 @@ import {
   type RmaDetail,
   type RmaItemView,
   FILE_POLICIES,
+  itemsToReturn,
   maxSizeLabel,
 } from '@central/contracts';
 import { useQuery } from '@tanstack/react-query';
@@ -86,7 +87,10 @@ export function RmaDetailPage() {
         }
       />
       {rma.cancellation ? (
-        <CancellationNotice cancellation={rma.cancellation} />
+        <CancellationNotice
+          cancellation={rma.cancellation}
+          returning={itemsToReturn(rma.items).length > 0}
+        />
       ) : (
         <AssignmentNotice rma={rma} />
       )}
@@ -126,6 +130,7 @@ export function RmaDetailPage() {
           path={`/rmas/${rma.number}/messages`}
           title="Conversa com o cliente"
           canSend={hasPermission(account, 'rma.write')}
+          highlighted={rma.cancellation !== null}
           hint="O solicitante recebe um aviso por e-mail e lê a mensagem no portal. Não use para notas internas."
           emptyMessage="Nenhuma mensagem trocada com o cliente."
         />
