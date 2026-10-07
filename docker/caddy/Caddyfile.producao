@@ -1,0 +1,24 @@
+# Servidor: o Traefik recebe o HTTPS do domínio público e repassa para cá em
+# HTTP, pela rede interna dos contêineres. Uma só origem para o portal e a API.
+{
+	# O certificado é do Traefik; aqui não há TLS nem redirecionamento.
+	auto_https off
+
+	servers {
+		# Só o Traefik, na rede privada dos contêineres, informa o IP do
+		# cliente (X-Forwarded-For). Sem isso, todo acesso pareceria vir do
+		# Traefik e o limite de requisições por IP valeria para todos juntos.
+		trusted_proxies static private_ranges
+		# Conexões lentas de propósito (slowloris) não seguram o servidor.
+		timeouts {
+			read_header 10s
+			read_body 5m
+			write 5m
+			idle 2m
+		}
+	}
+}
+
+:80 {
+	import /etc/caddy/site.caddy
+}

@@ -12,7 +12,8 @@ const envSchema = z.object({
     .default('development'),
   // Nome próprio (não PORT) para não herdar a porta injetada por outras ferramentas.
   API_PORT: z.coerce.number().int().positive().default(3000),
-  // Número de proxies reversos confiáveis à frente da API (ex.: 1 com Traefik).
+  // Número de proxies reversos confiáveis à frente da API (no servidor, 2:
+  // Traefik e Caddy; na homologação, 1: Caddy).
   TRUST_PROXY_HOPS: z.coerce.number().int().min(0).default(0),
   DATABASE_URL: z.url(),
   APP_ORIGIN: z.url().transform((value) => new URL(value).origin),

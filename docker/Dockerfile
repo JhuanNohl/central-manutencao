@@ -3,7 +3,10 @@
 #   docker build -f docker/Dockerfile --target api .
 #   docker build -f docker/Dockerfile --target web .
 
-ARG NODE_IMAGE=node:24-alpine
+# Imagens base fixadas pelo digest: o build de hoje e o de amanhã usam o
+# mesmo sistema. Para atualizar, troque o digest e valide na homologação.
+ARG NODE_IMAGE=node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1
+ARG CADDY_IMAGE=caddy:2-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f
 
 # ---------- Dependências e build dos três pacotes ----------
 FROM ${NODE_IMAGE} AS build
@@ -37,11 +40,13 @@ WORKDIR /app/apps/api
 RUN mkdir -p storage/files && chown -R node:node storage
 USER node
 EXPOSE 3000
-HEALTHCHECK --interval=10s --timeout=3s --start-period=20s --retries=5 \
+HEALTHCHECK --interval=10s --timeout=3s --start-period=60s --retries=5 \
   CMD node -e "fetch('http://127.0.0.1:3000/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
 CMD ["node", "dist/main.js"]
 
 # ---------- Web: arquivos estáticos e proxy da API no Caddy ----------
-FROM caddy:2-alpine AS web
-COPY docker/caddy/Caddyfile /etc/caddy/Caddyfile
+# Caddyfile (homologação, HTTPS próprio) e Caddyfile.producao (atrás do
+# Traefik), os dois com o mesmo site.caddy.
+FROM ${CADDY_IMAGE} AS web
+COPY docker/caddy/ /etc/caddy/
 COPY --from=build /app/apps/web/dist /srv

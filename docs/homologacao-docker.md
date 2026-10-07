@@ -93,7 +93,4 @@ Os controles, o que foi corrigido na revisão de 05/10/2026 e as decisões tomad
 
 ## Diferenças para o servidor
 
-- **HTTPS:** domínio público com certificado válido (Traefik à frente), em vez da CA local.
-- **Backup:** os volumes `pgdata` (banco) e `files` (fotos, vídeos, XML e declarações) precisam entrar na rotina de backup.
-- **E-mail:** SMTP real do setor desde o início.
-- **Termo:** o arquivo do termo é copiado para o servidor, fora do repositório.
+O servidor usa outro compose, atrás do Traefik, com o SMTP real, sem Mailpit e com backup diário: veja [deploy-servidor.md](deploy-servidor.md).

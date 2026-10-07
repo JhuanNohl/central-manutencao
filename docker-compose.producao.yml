@@ -1,0 +1,101 @@
+# Servidor: a aplicação atrás do Traefik, que recebe o HTTPS do domínio
+# público. Passo a passo em docs/deploy-servidor.md.
+#   docker compose -f docker-compose.producao.yml --env-file docker/producao.env up -d --build --wait
+# Banco e API ficam só na rede interna; apenas a web entra na rede do Traefik.
+name: central-manutencao
+
+x-api-image: &api-image
+  image: central-manutencao-api:producao
+  # O mesmo arquivo do --env-file; ENV_FILE só muda em testes fora do servidor.
+  env_file: ${ENV_FILE:-docker/producao.env}
+  environment:
+    DATABASE_URL: postgres://central:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/central
+    APP_ORIGIN: https://${APP_DOMAIN:?defina APP_DOMAIN}
+  networks:
+    - interna
+
+services:
+  postgres:
+    image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+    environment:
+      POSTGRES_USER: central
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
+      POSTGRES_DB: central
+      TZ: UTC
+    # Sem porta publicada: a importação e o backup usam o próprio contêiner.
+    volumes:
+      - pgdata:/var/lib/postgresql
+    networks:
+      - interna
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U central -d central']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  # Aplica as migrations e termina; a API só sobe depois.
+  migrate:
+    <<: *api-image
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: api
+    command: ['node', 'dist/database/scripts/migrate.js']
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  api:
+    <<: *api-image
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - files:/app/apps/api/storage/files
+      # Termo de garantia da empresa, fora da imagem (WARRANTY_TERMS_FILE).
+      - ./apps/api/legal:/app/apps/api/legal:ro
+    restart: unless-stopped
+
+  web:
+    image: central-manutencao-web:producao
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: web
+    command:
+      - caddy
+      - run
+      - --config
+      - /etc/caddy/Caddyfile.producao
+      - --adapter
+      - caddyfile
+    networks:
+      - interna
+      - traefik
+    labels:
+      traefik.enable: 'true'
+      traefik.docker.network: ${TRAEFIK_NETWORK:?defina TRAEFIK_NETWORK}
+      traefik.http.routers.central-manutencao.rule: Host(`${APP_DOMAIN}`)
+      traefik.http.routers.central-manutencao.entrypoints: ${TRAEFIK_ENTRYPOINT:?defina TRAEFIK_ENTRYPOINT}
+      traefik.http.routers.central-manutencao.tls: 'true'
+      traefik.http.routers.central-manutencao.tls.certresolver: ${TRAEFIK_CERTRESOLVER:?defina TRAEFIK_CERTRESOLVER}
+      traefik.http.services.central-manutencao.loadbalancer.server.port: '80'
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+  interna:
+  # Rede do Traefik já existente no servidor.
+  traefik:
+    name: ${TRAEFIK_NETWORK}
+    external: true
+
+volumes:
+  # Banco e arquivos (fotos, vídeos, XML e declarações): entram no backup
+  # (scripts/backup/backup-central.sh).
+  pgdata:
+  files:

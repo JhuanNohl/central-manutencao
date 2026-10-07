@@ -1,0 +1,32 @@
+# Conteúdo do site, igual na homologação e no servidor: cabeçalhos de
+# segurança, proxy da API e arquivos do portal (importado pelos Caddyfiles).
+encode zstd gzip
+
+header {
+	# Só recursos da própria origem; o Turnstile (anti-robô) vem da Cloudflare.
+	Content-Security-Policy "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; connect-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+	Strict-Transport-Security "max-age=31536000"
+	X-Content-Type-Options "nosniff"
+	X-Frame-Options "DENY"
+	Referrer-Policy "strict-origin-when-cross-origin"
+	Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+	-Server
+}
+
+handle /api/* {
+	# Maior arquivo aceito (vídeo de 100 MB) com folga para o multipart.
+	request_body {
+		max_size 110MB
+	}
+	reverse_proxy api:3000
+}
+
+handle {
+	root * /srv
+	# Arquivos do build levam o hash no nome: podem ficar em cache.
+	@assets path /assets/*
+	header @assets Cache-Control "public, max-age=31536000, immutable"
+	# Rotas do SPA caem no index.html.
+	try_files {path} /index.html
+	file_server
+}
