@@ -103,9 +103,11 @@ O legado e a central respondem pelo mesmo domínio. **Os dois nunca ficam no ar 
 
 1. Avise os usuários da janela de manutenção.
 2. Faça o backup do legado ([abaixo](#backup-do-legado)).
-3. Pare só a aplicação do legado. O banco dele continua no ar para a importação:
+3. Pare só a aplicação do legado. O banco dele continua no ar para a importação. Anote a política de reinício e desligue-a: com `always`, o Docker religaria o legado depois de um reinício do servidor, e os dois voltariam a disputar o domínio.
 
    ```bash
+   sudo docker inspect <contêiner da aplicação do legado> --format '{{.HostConfig.RestartPolicy.Name}}'
+   sudo docker update --restart=no <contêiner da aplicação do legado>
    sudo docker stop <contêiner da aplicação do legado>
    ```
 
@@ -119,7 +121,13 @@ O legado e a central respondem pelo mesmo domínio. **Os dois nunca ficam no ar 
 6. Abra o domínio, entre com o administrador e com uma conta importada.
 7. Ative o backup diário ([abaixo](#backup-da-central)).
 
-**Volta atrás**, se algo der errado na troca: `compose stop web` e `sudo docker start <contêiner da aplicação do legado>`. Nada do legado foi apagado.
+**Volta atrás**, se algo der errado na troca: pare a central e religue o legado com a política de reinício anotada no passo 3. Nada do legado foi apagado.
+
+```bash
+compose stop web
+sudo docker update --restart=<política anotada> <contêiner da aplicação do legado>
+sudo docker start <contêiner da aplicação do legado>
+```
 
 ## Backups
 
