@@ -7,6 +7,7 @@ import { FormAlert } from '../../components/feedback';
 import { Field, SubmitButton } from '../../components/ui';
 import { AuthLayout } from '../../layouts/AuthLayout';
 import { raw, text, useSchemaForm } from '../../lib/forms';
+import { PasswordField } from '../../components/PasswordField';
 
 export function LoginPage() {
   const setSession = useSetSession();
@@ -41,10 +42,9 @@ export function LoginPage() {
           autoComplete="username"
           errors={form.fieldErrors}
         />
-        <Field
+        <PasswordField
           label="Senha"
           name="password"
-          type="password"
           autoComplete="current-password"
           errors={form.fieldErrors}
         />

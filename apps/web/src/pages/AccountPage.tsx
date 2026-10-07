@@ -4,8 +4,9 @@ import { post } from '../api/client';
 import { useSession } from '../auth/session';
 import { Alert, FormAlert } from '../components/feedback';
 import { NewPasswordField } from '../components/NewPasswordField';
-import { Field, PageHeader, SubmitButton } from '../components/ui';
+import { PageHeader, SubmitButton } from '../components/ui';
 import { raw, useSchemaForm } from '../lib/forms';
+import { PasswordField } from '../components/PasswordField';
 
 export function AccountPage() {
   const { data: account } = useSession();
@@ -55,10 +56,9 @@ export function AccountPage() {
                 Senha alterada. As outras sessões foram encerradas.
               </Alert>
             )}
-            <Field
+            <PasswordField
               label="Senha atual"
               name="currentPassword"
-              type="password"
               autoComplete="current-password"
               errors={form.fieldErrors}
             />

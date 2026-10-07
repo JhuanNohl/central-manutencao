@@ -7,7 +7,7 @@ import {
 import { Check, X } from 'lucide-react';
 import { useState } from 'react';
 import type { FieldErrors } from '../lib/forms';
-import { Field } from './ui';
+import { PasswordField } from './PasswordField';
 
 const STRENGTH: Record<PasswordStrength, { label: string; level: number }> = {
   fraca: { label: 'Fraca', level: 1 },
@@ -35,9 +35,8 @@ export function NewPasswordField(props: {
   const strength = passwordStrength(password);
   return (
     <div className="new-password">
-      <Field
+      <PasswordField
         {...props}
-        type="password"
         autoComplete="new-password"
         maxLength={PASSWORD_LENGTH.max}
         value={password}

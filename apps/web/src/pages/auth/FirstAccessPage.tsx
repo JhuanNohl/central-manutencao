@@ -4,10 +4,11 @@ import { post } from '../../api/client';
 import { SESSION_KEY } from '../../auth/session';
 import { FormAlert } from '../../components/feedback';
 import { NewPasswordField } from '../../components/NewPasswordField';
-import { Field, SubmitButton } from '../../components/ui';
+import { SubmitButton } from '../../components/ui';
 import { AuthLayout } from '../../layouts/AuthLayout';
 import { useLogout } from '../../layouts/UserMenu';
 import { raw, useSchemaForm } from '../../lib/forms';
+import { PasswordField } from '../../components/PasswordField';
 
 /**
  * Primeiro acesso de conta criada pela equipe: até trocar a senha provisória
@@ -34,10 +35,9 @@ export function FirstAccessPage() {
     >
       <form onSubmit={form.onSubmit} noValidate>
         <FormAlert message={form.formError} />
-        <Field
+        <PasswordField
           label="Senha provisória (recebida por e-mail)"
           name="currentPassword"
-          type="password"
           autoComplete="current-password"
           errors={form.fieldErrors}
         />

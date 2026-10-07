@@ -55,27 +55,39 @@ export function Field(props: {
   inputMode?: 'text' | 'email' | 'numeric' | 'tel';
   placeholder?: string;
   maxLength?: number;
+  /** Botão dentro do campo, à direita (ex.: ver a senha). */
+  action?: ReactNode;
 }) {
   const id = useId();
   const error = props.errors?.[props.errorPath ?? props.name];
+  const input = (
+    <input
+      id={id}
+      name={props.name}
+      type={props.type ?? 'text'}
+      autoComplete={props.autoComplete}
+      defaultValue={props.defaultValue}
+      value={props.value}
+      onChange={props.onChange && ((e) => props.onChange?.(e.target.value))}
+      required={props.required}
+      inputMode={props.inputMode}
+      placeholder={props.placeholder}
+      maxLength={props.maxLength}
+      aria-invalid={error ? true : undefined}
+      aria-describedby={describedBy(id, error, props.hint)}
+    />
+  );
   return (
     <div className="field">
       <label htmlFor={id}>{props.label}</label>
-      <input
-        id={id}
-        name={props.name}
-        type={props.type ?? 'text'}
-        autoComplete={props.autoComplete}
-        defaultValue={props.defaultValue}
-        value={props.value}
-        onChange={props.onChange && ((e) => props.onChange?.(e.target.value))}
-        required={props.required}
-        inputMode={props.inputMode}
-        placeholder={props.placeholder}
-        maxLength={props.maxLength}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={describedBy(id, error, props.hint)}
-      />
+      {props.action ? (
+        <div className="input-with-action">
+          {input}
+          {props.action}
+        </div>
+      ) : (
+        input
+      )}
       <FieldMessage id={id} error={error} hint={props.hint} />
     </div>
   );

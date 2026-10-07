@@ -739,6 +739,43 @@ select[aria-invalid='true'] {
   outline: 1px solid var(--danger);
 }
 
+/* Botão dentro do campo, à direita (ex.: ver a senha). */
+.input-with-action {
+  position: relative;
+}
+
+.input-with-action input {
+  padding-right: 48px;
+}
+
+.input-action {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  bottom: 1px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.input-action:hover,
+.input-action[aria-pressed='true'] {
+  color: var(--text);
+}
+
+/* Segurar para ver: sem menu nem seleção no toque longo. */
+.reveal-password {
+  touch-action: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
 .search {
   position: relative;
   flex: 0 1 320px;
