@@ -71,6 +71,12 @@ describe('Acesso ao portal criado pela equipe, com senha provisória', () => {
       passwordChangeRequired: true,
       emailVerifiedAt: null,
     });
+    // Cadastro pela equipe conta com o termo vigente aceito (08/10/2026).
+    const terms = (
+      await ctx.http().get('/api/legal/warranty-terms').expect(200)
+    ).body as { version: string };
+    expect(account.termsVersion).toBe(terms.version);
+    expect(account.termsAcceptedAt).not.toBeNull();
     const [contact] = await ctx.db
       .select()
       .from(customerContacts)

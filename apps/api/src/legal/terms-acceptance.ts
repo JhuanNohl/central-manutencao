@@ -31,3 +31,16 @@ export async function recordTermsAcceptance(
     .where(eq(accounts.id, accountId));
   return account.acceptedAt ?? openedAt;
 }
+
+/**
+ * Aceite das contas que não passam pelo autocadastro: o cliente cadastrado
+ * pela equipe e o importado do sistema anterior contam com o termo vigente
+ * aceito (decisão de 08/10/2026). O termo só é pedido no autocadastro e,
+ * depois, quando sai uma versão nova.
+ */
+export function termsAcceptedOnCreation(
+  version: string,
+  at: Date,
+): { termsVersion: string; termsAcceptedAt: Date } {
+  return { termsVersion: version, termsAcceptedAt: at };
+}

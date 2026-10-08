@@ -19,6 +19,8 @@ import { NotificationsService } from '../notifications/notifications.service.js'
 import type { AuthContext } from './auth-context.js';
 import { ensureEmailAvailable } from './account-rules.js';
 import { revokeOpenInvitations } from './invitation-queries.js';
+import { termsAcceptedOnCreation } from '../legal/terms-acceptance.js';
+import { WarrantyTermsService } from '../legal/warranty-terms.service.js';
 
 /** Contato que recebe o acesso, já gravado e sem conta. */
 export interface PortalContact {
@@ -42,6 +44,7 @@ export class PortalAccessService {
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
     private readonly links: EmailLinks,
+    private readonly terms: WarrantyTermsService,
   ) {}
 
   async grantForContact(
@@ -110,6 +113,7 @@ export class PortalAccessService {
         passwordHash: credentials.passwordHash,
         role: 'cliente',
         passwordChangeRequired: true,
+        ...termsAcceptedOnCreation(this.terms.current().version, new Date()),
       })
       .returning({ id: accounts.id });
     await tx
