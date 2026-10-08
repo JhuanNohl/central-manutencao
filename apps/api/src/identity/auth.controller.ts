@@ -42,8 +42,9 @@ export class AuthController {
     private readonly cookies: SessionCookies,
   ) {}
 
+  // Sem captcha (decisão de 08/10/2026): o limite por IP e o limite de senhas
+  // erradas por e-mail (`LoginAttempts`) protegem o login.
   @Post('login')
-  @RequireCaptcha()
   @Public()
   @SensitiveRateLimit()
   @HttpCode(HttpStatus.OK)

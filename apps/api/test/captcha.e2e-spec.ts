@@ -1,5 +1,6 @@
 import { CAPTCHA_HEADER } from '@central/contracts';
 import type { CaptchaVerifier } from '../src/common/captcha/captcha-verifier.js';
+import { LOGIN_FAILURES_LIMIT } from '../src/identity/login-attempts.js';
 import {
   createAccount,
   createTestApp,
@@ -19,7 +20,7 @@ class FakeCaptcha implements CaptchaVerifier {
   }
 }
 
-describe('Verificação anti-robô (Turnstile) nas rotas públicas', () => {
+describe('Verificação anti-robô (Turnstile) e limite de tentativas no acesso', () => {
   let ctx: TestContext;
   const captcha = new FakeCaptcha();
 
@@ -35,35 +36,48 @@ describe('Verificação anti-robô (Turnstile) nas rotas públicas', () => {
     });
   });
 
-  const login = () =>
-    ctx
-      .http()
-      .post('/api/auth/login')
-      .send({ email: 'agente@central.local', password: PASSWORD });
+  const login = (email = 'agente@central.local', password = PASSWORD) =>
+    ctx.http().post('/api/auth/login').send({ email, password });
 
-  it('o login sem token, ou com token recusado, não chega a conferir a senha', async () => {
-    const missing = await login().expect(400);
-    expect(missing.body.error.code).toBe('CAPTCHA_FAILED');
-    const refused = await login().set(CAPTCHA_HEADER, 'falso').expect(400);
-    expect(refused.body.error.code).toBe('CAPTCHA_FAILED');
-
-    await login().set(CAPTCHA_HEADER, 'valido').expect(200);
-    expect(captcha.seenIps.at(-1)).toBeTruthy();
-  });
-
-  it('cadastro e pedido de redefinição de senha também exigem o token', async () => {
+  it('cadastro e pedido de redefinição de senha exigem o token', async () => {
     const register = await ctx
       .http()
       .post('/api/auth/register')
       .send({})
       .expect(400);
     expect(register.body.error.code).toBe('CAPTCHA_FAILED');
-    const reset = await ctx
-      .http()
-      .post('/api/auth/password-reset/request')
-      .send({ email: 'agente@central.local' })
+    const resetRequest = () =>
+      ctx
+        .http()
+        .post('/api/auth/password-reset/request')
+        .send({ email: 'agente@central.local' });
+    const refused = await resetRequest()
+      .set(CAPTCHA_HEADER, 'falso')
       .expect(400);
-    expect(reset.body.error.code).toBe('CAPTCHA_FAILED');
+    expect(refused.body.error.code).toBe('CAPTCHA_FAILED');
+
+    await resetRequest().set(CAPTCHA_HEADER, 'valido').expect(202);
+    expect(captcha.seenIps.at(-1)).toBeTruthy();
+  });
+
+  it('o login dispensa o token (decisão de 08/10/2026)', async () => {
+    await login().expect(200);
+  });
+
+  it('senhas erradas seguidas bloqueiam o e-mail por um tempo, mesmo sem conta', async () => {
+    await createAccount(ctx.db, {
+      email: 'bloqueio@central.local',
+      role: 'agente',
+    });
+    for (let attempt = 0; attempt < LOGIN_FAILURES_LIMIT; attempt++) {
+      await login('bloqueio@central.local', 'Errada-123!').expect(401);
+      await login('inexistente@central.local', 'Errada-123!').expect(401);
+    }
+    // Nem a senha certa entra durante o bloqueio; outros e-mails seguem normais.
+    const blocked = await login('bloqueio@central.local').expect(429);
+    expect(blocked.body.error.message).toContain('Muitas tentativas');
+    await login('inexistente@central.local').expect(429);
+    await login().expect(200);
   });
 
   it('rotas sem a marcação não pedem o token', async () => {

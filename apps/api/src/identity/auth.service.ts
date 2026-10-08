@@ -27,6 +27,7 @@ import { NotificationsService } from '../notifications/notifications.service.js'
 import { ensureEmailAvailable } from './account-rules.js';
 import type { AuthContext } from './auth-context.js';
 import { SessionsService, type SignedIn } from './sessions.service.js';
+import { LoginAttempts } from './login-attempts.js';
 
 /** Entrada e saída da sessão, e autocadastro de cliente. */
 @Injectable()
@@ -38,9 +39,11 @@ export class AuthService {
     private readonly notifications: NotificationsService,
     private readonly links: EmailLinks,
     private readonly terms: WarrantyTermsService,
+    private readonly attempts: LoginAttempts,
   ) {}
 
   async login(input: LoginRequest): Promise<SignedIn> {
+    this.attempts.ensureAllowed(input.email);
     const [account] = await this.db
       .select({
         id: accounts.id,
@@ -52,11 +55,14 @@ export class AuthService {
 
     if (!account) {
       await simulatePasswordCheck(input.password);
+      this.attempts.recordFailure(input.email);
       throw invalidCredentials();
     }
     if (!(await verifyPassword(account.passwordHash, input.password))) {
+      this.attempts.recordFailure(input.email);
       throw invalidCredentials();
     }
+    this.attempts.clear(input.email);
     // Só revelado a quem conhece a senha.
     if (account.status !== 'ativa') {
       throw ApiException.forbidden(
