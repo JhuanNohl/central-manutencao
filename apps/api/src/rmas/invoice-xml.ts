@@ -1,24 +1,28 @@
 import {
   formatDocument,
   normalizeDocument,
+  type InvoiceAddress,
   type InvoiceData,
   type InvoiceIssue,
   type InvoiceValidation,
 } from '@central/contracts';
 import { XMLParser } from 'fast-xml-parser';
 import { readSafeXml } from '../files/file-content.js';
+import { addressDivergences, formatAddress } from './invoice-address.js';
 
 /**
  * Versão da tabela de regras (P04). Muda sempre que uma regra entra, sai ou
  * muda de efeito; o resultado gravado na abertura registra a versão aplicada.
  */
-export const INVOICE_RULES_VERSION = '2026-09-28.1';
+export const INVOICE_RULES_VERSION = '2026-10-08.1';
 
 export interface InvoiceExpectations {
   /** CPF/CNPJ do cliente do atendimento, que emite a nota de remessa. */
   customerDocument: string;
   /** CNPJ da fábrica; sem configuração, a regra do destinatário não se aplica. */
   recipientDocument?: string;
+  /** Endereço da fábrica; sem configuração, a regra do endereço não se aplica. */
+  recipientAddress?: InvoiceAddress;
 }
 
 interface InvoiceRule {
@@ -56,6 +60,26 @@ const RULES: InvoiceRule[] = [
         ? null
         : `O destinatário da nota (${formatDocument(invoice.recipientDocument ?? '') || 'não informado'}) não é a fábrica (${formatDocument(expected.recipientDocument)}).`,
   },
+  {
+    // Como no sistema anterior, o endereço divergente não impede a abertura:
+    // o chamado fica com a documentação pendente até a nota corrigida chegar
+    // (decisão de 08/10/2026).
+    id: 'endereco_fabrica',
+    blocking: false,
+    check: (invoice, expected) => {
+      if (!expected.recipientAddress) return null;
+      if (!invoice.recipientAddress) {
+        return 'A nota não informa o endereço do destinatário (enderDest).';
+      }
+      const divergences = addressDivergences(
+        invoice.recipientAddress,
+        expected.recipientAddress,
+      );
+      return divergences.length === 0
+        ? null
+        : `O endereço do destinatário não confere com o da fábrica (${formatAddress(expected.recipientAddress)}): ${divergences.join(', ')}.`;
+    },
+  },
 ];
 
 const parser = new XMLParser({
@@ -79,6 +103,21 @@ const text = (value: unknown): string =>
 const partyDocument = (party: XmlNode | undefined): string =>
   normalizeDocument(text(party?.CNPJ) || text(party?.CPF));
 
+/** Endereço do destinatário (`enderDest`), se a nota o informa. */
+function recipientAddressOf(
+  recipient: XmlNode | undefined,
+): InvoiceAddress | null {
+  const address = node(recipient?.enderDest);
+  if (!address) return null;
+  return {
+    street: text(address.xLgr),
+    number: text(address.nro),
+    district: text(address.xBairro),
+    city: text(address.xMun),
+    state: text(address.UF),
+  };
+}
+
 /** Lê os dados da NF-e (`nfeProc/NFe/infNFe` ou `NFe/infNFe`). */
 export function readInvoice(xml: string): InvoiceData | null {
   const root = node(parser.parse(xml));
@@ -101,8 +140,21 @@ export function readInvoice(xml: string): InvoiceData | null {
     issuerDocument: partyDocument(issuer),
     recipientName: text(recipient?.xNome) || null,
     recipientDocument: partyDocument(recipient) || null,
+    recipientAddress: recipientAddressOf(recipient),
     cfops: [...new Set(cfops)],
   };
+}
+
+/**
+ * CPF/CNPJ de quem emitiu a nota: da própria NF-e ou de um evento dela (ex.:
+ * carta de correção, `procEventoNFe`), que é registrado pelo emitente.
+ */
+export function readIssuerDocument(xml: string): string | null {
+  const invoice = readInvoice(xml);
+  if (invoice) return invoice.issuerDocument || null;
+  const root = node(parser.parse(xml));
+  const event = node(node(root?.procEventoNFe)?.evento) ?? node(root?.evento);
+  return partyDocument(node(event?.infEvento)) || null;
 }
 
 const structureIssue = (message: string): InvoiceIssue => ({

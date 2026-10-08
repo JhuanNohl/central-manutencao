@@ -30,6 +30,15 @@ export interface InvoiceIssue {
   blocking: boolean;
 }
 
+/** Endereço de uma parte da nota (`enderDest`), como foi escrito. */
+export interface InvoiceAddress {
+  street: string;
+  number: string;
+  district: string;
+  city: string;
+  state: string;
+}
+
 /** Dados lidos da NF-e, para conferência. */
 export interface InvoiceData {
   number: string;
@@ -38,6 +47,7 @@ export interface InvoiceData {
   issuerDocument: string;
   recipientName: string | null;
   recipientDocument: string | null;
+  recipientAddress: InvoiceAddress | null;
   cfops: string[];
 }
 

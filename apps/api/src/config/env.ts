@@ -6,6 +6,9 @@ const booleanString = z
   .enum(['true', 'false'])
   .transform((value) => value === 'true');
 
+/** Logradouro, número, bairro, município e UF. */
+const FACTORY_ADDRESS_PARTS = 5;
+
 const envSchema = z.object({
   NODE_ENV: z
     .enum(['development', 'test', 'production'])
@@ -60,6 +63,27 @@ const envSchema = z.object({
     .optional()
     .transform((value) => (value ? normalizeDocument(value) : undefined))
     .refine((value) => !value || isValidCnpj(value), 'CNPJ inválido'),
+  // Endereço da fábrica nas notas de remessa: "logradouro; número; bairro;
+  // município; UF". Sem ele, a regra do endereço do destinatário não se aplica.
+  INVOICE_RECIPIENT_ADDRESS: z
+    .string()
+    .optional()
+    .transform((value, ctx) => {
+      if (!value?.trim()) return undefined;
+      const parts = value.split(';').map((part) => part.trim());
+      if (
+        parts.length !== FACTORY_ADDRESS_PARTS ||
+        parts.some((part) => !part)
+      ) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'use "logradouro; número; bairro; município; UF"',
+        });
+        return z.NEVER;
+      }
+      const [street, number, district, city, state] = parts;
+      return { street, number, district, city, state };
+    }),
 });
 
 export type Env = z.infer<typeof envSchema>;

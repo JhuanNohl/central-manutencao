@@ -88,6 +88,7 @@ export class InvoiceValidationService {
     return validateInvoiceXml(content, {
       customerDocument,
       recipientDocument: this.env.INVOICE_RECIPIENT_DOCUMENT,
+      recipientAddress: this.env.INVOICE_RECIPIENT_ADDRESS,
     });
   }
 }
