@@ -72,6 +72,18 @@ function matchesType(type: FileContentType, content: Buffer): boolean {
     : SIGNATURES[type](content);
 }
 
+/** Tipo real do conteúdo entre os aceitos na finalidade; nulo se nenhum. */
+export function detectContentType(
+  purpose: FilePurpose,
+  content: Buffer,
+): FileContentType | null {
+  return (
+    FILE_POLICIES[purpose].contentTypes.find((type) =>
+      matchesType(type, content),
+    ) ?? null
+  );
+}
+
 /** Confere extensão, tamanho e conteúdo real para a finalidade declarada. */
 export function checkFileContent(
   purpose: FilePurpose,
@@ -90,9 +102,7 @@ export function checkFileContent(
     const limit = policy.maxBytes / MEGABYTE;
     return { ok: false, message: `O arquivo passa de ${limit} MB.` };
   }
-  const contentType = policy.contentTypes.find((type) =>
-    matchesType(type, content),
-  );
+  const contentType = detectContentType(purpose, content);
   if (!contentType) {
     return purpose === 'nota_xml'
       ? { ok: false, message: 'O arquivo não é um XML válido.' }

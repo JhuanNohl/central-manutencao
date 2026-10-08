@@ -31,7 +31,7 @@ export function toFileView(row: FileRow): StoredFileView {
 }
 
 /** Chave no armazenamento: agrupada por mês, sem nada informado pelo usuário. */
-function storageKeyFor(now: Date): string {
+export function storageKeyFor(now: Date): string {
   const month = now.toISOString().slice(0, 7).replace('-', '');
   return `${month}/${randomUUID()}`;
 }

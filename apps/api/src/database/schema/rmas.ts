@@ -23,7 +23,7 @@ import { files } from './files.js';
 import { accounts, customerContacts, customers } from './identity.js';
 
 /** Número público do RMA, exibido como "#100001". */
-const FIRST_PUBLIC_NUMBER = 100_001;
+export const FIRST_PUBLIC_NUMBER = 100_001;
 
 /** Solicitação de manutenção: agrupa os equipamentos de um cliente. */
 export const rmas = pgTable(
