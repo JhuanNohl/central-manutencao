@@ -116,6 +116,22 @@ A `web` só sobe na troca. Antes disso, nada responde no domínio, e o legado co
 
 O legado e a central respondem pelo mesmo domínio. **Os dois nunca ficam no ar ao mesmo tempo**: o Traefik dividiria os acessos entre eles.
 
+Com os usuários avisados da janela de manutenção, o script faz a troca inteira, na pasta da central, pedindo confirmação antes de cada passo que muda alguma coisa:
+
+```bash
+sudo bash scripts/deploy/trocar-legado.sh
+```
+
+Na ordem: sobe banco e API da central (se ainda não estiverem no ar), faz o backup do legado, ensaia a importação, para a aplicação do legado guardando a política de reinício dela, importa de verdade e sobe a web. A senha do banco do legado é lida do próprio contêiner. Os nomes do servidor são o padrão (`osticket-app`, `osticket-db` e `/docker-files/centralmanutencao`); se mudarem, use `-a`, `-d` e `-p`. Se algo der errado, a volta atrás para a central e religa o legado como estava:
+
+```bash
+sudo bash scripts/deploy/trocar-legado.sh -r
+```
+
+Depois de uma volta atrás, se o legado voltar a ser usado, zere a central antes da próxima troca, para a importação trazer o estado mais recente: `compose down -v` apaga banco e arquivos da central (o legado não é tocado), e o script pode rodar de novo.
+
+O que o script faz, passo a passo, para quem preferir os comandos manuais:
+
 1. Avise os usuários da janela de manutenção.
 2. Faça o backup do legado ([abaixo](#backup-do-legado)).
 3. Pare só a aplicação do legado. O banco dele continua no ar para a importação. Anote a política de reinício e desligue-a: com `always`, o Docker religaria o legado depois de um reinício do servidor, e os dois voltariam a disputar o domínio.
