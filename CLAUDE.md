@@ -24,6 +24,7 @@ Estas regras valem para todo código novo e para qualquer código tocado. O cód
 - Conhecimento de negócio tem **um lugar só**:
   - validação e mensagens em `packages/contracts` (inclusive os limites de arquivo em `FILE_POLICIES`);
   - regras do XML da NF-e em `RULES` (`rmas/invoice-xml.ts`), com versão em `INVOICE_RULES_VERSION`;
+  - de-para do sistema anterior (osTicket) em `legacy-import/legacy-mapping.ts`, seguindo `docs/migracao-sistema-anterior.md`;
   - matriz de permissões em `authorization.ts`;
   - política de senha em `PASSWORD_REQUIREMENTS` (`passwords.ts`) e formato de telefone em `phones.ts`;
   - gravação de cliente e contato em `customers/customer-records.ts`;

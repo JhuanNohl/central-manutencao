@@ -12,7 +12,7 @@ Revisão de 05/10/2026, antes da exposição pública. Lista o que protege cada 
 | CSRF                | `OriginGuard`: todo método que altera estado exige a `Origin` do portal; com cookie e sem `Origin`, é recusado.                                                                                                       |
 | Autorização         | Permissões por papel (`authorization.ts`) em cada rota; escopo do cliente no serviço, com 404 para registro de outro cliente.                                                                                         |
 | Senhas e tokens     | Argon2id (19 MiB, t=2); senha forte obrigatória; tokens de 256 bits guardados como SHA-256, de uso único e com expiração no banco; senha provisória e links saem do banco depois do envio ou da desistência do envio. |
-| Robôs               | Cloudflare Turnstile no login, no cadastro e no pedido de redefinição de senha (`@RequireCaptcha()`), validado no servidor e com falha fechada.                                                                       |
+| Robôs               | Cloudflare Turnstile no cadastro e no pedido de redefinição de senha (`@RequireCaptcha()`), validado no servidor e com falha fechada.                                                                                 |
 | Rajadas             | Limite por IP: geral (600/min), rotas sensíveis (`AUTH_RATE_LIMIT_PER_MINUTE`) e envio de arquivos (`UPLOAD_RATE_LIMIT_PER_MINUTE`). Redefinição de senha: um e-mail por conta a cada 5 minutos.                      |
 | Arquivos            | Tipo pelo conteúdo (assinatura), extensão e tamanho por finalidade; XML sem `DOCTYPE`/`ENTITY`; nome sem caminho, controle nem marcas de direção; chave de armazenamento gerada no servidor; downloads com `nosniff`. |
 | Memória e disco     | Envios simultâneos limitados no processo (`UPLOAD_MAX_CONCURRENT`); cota de temporários por conta (150 arquivos, 3 GB); corpo até 110 MB no proxy; limpeza dos temporários vencidos.                                  |
@@ -43,7 +43,7 @@ Revisão de 05/10/2026, antes da exposição pública. Lista o que protege cada 
 
 ## Riscos aceitos (baixo impacto)
 
-- **Login sem bloqueio por conta:** o limite é por IP, e o Turnstile barra a automação. Um atraso progressivo por e-mail fica para depois, se houver tentativa distribuída.
+- **Login sem captcha (decisão de 08/10/2026):** o Turnstile saiu do login para não pesar no acesso do dia a dia. No lugar, além do limite por IP, cada e-mail aceita 5 senhas erradas seguidas e fica 15 minutos bloqueado (`LoginAttempts`), inclusive e-mail sem conta, para não revelar quem tem. A contagem fica em memória: reiniciar a API zera.
 - **Mensagem clara no cadastro:** o autocadastro informa quando o e-mail ou o documento já existem. Isso revela cadastros, mas evita suporte; o Turnstile e o limite por IP restringem a varredura.
 - **Conversa sem paginação:** o limite geral de requisições restringe o volume; paginar quando houver conversas longas.
 - **Imagens sem digest fixo** (`node:24-alpine`, `caddy:2-alpine`, `mailpit`): fixar no pipeline de deploy.

@@ -65,6 +65,7 @@ Parta de `docker/producao.env.example`. Os campos vazios são obrigatórios: sem
 | `SMTP_*`, `MAIL_FROM`                        | Servidor de e-mail real do setor                                                       |
 | `MAINTENANCE_INBOX_EMAIL`                    | Caixa do setor, que recebe todos os avisos da equipe                                   |
 | `INVOICE_RECIPIENT_DOCUMENT`                 | CNPJ da fábrica, destinatário das notas de remessa                                     |
+| `INVOICE_RECIPIENT_ADDRESS`                  | Endereço da fábrica nas notas: `logradouro; número; bairro; município; UF`             |
 | `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | Chaves do widget do Turnstile criado para o domínio no painel da Cloudflare            |
 
 Em todos os comandos abaixo, `compose` quer dizer, dentro da pasta da central:
@@ -89,13 +90,7 @@ A `web` só sobe na troca. Antes disso, nada responde no domínio, e o legado co
    compose exec api node dist/identity/scripts/create-admin.js --email <e-mail> --name "<nome completo>"
    ```
 
-3. Ensaiar a importação. A aplicação de migração entra na rede interna da central, sem expor o banco:
-
-   ```bash
-   sudo docker run --rm --network central-manutencao_interna -e DATABASE_URL=postgres://central:<senha>@postgres:5432/central <imagem da migração>
-   ```
-
-   Para recomeçar do zero, `compose down -v` apaga banco e arquivos.
+3. Ensaiar a importação com `--dry-run`: o comando `import-legacy` roda no contêiner da API e lê o banco do legado pela rede interna da central, sem expor nenhum dos dois. Passo a passo em [Rodar a importação](migracao-sistema-anterior.md#no-servidor). O ensaio não grava nada.
 
 ## 4. Troca do sistema
 
@@ -111,7 +106,7 @@ O legado e a central respondem pelo mesmo domínio. **Os dois nunca ficam no ar 
    sudo docker stop <contêiner da aplicação do legado>
    ```
 
-4. Rode a importação final e confira o resultado ("Depois da importação" no guia de migração).
+4. Rode a importação, agora sem `--dry-run` ([no servidor](migracao-sistema-anterior.md#no-servidor)), e confira o resultado ("Depois da importação" no guia de migração).
 5. Suba a web. O Traefik passa a entregar o domínio à central:
 
    ```bash

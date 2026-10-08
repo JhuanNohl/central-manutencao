@@ -1,6 +1,6 @@
 # Migração do sistema anterior (osTicket)
 
-Guia para a aplicação de migração: para onde vai cada dado do sistema anterior, o que este sistema preparou para recebê-los e o que fica de fora. A importação grava direto no PostgreSQL (na homologação, `127.0.0.1:5434`), **sem alterar as tabelas existentes**: os dados sem lugar ganharam tabelas novas.
+Para onde vai cada dado do sistema anterior, o que este sistema preparou para recebê-los e o que fica de fora. A importação é feita pelo comando `import-legacy` ([apps/api/src/legacy-import](../apps/api/src/legacy-import)), que segue este guia: lê o MariaDB do legado e grava no PostgreSQL, **sem alterar as tabelas existentes**. Os dados sem lugar ganharam tabelas novas. Como rodar: [Rodar a importação](#rodar-a-importação).
 
 ## O que foi preparado
 
@@ -15,19 +15,13 @@ Guia para a aplicação de migração: para onde vai cada dado do sistema anteri
 
 ## Ordem da importação
 
-Cada passo depende do anterior. Um ticket inteiro (RMA, itens, fotos, documentos, conversa e histórico) grava numa transação só.
+Cada passo depende do anterior.
 
 1. **Equipe** (`ost_staff`) → `accounts`.
 2. **Clientes** (`ost_user`, `ost_user_email`, formulário do usuário, `ost_user_account`) → `customers`, `customer_contacts`, `accounts`, `customer_notes`.
-3. **Arquivos** (`ost_file` + `ost_file_chunk`) → `files` e o conteúdo em `FILES_STORAGE_DIR`.
-4. **Tickets** (`ost_ticket`, `ost_ticket__cdata`) → `rmas`.
-5. **Equipamentos** (`ost_zk_equipment`) → `rma_items`; fotos (`ost_zk_equipment_file`) → `rma_item_photos`.
-6. **Documentos** (`ost_zk_ticket_file`) → `rma_documents` e `rma_invoices`.
-7. **Envio e recebimento** (`ost_zk_ticket_envio`, eventos de equipamento) → `rma_shipments`, `rma_receipts` e itens.
-8. **Conversa** (`ost_thread_entry`) → `rma_messages` e `rma_internal_notes`.
-9. **Histórico** (`ost_zk_equipment_event`, `ost_thread_event`) → `audit_events`.
+3. **Tickets**, cada um inteiro numa transação só: o chamado (`ost_ticket`, `ost_ticket__cdata`), os equipamentos e as fotos (`ost_zk_equipment`, `ost_zk_equipment_file`), os documentos (`ost_zk_ticket_file`), o envio e os recebimentos (`ost_zk_ticket_envio`, eventos), a conversa (`ost_thread_entry`) e o histórico (`ost_zk_equipment_event`). Os arquivos (`ost_file` + `ost_file_chunk`) são lidos e gravados no armazenamento antes da transação.
 
-Para cada registro criado, uma linha em `legacy_records`. Antes de criar, o importador consulta `legacy_records`: se a origem já foi importada, pula. `audit_events` não aceita alteração nem exclusão; por isso o histórico de um ticket só é gravado na mesma transação em que o RMA nasce.
+Para cada registro criado, uma linha em `legacy_records`. Antes de criar, o importador consulta `legacy_records`: se a origem já foi importada, pula. Um ticket que falha é desfeito por inteiro, com os arquivos que já tinham sido gravados, e entra numa próxima execução. `audit_events` não aceita alteração nem exclusão; por isso o histórico de um ticket só é gravado na mesma transação em que o RMA nasce. Cada execução real também fica no histórico (`legado.importacao`), com as contagens e as ocorrências.
 
 ## De-para por tabela
 
@@ -46,34 +40,36 @@ Para cada registro criado, uma linha em `legacy_records`. Antes de criar, o impo
 
 Cada agente entra com o próprio e-mail. A caixa do setor nunca é login: `accounts.email` é único e uma conta compartilhada apagaria quem fez cada ação no histórico. Quando o `ost_staff` traz a caixa do setor ou vem sem e-mail, a aplicação de migração usa o e-mail próprio do agente, de uma lista de-para mantida fora deste repositório. Todos os avisos à equipe vão para a caixa do setor (`MAINTENANCE_INBOX_EMAIL`); o e-mail próprio do agente serve só para entrar e recuperar a senha.
 
+A conta do legado que tem a própria caixa do setor como e-mail (a conta compartilhada da manutenção) não é login de ninguém: entra **desativada**, sem senha utilizável, só para assinar o histórico. Assim, as respostas que ela deu continuam visíveis ao cliente na conversa (decisão de 08/10/2026). Ela não aparece entre os responsáveis possíveis.
+
 ### Clientes: `ost_user` + formulário → `customers`, `customer_contacts`, `accounts`
 
-| Origem                                              | Destino                                                                                                                                   |
-| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| Campo `cpf_cnpj` do formulário                      | `customers.document` só com os caracteres; 11 → `pessoa_fisica`, 14 → `pessoa_juridica`. Documento repetido: um cliente, vários contatos. |
-| `ost_user.name`                                     | `customers.name` e `customer_contacts.name`                                                                                               |
-| `ost_user_email.address` (o `default_email_id`)     | `customer_contacts.email` e `accounts.email`                                                                                              |
-| Campo `phone`                                       | `customer_contacts.phone` no formato `+55 (DD) 9 XXXX-XXXX` quando válido; senão, o texto original                                        |
-| Campo `notes` (notas internas)                      | `customer_notes.body`                                                                                                                     |
-| `ost_user_account.passwd`                           | `accounts.password_hash` como está (`role = 'cliente'`, `email_verified_at` = `registered`)                                               |
-| `ost_organization` (nome, site, endereço, telefone) | Acrescentados ao `customer_notes.body` do cliente vinculado                                                                               |
+| Origem                                              | Destino                                                                                                                                                                                                                    |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Campo `cpf_cnpj` do formulário                      | `customers.document` só com os caracteres; 11 → `pessoa_fisica`, 14 → `pessoa_juridica`. Documento repetido: um cliente, vários contatos.                                                                                  |
+| `ost_user.name`                                     | `customers.name` e `customer_contacts.name`                                                                                                                                                                                |
+| `ost_user_email.address` (o `default_email_id`)     | `customer_contacts.email` e `accounts.email`                                                                                                                                                                               |
+| Campo `phone`                                       | `customer_contacts.phone` no formato `+55 (DD) 9 XXXX-XXXX` quando válido; senão, o texto original                                                                                                                         |
+| Campo `notes` (notas internas)                      | `customer_notes.body`                                                                                                                                                                                                      |
+| `ost_user_account.passwd`                           | `accounts.password_hash` como está (`role = 'cliente'`). Todas as contas de cliente importadas contam com o termo de garantia vigente aceito (decisão de 08/10/2026). Quem não tinha conta no portal recebe uma, com senha aleatória, e entra por **Esqueci minha senha**: a conta é a dona dos arquivos e a autora das mensagens dele. |
+| `ost_organization` (nome, site, endereço, telefone) | Acrescentados ao `customer_notes.body` do cliente vinculado                                                                                                                                                                |
 
-Só migram os cadastros válidos. O usuário sem CPF/CNPJ válido ou sem e-mail válido (o documento é obrigatório e único, e o e-mail é o login) **não é importado**, e os tickets dele também ficam de fora: são cadastros que já não estão em uso. O importador registra cada um no relatório da migração; a lista prévia sai do script em [Cadastros que travam a importação](#cadastros-que-travam-a-importação). A data de nascimento **não** é migrada: o sistema não a usa, e a LGPD pede só o dado necessário.
+Basta um documento por cliente, CPF ou CNPJ. Quando o cadastro do legado não traz nenhum, vale o do **emitente da NF** dos tickets do usuário, da nota ou de um evento dela, como a carta de correção: a nota de remessa é emitida pelo próprio cliente (decisão de 08/10/2026). Só migram os cadastros válidos. O usuário sem CPF/CNPJ válido (nem no cadastro, nem na NF) ou sem e-mail válido (o documento é obrigatório e único, e o e-mail é o login) **não é importado**, e os tickets dele também ficam de fora: são cadastros que já não estão em uso. O importador registra cada um no relatório da migração; a lista prévia sai do script em [Cadastros que travam a importação](#cadastros-que-travam-a-importação). A data de nascimento **não** é migrada: o sistema não a usa, e a LGPD pede só o dado necessário.
 
-`legacy_records`: `('ost_user', id) → customer_contact` e `account`; o cliente com `('cpf_cnpj', documento) → customer`.
+`legacy_records`: `('ost_user', id) → customer_contact`, `('ost_user_account', id do usuário) → account` e `('cpf_cnpj', documento) → customer`.
 
 ### Arquivos: `ost_file` + `ost_file_chunk` → `files`
 
-| Origem                            | Destino                                                                                                               |
-| --------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Chunks em ordem (`chunk_id`)      | Conteúdo gravado no disco em `storage_key` = `AAAAMM/<uuid>`                                                          |
-| `type`, `size`, `name`, `created` | `content_type`, `size_bytes`, `original_name` (sem caminho), `created_at`                                             |
-| —                                 | `sha256` do conteúdo; `linked_at` = data da importação; `owner_account_id` = conta do cliente do ticket (obrigatório) |
-| —                                 | `purpose`: `foto_item` (fotos), `nota_xml` ou `declaracao` (documentos)                                               |
+| Origem                            | Destino                                                                                                                                  |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Chunks em ordem (`chunk_id`)      | Conteúdo gravado no disco em `storage_key` = `AAAAMM/<uuid>`                                                                             |
+| `type`, `size`, `name`, `created` | `content_type`, `size_bytes`, `original_name` (sem caminho), `created_at`                                                                |
+| —                                 | `sha256` do conteúdo; `created_at` e `linked_at` = data do equipamento ou do ticket; `owner_account_id` = conta do solicitante do ticket |
+| —                                 | `purpose`: `foto_item` (fotos), `nota_xml` ou `declaracao` (documentos)                                                                  |
 
-`content_type` aceita só JPEG, PNG, WebP, MP4, QuickTime, WebM, PDF e XML, reconhecidos pelo conteúdo (não pela extensão). Outro tipo vai para a lista de pendências.
+O tipo é reconhecido pelo conteúdo, não pela extensão, entre os aceitos na finalidade: fotos em JPEG, PNG ou WebP; nota em XML; declaração em PDF, JPEG ou PNG. Arquivo de outro tipo, vazio ou guardado fora do banco do legado (`bk` diferente de `D`) fica de fora, com aviso no relatório.
 
-Um arquivo do legado usado por vários equipamentos precisa de **uma cópia por uso**: aqui uma foto pertence a um item só. Arquivos repetidos dezenas de vezes costumam ser imagem padrão; vale conferir antes de copiar.
+Um arquivo do legado usado por vários equipamentos ganha **uma cópia por uso**: aqui uma foto pertence a um item só.
 
 ### Tickets: `ost_ticket` → `rmas`
 
@@ -88,7 +84,7 @@ Um arquivo do legado usado por vários equipamentos precisa de **uma cópia por 
 | `closed` (situação "Resolvido")         | `closed_at`                                                                                          |
 | `__cdata.subject` e campo `observacoes` | Primeira mensagem da conversa, do lado do cliente, na data de abertura                               |
 
-A situação do ticket (Solicitado, Enviado, Recebido, Resolvido) não é migrada como campo: aqui ela é a contagem das etapas dos itens (A5.1).
+A situação do ticket (Solicitado, Enviado, Recebido, Resolvido) não é migrada como campo: aqui ela é a contagem das etapas dos itens (A5.1). Só o estado `closed` (ou `archived`) encerra o chamado. A numeração nova segue a ordem de abertura no legado, a partir do #100001.
 
 ### Equipamentos: `ost_zk_equipment` → `rma_items`
 
@@ -112,25 +108,23 @@ A situação do ticket (Solicitado, Enviado, Recebido, Resolvido) não é migrad
 | `em_testes`          | `testes`               | `received_at`, `sla_started_at` e `sla_hours`                    |
 | `concluido`          | `finalizado`           | `received_at`, `sla_started_at`, `sla_hours` e `sla_finished_at` |
 
-As datas saem dos eventos do equipamento (`to_status = 'recebido'` para `received_at`, e assim por diante); sem evento, use `updated`. `sla_hours` recebe o `RMA_SLA_HOURS` atual.
+`received_at` sai do primeiro evento `recebido` e `sla_finished_at`, do primeiro `concluido`; sem evento, vale o `updated` do equipamento. O prazo começa no recebimento (`sla_started_at`), já que o legado não tinha a etapa de diagnóstico, e `sla_hours` recebe o `RMA_SLA_HOURS` atual. Situação desconhecida faz o ticket falhar no relatório, para o de-para ser revisto.
 
 A **pendência** do equipamento não tem campo: ela é recalculada pelos documentos do chamado. `nf_com_erro` vira o XML com `validation_status = 'com_divergencias'`; `sem_nf` vira o chamado sem documento; `envio_nao_informado` é a própria etapa `aguardando_envio`.
 
 ### Fotos: `ost_zk_equipment_file` → `rma_item_photos`
 
-`position` = `slot`, na ordem. O sistema aceita até 5 fotos por equipamento na abertura; acima disso, mantenha as 5 primeiras e registre o restante na lista de pendências.
+`position` segue o `slot`, na ordem. O sistema aceita até 5 fotos por equipamento: acima disso, entram as 5 primeiras e o restante fica de fora, com aviso no relatório.
 
 ### Documentos: `ost_zk_ticket_file` → `rma_documents` e `rma_invoices`
 
-| Origem                         | Destino                                                                                                                     |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| `kind = 'nf'` (arquivo XML)    | `rma_documents.kind = 'nota_xml'`, `rules_version = 'legado'`                                                               |
-| `errors` preenchido            | `validation_status = 'com_divergencias'` e `issues` = cada erro como `{ "rule": "legado", "message": …, "blocking": true }` |
-| `errors` vazio                 | `validation_status = 'valido'`                                                                                              |
-| `nf_numero`, `nf_razao_social` | `rma_invoices.number`, `issuer_name` (`issuer_document` = documento do cliente), `document_id` = o XML                      |
-| `kind = 'dc'`                  | `rma_documents.kind = 'declaracao'`                                                                                         |
+| Origem                      | Destino                                                                                                                                                                                                      |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `kind = 'nf'` (arquivo XML) | `rma_documents.kind = 'nota_xml'`, validado de novo pelas regras atuais (`validation_status`, `issues` e `rules_version` vigentes), inclusive o endereço da fábrica. O campo `errors` do legado não é usado. |
+| Dados da nota               | `rma_invoices`: número, emitente e documento lidos do XML; sem XML legível, `nf_numero` e `nf_razao_social` com o documento do cliente                                                                       |
+| `kind = 'dc'`               | `rma_documents.kind = 'declaracao'`                                                                                                                                                                          |
 
-Um RMA tem no máximo um documento de cada tipo: com mais de um, importe o mais recente. NF que não é XML (PDF ou imagem) não entra como `nota_xml`: registre só os dados da nota em `rma_invoices` (sem `document_id`).
+Um RMA tem no máximo um documento de cada tipo: com mais de um, entra o mais recente. NF que não é XML (PDF ou imagem) não entra como `nota_xml`: ficam só os dados da nota em `rma_invoices` (sem `document_id`), e o arquivo fica no backup do legado.
 
 Os primeiros tickets do legado foram abertos antes de a nota ser obrigatória e podem vir sem NF ou com dados inconsistentes. Eles são importados como estão, sem bloquear a migração. Quando a nota existe fora do sistema, a aplicação de migração pode anexá-la nesse momento: o XML entra como `nota_xml`, validado pelas regras atuais. Chamado encerrado nunca aparece como pendente; o que continuar aberto sem nota mostra **Documentação pendente** até alguém usar **Enviar documentação**.
 
@@ -145,17 +139,17 @@ Os primeiros tickets do legado foram abertos antes de a nota ser obrigatória e 
 
 ### Conversa: `ost_thread_entry` (thread do ticket) → `rma_messages` e `rma_internal_notes`
 
-| `type` | Destino                                                                                  |
-| ------ | ---------------------------------------------------------------------------------------- |
-| `M`    | `rma_messages`, `author_side = 'cliente'`, autor = conta do usuário                      |
-| `R`    | `rma_messages`, `author_side = 'equipe'`, autor = conta do agente                        |
-| `N`    | `rma_internal_notes`, `author_account_id` do agente (ou nulo) e `author_name` = `poster` |
+| `type` | Destino                                                                                                                  |
+| ------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `M`    | `rma_messages`, `author_side = 'cliente'`, autor = conta de quem escreveu, se for do mesmo cliente; senão, o solicitante |
+| `R`    | `rma_messages`, `author_side = 'equipe'`, autor = conta do agente; agente sem conta → nota interna com o nome dele       |
+| `N`    | `rma_internal_notes`, `author_account_id` do agente (ou nulo) e `author_name` = `poster`                                 |
 
-O corpo vem em HTML: converta para texto (quebras de linha preservadas, sem tags). `rma_messages.author_account_id` é obrigatório: mensagem de quem não tem conta usa a conta do solicitante (cliente) ou fica na lista de pendências (equipe). Anexos da conversa (`ost_attachment` tipo `H`) não têm destino nesta versão.
+O corpo em HTML vira texto, com as quebras de linha e sem tags. Mensagem acima de 2.000 caracteres vira mais de uma, sem perder nada. O assunto e as observações do ticket abrem a conversa como mensagem do cliente. Anexos da conversa (`ost_attachment` tipo `H`) ficam com o script à parte.
 
 ### Histórico
 
-`ost_zk_equipment_event` → `audit_events` com `action = 'rma.etapa_alterada'`, `entity_type = 'rma'`, `actor_account_id` = agente, `occurred_at` = `created` e `data` no mesmo formato da troca de etapa deste sistema, `{ "stage": <etapa nova>, "before": { "<id do item>": <etapa anterior> } }`, acrescido de `"legado": true` e da observação do evento (etapas já convertidas). `ost_thread_event` pode entrar como `action = 'legado.<evento>'`, só para consulta.
+`ost_zk_equipment_event` → `audit_events` com `action = 'rma.etapa_alterada'`, `entity_type = 'rma'`, `actor_account_id` = agente, `occurred_at` = `created` e `data` no mesmo formato da troca de etapa deste sistema, `{ "stage": <etapa nova>, "before": { "<id do item>": <etapa anterior> } }`, acrescido de `"legado": true` e da observação do evento (etapas já convertidas). Os eventos da conversa do osTicket (`ost_thread_event`) não entram.
 
 ## Cadastros que travam a importação
 
@@ -201,6 +195,46 @@ As planilhas têm dados reais de clientes: só o seu usuário consegue lê-las n
 | MariaDB instalado direto no servidor, sem contêiner | O script usa o root pelo socket. Se pedir senha, rode com `-u <usuário do banco>` e digite a senha quando pedida |
 | Banco com outro nome                                | Informe com `-b <nome do banco>`                                                                                 |
 
+## Rodar a importação
+
+O comando roda no contêiner da API, que já tem acesso ao PostgreSQL e ao volume dos arquivos. Ele precisa enxergar também o banco do legado (`LEGACY_DATABASE_URL`).
+
+| Opção                          | Para quê                                                                                                                               |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `--dry-run`                    | Ensaio: roda tudo e desfaz no fim. As restrições do banco são conferidas de verdade, nada fica gravado e a numeração volta ao #100001. |
+| `--staff-emails=<arquivo>`     | JSON `{ "<staff_id>": "<e-mail próprio>" }` dos agentes cujo cadastro traz a caixa do setor ou vem sem e-mail. Fica fora do git.       |
+| `--legacy-utc-offset=<±hh:mm>` | Fuso das datas gravadas no banco do legado (padrão `+00:00`).                                                                          |
+| `--report=<arquivo>`           | Relatório completo em JSON.                                                                                                            |
+
+O relatório mostra quanto entrou de cada assunto e as ocorrências, só com ids e números do legado: `ignorado` (ficou de fora por regra ou decisão), `aviso` (entrou com adaptação) e `falha` (o ticket foi desfeito e entra numa próxima execução). Rodar de novo só acrescenta o que faltou.
+
+**Fuso:** no ensaio, compare a data de abertura de um ticket na tela do legado com a mesma data na central. Se houver 3 horas de diferença, rode com `--legacy-utc-offset=-03:00`.
+
+### Ensaio na homologação
+
+Com o dump do legado (`banco.sql.gz`, gerado por `scripts/migracao/backup-legado.sh`) numa pasta fora do projeto, no Git Bash:
+
+```bash
+docker run -d --name legado-ensaio --network central-homologacao_default -e MARIADB_ROOT_PASSWORD=ensaio -e MARIADB_DATABASE=osticket mariadb:10.6
+gzip -dc banco.sql.gz | docker exec -i legado-ensaio mariadb -uroot -pensaio osticket
+npm run homolog -- down -v
+npm run homolog:up
+MSYS_NO_PATHCONV=1 npm run homolog -- run --rm -v "<pasta>/agentes.json:/tmp/agentes.json:ro" -e LEGACY_DATABASE_URL=mysql://root:ensaio@legado-ensaio:3306/osticket api node dist/legacy-import/scripts/import-legacy.js --dry-run --staff-emails=/tmp/agentes.json
+```
+
+Sem ocorrências inesperadas, repita sem `--dry-run` e confira pelo checklist [Depois da importação](#depois-da-importação). Ao terminar, `docker rm -f legado-ensaio`.
+
+### No servidor
+
+Na janela de troca ([deploy-servidor.md](deploy-servidor.md)), com a aplicação do legado parada e o banco dele no ar, `compose` sendo o comando do guia de deploy:
+
+```bash
+sudo docker network connect central-manutencao_interna <contêiner do banco do legado>
+compose run --rm -v <pasta>/agentes.json:/tmp/agentes.json:ro -e LEGACY_DATABASE_URL='mysql://<usuário>:<senha>@<contêiner do banco do legado>:3306/<banco>' api node dist/legacy-import/scripts/import-legacy.js --staff-emails=/tmp/agentes.json --dry-run
+```
+
+Usuário, senha e banco são os do `.env` do legado; caracteres especiais da senha vão codificados na URL (`#` → `%23`, `@` → `%40`). Confira o relatório, repita sem `--dry-run` e, no fim, `sudo docker network disconnect central-manutencao_interna <contêiner do banco do legado>`.
+
 ## Senhas
 
 - **bcrypt** (`$2a$`, `$2b$`, `$2y$`): importe o hash como está. O primeiro login confere com bcrypt, grava a senha com Argon2id e, se ela não atende à política atual (8 caracteres, maiúscula, número e especial), leva para a tela de troca obrigatória.
@@ -216,17 +250,20 @@ As planilhas têm dados reais de clientes: só o seu usuário consegue lê-las n
 | Assinatura, telefones e permissões dos agentes   | Sem uso; os papéis vêm de `isadmin`                |
 | Funções específicas do osTicket                  | Este sistema substitui o fluxo; só os dados migram |
 | Anexos da conversa                               | Recuperados por um script à parte                  |
+| Eventos da conversa (`ost_thread_event`)         | Controle interno do osTicket, sem uso aqui         |
 
-## Decisões (06/10/2026)
+## Decisões
 
-| Assunto                                   | Decisão                                                                                    |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Funções específicas do legado             | Não migram; só os dados                                                                    |
-| Prioridade baixa                          | Vira `normal`; o sistema segue com normal, alta e urgente                                  |
-| Tickets iniciais sem NF ou inconsistentes | Importados como estão; a nota guardada fora do sistema é anexada na migração quando houver |
-| E-mail dos agentes                        | Login com o e-mail próprio; avisos ao setor na caixa de `MAINTENANCE_INBOX_EMAIL`          |
-| Anexos da conversa                        | Recuperados por um script à parte, fora desta importação                                   |
-| Usuários sem CPF/CNPJ ou e-mail válido    | Não migram, nem os tickets deles; são cadastros fora de uso                                |
+| Assunto                                                              | Decisão                                                                                                     |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Funções específicas do legado                                        | Não migram; só os dados                                                                                     |
+| Prioridade baixa                                                     | Vira `normal`; o sistema segue com normal, alta e urgente                                                   |
+| Tickets iniciais sem NF ou inconsistentes                            | Importados como estão; a nota guardada fora do sistema é anexada na migração quando houver                  |
+| E-mail dos agentes                                                   | Login com o e-mail próprio; avisos ao setor na caixa de `MAINTENANCE_INBOX_EMAIL`                           |
+| Anexos da conversa                                                   | Recuperados por um script à parte, fora desta importação                                                    |
+| Usuários sem CPF/CNPJ ou e-mail válido                               | Não migram, nem os tickets deles; são cadastros fora de uso                                                 |
+| Conta compartilhada do setor (08/10/2026)                            | Entra desativada, só como autora das respostas antigas                                                      |
+| Cliente com CPF/CNPJ inválido, mesmo com ticket recente (08/10/2026) | Fica de fora com o ticket; se o dado chegar depois, uma nova execução contra o backup do legado traz só ele |
 
 ## Depois da importação
 

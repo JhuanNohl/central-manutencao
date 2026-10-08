@@ -19,9 +19,9 @@ As imagens saem de `docker/Dockerfile` (alvos `api` e `web`). A API roda sem roo
 1. **Configuração:** copie `docker/homologacao.env.example` para `docker/homologacao.env` (fora do git) e preencha:
    - `APP_HOST` e `HTTPS_PORT`: o IP da máquina na rede e a porta. O portal fica em `https://APP_HOST:HTTPS_PORT`, por exemplo `https://192.168.0.10:8443`. Computador e celular acessam pelo mesmo endereço, e a API recusa outras origens.
    - `POSTGRES_PASSWORD`: uma senha longa.
-   - `INVOICE_RECIPIENT_DOCUMENT`: o CNPJ da fábrica, destinatário das notas de remessa.
+   - `INVOICE_RECIPIENT_DOCUMENT` e `INVOICE_RECIPIENT_ADDRESS`: o CNPJ e o endereço da fábrica, destinatária das notas de remessa (o endereço no formato `logradouro; número; bairro; município; UF`).
    - `MAIL_FROM` e `MAINTENANCE_INBOX_EMAIL`.
-   - `TURNSTILE_SITE_KEY` e `TURNSTILE_SECRET_KEY`: chaves do Cloudflare Turnstile (anti-robô do login, do cadastro e da redefinição de senha). Na homologação valem as chaves de teste da Cloudflare, já no exemplo, que sempre aprovam. No servidor, crie um widget no painel da Cloudflare para o domínio e use as chaves dele; a chave secreta nunca vai para o navegador nem para o git.
+   - `TURNSTILE_SITE_KEY` e `TURNSTILE_SECRET_KEY`: chaves do Cloudflare Turnstile (anti-robô do cadastro e da redefinição de senha). Na homologação valem as chaves de teste da Cloudflare, já no exemplo, que sempre aprovam. No servidor, crie um widget no painel da Cloudflare para o domínio e use as chaves dele; a chave secreta nunca vai para o navegador nem para o git.
 2. **Termo de garantia:** `apps/api/legal/termo-garantia.json` precisa existir. Em produção, a API não sobe sem ele. O arquivo é montado no contêiner e não entra na imagem.
 3. **Marca:** com os arquivos em `apps/web/public/brand/`, o build da web usa a marca real, como no `npm run build`. As imagens ficam só nesta máquina: **não publique em registro público**.
 4. **Firewall:** para o celular acessar, libere a porta `8443` (TCP) na rede privada do Windows.
