@@ -28,3 +28,6 @@ docker/*.env
 # Planilhas da migração: têm dados reais de clientes
 scripts/migracao/*.csv
 migracao-legado/
+
+# Registro da troca do legado (scripts/deploy/trocar-legado.sh), só no servidor.
+/.troca-legado
