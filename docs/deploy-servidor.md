@@ -22,19 +22,39 @@ O Traefik cuida do certificado e repassa o IP do cliente. A Caddy só aceita ess
 
 ## O que vai para o servidor
 
-1. **O código:** clone do repositório numa pasta nova, com nome diferente da pasta do legado:
+O projeto vai como um pacote, gerado na máquina de desenvolvimento a partir da versão commitada:
 
-   ```bash
-   sudo git clone <url do repositório> <pasta da central>
-   ```
+```bash
+bash scripts/deploy/empacotar.sh
+```
 
-2. **O que fica fora do git**, copiado pela pasta Samba para os mesmos caminhos dentro da pasta da central:
+O pacote (`central-manutencao-<commit>.tar.gz`, na pasta acima do projeto) leva o código e o que fica fora do git e o servidor precisa. Não leva `node_modules`, builds, dados da homologação nem documentos internos: as imagens são construídas no próprio servidor.
 
-   | Arquivo                              | O que é                                                   |
-   | ------------------------------------ | --------------------------------------------------------- |
-   | `docker/producao.env`                | Configuração do servidor, com senhas e chaves             |
-   | `apps/api/legal/termo-garantia.json` | Texto do termo de garantia que o cliente aceita no portal |
-   | `apps/web/public/brand/`             | Logos da marca, usados no build do portal                 |
+| Fora do git, dentro do pacote        | O que é                                                   |
+| ------------------------------------ | --------------------------------------------------------- |
+| `docker/producao.env`                | Configuração do servidor, com senhas e chaves             |
+| `apps/api/legal/termo-garantia.json` | Texto do termo de garantia que o cliente aceita no portal |
+| `apps/web/public/brand/`             | Logos da marca, usados no build do portal                 |
+
+No servidor, extraia numa pasta nova, com nome diferente da pasta do legado, e apague o pacote, que tem senhas:
+
+```bash
+sudo mkdir <pasta da central>
+sudo tar -xzf central-manutencao-<commit>.tar.gz -C <pasta da central>
+rm central-manutencao-<commit>.tar.gz
+```
+
+### Convivência com o legado
+
+| Ponto            | Situação                                                                                                                                             |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Domínio          | O mesmo nos dois: por isso a aplicação do legado para antes da web nova subir ([Troca do sistema](#4-troca-do-sistema)).                             |
+| Rota no Traefik  | Nomes diferentes (`central-manutencao` e a do legado). Mesma entrada (`websecure`) e mesmo emissor (`le`): o certificado do domínio é reaproveitado. |
+| Portas           | A central não publica nenhuma porta no servidor: tudo passa pelo Traefik. Os PostgreSQL que já existem lá não são afetados.                          |
+| Nomes no Docker  | Projeto `central-manutencao`: contêineres, rede interna e volumes próprios, sem colidir com os do legado.                                            |
+| Cookie de sessão | `central_sid`, diferente do cookie do osTicket. Quem estiver logado no legado só precisa entrar de novo.                                             |
+| Turnstile        | As chaves do widget valem para o domínio, não para o sistema: as do legado servem para a central, sem gerar outras.                                  |
+| Links antigos    | Links do legado em e-mails já enviados (`/tickets.php?…`) caem na tela inicial da central.                                                           |
 
 ## 1. Configuração do Traefik
 
@@ -180,10 +200,15 @@ A configuração (`configuracao.tar.gz`) só é necessária num servidor novo: e
 
 ## Atualizar a aplicação
 
+Rode o backup antes. Gere um pacote novo (`bash scripts/deploy/empacotar.sh`), leve ao servidor e troque a pasta inteira: assim nenhum arquivo que saiu do projeto fica para trás e entra no build. Banco e arquivos não mudam, porque os volumes são do projeto `central-manutencao`, não da pasta.
+
 ```bash
+sudo mv <pasta da central> <pasta da central>.anterior
+sudo mkdir <pasta da central>
+sudo tar -xzf central-manutencao-<commit>.tar.gz -C <pasta da central>
+rm central-manutencao-<commit>.tar.gz
 cd <pasta da central>
-sudo git pull
 compose up -d --build --wait
 ```
 
-As migrations rodam sozinhas antes da API. Rode o backup antes de atualizar.
+As migrations rodam sozinhas antes da API. Conferido o funcionamento, apague a pasta anterior (`sudo rm -r <pasta da central>.anterior`).
