@@ -28,7 +28,7 @@ async function runImport(ctx: ImportContext): Promise<void> {
 }
 
 /**
- * Importa o sistema anterior na ordem do guia (docs/migracao-sistema-anterior.md):
+ * Importa o sistema anterior na ordem do guia (docs/5-homologacao-e-migracao/5.2-migracao-do-sistema-anterior.md):
  * equipe, clientes e chamados. Rodar de novo só acrescenta o que faltou.
  *
  * No ensaio (`dryRun`), tudo roda numa transação que é desfeita no fim: as

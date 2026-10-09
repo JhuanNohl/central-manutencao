@@ -1,6 +1,6 @@
 /**
  * Importa o sistema anterior (osTicket) para a Central de Manutenção.
- * Passo a passo e de-para em docs/migracao-sistema-anterior.md.
+ * Passo a passo e de-para em docs/5-homologacao-e-migracao/5.2-migracao-do-sistema-anterior.md.
  *
  * Uso (no contêiner da API, com acesso aos dois bancos):
  *   LEGACY_DATABASE_URL=mysql://usuario:senha@host:3306/osticket \

@@ -2,18 +2,18 @@
 
 Aplicação própria para o cliente solicitar manutenção e acompanhar cada equipamento até recebê-lo de volta, e para a equipe registrar o trabalho, controlar prazos e organizar recebimentos e devoluções parciais. O documento de escopo (Escopo 1.0) é mantido fora deste repositório; os identificadores citados no código e em `docs/` (D, RF, CA, P) referem-se a ele.
 
-**Situação:** entrega **E0 — Fundação** concluída ([docs/E0-fundacao.md](docs/E0-fundacao.md)). **E1** em andamento:
+**Situação:** em produção desde 08/10/2026, no lugar do sistema anterior (osTicket), com os dados dele importados. A documentação segue as etapas da construção ([docs/README.md](docs/README.md)):
 
-- visão de chamados do agente ([docs/E1-visao-do-agente.md](docs/E1-visao-do-agente.md));
-- abertura com fotos e XML, envio pelo cliente e recebimento parcial com início do prazo ([docs/E1-abertura-envio-recebimento.md](docs/E1-abertura-envio-recebimento.md));
-- perfis, operação do chamado pelo agente e conversa entre cliente e equipe ([docs/E1-perfis-e-conversa.md](docs/E1-perfis-e-conversa.md));
-- avisos por e-mail para cliente, setor e agente, e acesso ao portal com senha provisória ([docs/E1-avisos-por-email.md](docs/E1-avisos-por-email.md));
-- cadastro de cliente pela equipe, senha forte, máscaras e aceite do termo de garantia ([docs/E1-cadastro-senha-e-termo.md](docs/E1-cadastro-senha-e-termo.md));
-- homologação em contêineres ([docs/homologacao-docker.md](docs/homologacao-docker.md)) e revisão de segurança ([docs/seguranca.md](docs/seguranca.md));
-- preparação para a migração do sistema anterior ([docs/migracao-sistema-anterior.md](docs/migracao-sistema-anterior.md));
-- deploy no servidor, troca do sistema anterior e backups ([docs/deploy-servidor.md](docs/deploy-servidor.md)).
+| Etapa | Conteúdo |
+|---|---|
+| [0 — Fundação](docs/0-fundacao/0.1-fundacao.md) | Monorepo, identidade e acesso, clientes, permissões, histórico e avisos (E0) |
+| 1 — Abertura do chamado | [Visão do agente](docs/1-abertura-do-chamado/1.1-visao-do-agente.md), [abertura, envio e recebimento](docs/1-abertura-do-chamado/1.2-abertura-envio-e-recebimento.md) e [chamados de até 200 equipamentos](docs/1-abertura-do-chamado/1.3-chamados-grandes.md) |
+| 2 — Operação do chamado | [Perfis e conversa](docs/2-operacao-do-chamado/2.1-perfis-e-conversa.md), [fotos, vídeos e envio pelo celular](docs/2-operacao-do-chamado/2.2-fotos-videos-e-celular.md) e [fluxo de etapas](docs/2-operacao-do-chamado/2.3-fluxo-de-etapas.md) |
+| 3 — Comunicação e cadastro | [Avisos por e-mail](docs/3-comunicacao-e-cadastro/3.1-avisos-por-email.md) e [cadastro, senha e termo de garantia](docs/3-comunicacao-e-cadastro/3.2-cadastro-senha-e-termo.md) |
+| 4 — Segurança | [Revisão de segurança](docs/4-seguranca/4.1-revisao-de-seguranca.md) |
+| 5 — Homologação e migração | [Homologação em contêineres](docs/5-homologacao-e-migracao/5.1-homologacao-em-conteineres.md), [migração do sistema anterior](docs/5-homologacao-e-migracao/5.2-migracao-do-sistema-anterior.md) e [deploy e troca no servidor](docs/5-homologacao-e-migracao/5.3-deploy-e-troca-no-servidor.md) |
 
-A condução técnica (etapas, garantia, laudo e pausas) e as devoluções ainda não foram implementadas, então o ciclo completo de manutenção não está pronto para produção.
+Ficam para depois a edição da garantia, do laudo e da nota interna com histórico e aviso ao cliente (P09, entrega E2) e a pausa do prazo nas etapas de espera (P01).
 
 ## Estrutura
 
@@ -22,7 +22,7 @@ A condução técnica (etapas, garantia, laudo e pausas) e as devoluções ainda
 | `apps/api` | API NestJS 12 + Drizzle ORM + PostgreSQL (monólito modular) |
 | `apps/web` | SPA React 19 + Vite: portal do cliente e painel da equipe |
 | `packages/contracts` | Esquemas Zod, tipos e matriz de permissões compartilhados |
-| `docs/` | Decisões e pendências do escopo |
+| `docs/` | Decisões e entregas, por etapa (0 a 5) |
 | `docker-compose.yml` | PostgreSQL 18 (porta **5433**) e Mailpit (SMTP 1025, interface 8025) |
 
 ## Primeiros passos
@@ -93,7 +93,7 @@ O repositório traz um símbolo neutro. Para exibir a marca real, coloque os tr�
 | `npm run db:migrate` | Aplica as migrations |
 | `npm run db:seed -w @central/api -- --reset` | Apaga os dados e recria os sintéticos (nunca em produção) |
 | `npm run mail:test -w @central/api -- destino@exemplo.com` | Envia um e-mail de teste com a configuração SMTP atual |
-| `npm run homolog:up` | Sobe a homologação interna em contêineres, com as regras de produção ([docs/homologacao-docker.md](docs/homologacao-docker.md)) |
+| `npm run homolog:up` | Sobe a homologação interna em contêineres, com as regras de produção ([docs/5-homologacao-e-migracao/5.1-homologacao-em-conteineres.md](docs/5-homologacao-e-migracao/5.1-homologacao-em-conteineres.md)) |
 | `npm run admin:create -w @central/api -- --email … --name …` | Cria o primeiro administrador de um ambiente novo |
 
 ## Convenções

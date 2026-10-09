@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Troca do sistema anterior (osTicket) pela Central de Manutenção, no servidor,
-# na ordem de docs/deploy-servidor.md (seção 4). Pede confirmação antes de
+# na ordem de docs/5-homologacao-e-migracao/5.3-deploy-e-troca-no-servidor.md (seção 4). Pede confirmação antes de
 # cada passo que muda alguma coisa.
 #
 # Uso, no servidor, na pasta da central:
@@ -165,7 +165,7 @@ roll_back() {
   docker start "$app" >/dev/null
   rm -f "$STATE_FILE"
   echo 'Legado de volta no domínio. Banco e arquivos da central seguem guardados.'
-  echo 'Se o legado voltar a ser usado por dias, zere a central antes da próxima troca (docs/deploy-servidor.md).'
+  echo 'Se o legado voltar a ser usado por dias, zere a central antes da próxima troca (docs/5-homologacao-e-migracao/5.3-deploy-e-troca-no-servidor.md).'
 }
 
 prepare_central() {
@@ -229,7 +229,7 @@ swap() {
   echo
   echo 'Troca concluída. Próximos passos:'
   echo '  1. Abra o domínio e entre com uma conta de agente e uma de cliente.'
-  echo '  2. Ative o backup diário (docs/deploy-servidor.md, "Backup da central").'
+  echo '  2. Ative o backup diário (docs/5-homologacao-e-migracao/5.3-deploy-e-troca-no-servidor.md, "Backup da central").'
   echo '  3. Se algo der errado: sudo bash scripts/deploy/trocar-legado.sh -r'
 }
 

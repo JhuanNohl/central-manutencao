@@ -19,7 +19,7 @@ import type {
 } from './legacy-source.js';
 
 /**
- * Situação do equipamento no legado → etapa aqui (docs/migracao-sistema-anterior.md).
+ * Situação do equipamento no legado → etapa aqui (docs/5-homologacao-e-migracao/5.2-migracao-do-sistema-anterior.md).
  * O legado não tinha diagnóstico nem despacho separados.
  */
 const STAGE_BY_LEGACY_STATUS: Record<string, RmaItemStage> = {

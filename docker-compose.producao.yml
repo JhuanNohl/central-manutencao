@@ -1,5 +1,5 @@
 # Servidor: a aplicação atrás do Traefik, que recebe o HTTPS do domínio
-# público. Passo a passo em docs/deploy-servidor.md.
+# público. Passo a passo em docs/5-homologacao-e-migracao/5.3-deploy-e-troca-no-servidor.md.
 #   docker compose -f docker-compose.producao.yml --env-file docker/producao.env up -d --build --wait
 # Banco e API ficam só na rede interna; apenas a web entra na rede do Traefik.
 name: central-manutencao

@@ -2,7 +2,7 @@
 # Backup da Central de Manutenção no servidor (docker-compose.producao.yml):
 # banco, arquivos dos chamados (fotos, vídeos, XML e declarações) e a
 # configuração que fica fora do git. Apaga os backups mais antigos que a
-# retenção. Feito para rodar todo dia pelo cron (docs/deploy-servidor.md).
+# retenção. Feito para rodar todo dia pelo cron (docs/5-homologacao-e-migracao/5.3-deploy-e-troca-no-servidor.md).
 #
 # Uso, no servidor:
 #   sudo bash scripts/backup/backup-central.sh [-d destino] [-r dias]
@@ -10,7 +10,7 @@
 #   -d  destino (padrão: /var/backups/central-manutencao)
 #   -r  dias de retenção (padrão: 14)
 #
-# Restauração: docs/deploy-servidor.md, seção "Restaurar um backup".
+# Restauração: docs/5-homologacao-e-migracao/5.3-deploy-e-troca-no-servidor.md, seção "Restaurar um backup".
 set -euo pipefail
 
 readonly PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
